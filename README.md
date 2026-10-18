@@ -1,3 +1,5 @@
+![Solvia logo](assets/logo.webp)
+
 # Solvia
 
 > **DRAFT — PayPal AI Hackathon project, in preparation. Not yet submitted.**
