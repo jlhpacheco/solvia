@@ -48,6 +48,10 @@ Sponsors are used only where they do a real job in this app or its workflow. For
 
 **AI model choice: Microsoft Phi-4-mini — a U.S. (Microsoft) open model, MIT license, 2.5 GB, runs 100% locally on the student's own computer via Ollama. Country rule for this project: no China tools, models, or services, and no Russia tools, models, or services — anywhere in the stack; only those two are out. Qwen was evaluated and not used because Qwen is a China model. Because the model runs locally, student data never leaves the student's computer and is never used to train any model.**
 
+## Privacy — why our AI is built this way
+
+Privacy is *why* the AI runs the way it does. The Chancellor's Office guidance says student records are FERPA-protected and tells users to never allow model training on student data — so Solvia's U.S. model runs 100% on the student's own computer, and the data never leaves it. Full explanation, with the guidance linked: [docs/PRIVACY.md](docs/PRIVACY.md)
+
 ## Rules compliance — PayPal AI Hackathon
 
 - [x] Project **meaningfully uses both PayPal and AI** — PayPal is every money step; the AI does the asking, checking, and total.
