@@ -89,6 +89,13 @@ builder.Services.AddHttpClient<IPayPalService, PayPalService>((sp, client) =>
 builder.Services.AddScoped<PermitNumberService>();
 builder.Services.AddScoped<CheckoutService>();
 
+// Printable permit PDF (QuestPDF): the service reads the live
+// request (via IHttpContextAccessor) to build the public verify
+// URL printed on the permit — the same shape as the reference
+// app's receipt-PDF service.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<PermitPdfService>();
+
 // Payment-complete webhook (T7 — the Zapier seam): a typed HttpClient
 // for PaymentWebhookService. It POSTs one small JSON event when a
 // permit goes live, to the configured Webhook:Url only — empty URL

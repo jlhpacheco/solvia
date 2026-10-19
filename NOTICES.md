@@ -15,11 +15,26 @@ license and how it reaches the user.
   run Phi-4-mini. Ollama is optional — the app runs fully without it
   through the built-in fallback reader (see `docs/SPONSORS.md`).
 
-## App dependency (NuGet)
+## App dependencies (NuGet)
 
 - **Microsoft.EntityFrameworkCore.Sqlite 10.0.13** — MIT License.
-  The app's only NuGet package (`src/Solvia/Solvia.csproj`); the
-  database layer over SQLite.
+  A NuGet package (`src/Solvia/Solvia.csproj`); the database layer
+  over SQLite.
+- **QuestPDF 2026.2.4** — QuestPDF Community License. This is a
+  source-available commercial license — it is **NOT** MIT, NOT
+  Apache, and NOT an OSI-approved open-source license, and this
+  entry does not describe it as one. It is free for this project:
+  the Community License (v3.0, effective 2026-07-06) covers,
+  among others, open-source projects distributed under an
+  OSI-approved license (Solvia itself is MIT-licensed), individual
+  use, and learning and evaluation. Note the limit, stated
+  plainly: **public-sector entities and publicly traded companies
+  are NOT eligible for the Community License, regardless of
+  revenue** — an operator in one of those categories would need a
+  paid QuestPDF license. Terms:
+  https://www.questpdf.com/license/ (Community License +
+  License Selection Guide). QuestPDF renders the printable
+  permit PDF at runtime (`Services/PermitPdfService.cs`).
 
 ## Web libraries shipped in `src/Solvia/wwwroot/lib/`
 
@@ -41,7 +56,7 @@ Each library's own license file ships in-tree beside it.
 - **AG Grid Community 34.3.1** — MIT License (the `license` field of
   the `ag-grid-community@34.3.1` package metadata). Loaded from the
   official jsDelivr CDN in `src/Solvia/Views/Shared/_FeeTable.cshtml`
-  to render the 25-college fee table. If the CDN is unreachable, the
+  to render the 10-college fee table. If the CDN is unreachable, the
   fee table falls back to a built-in native renderer with the same
   data.
 
