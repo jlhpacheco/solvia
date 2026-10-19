@@ -1,6 +1,24 @@
-﻿@{
-    ViewData["Title"] = "Privacy Policy";
+@{
+    ViewData["Title"] = "Privacy";
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<div class="sv-card mt-4">
+    <h1>Privacy</h1>
+    <p class="fs-5">
+        Solvia is a demo built for the PayPal AI Hackathon. Every student in
+        it is fictional, every payment is PayPal sandbox test money, and no
+        real personal data is collected or stored.
+    </p>
+    <p class="fs-5">
+        The AI that reads a student's answers (Microsoft Phi-4-mini) runs
+        100% locally on the same computer via Ollama. Student answers never
+        leave the machine, are never sent to a cloud model, and are never
+        used to train any model — that is impossible by design, not just a
+        promise.
+    </p>
+    <p class="fs-5 mb-0">
+        The public permit check (<code>/verify</code>) shows only what a
+        parking officer needs — whether a permit number is valid — and
+        never another student's information.
+    </p>
+</div>

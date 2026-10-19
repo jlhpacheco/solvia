@@ -4,19 +4,19 @@ using Solvia.Models.Enums;
 namespace Solvia.Services;
 
 /// <summary>
-/// The deterministic extractor (BUILD-PLAN T3) — plain rules, no model,
-/// no network. It answers whenever Ollama is unreachable, times out, or
-/// returns output that fails validation, so the demo NEVER dies because
+/// The deterministic extractor — plain rules, no model, no network.
+/// It answers whenever Ollama is unreachable, times out, or returns
+/// an answer that fails validation, so the demo never dies because
 /// the AI is down. It also owns campus-name resolution, which the
-/// Ollama path uses to validate (and re-match) the model's college.
+/// Ollama path reuses to validate the model's claimed college.
 ///
 /// Honesty rules, shared with the AI path:
-/// - The campus must resolve against <see cref="IFeeCatalog"/>'s 10
-///   campuses. An ambiguous mention (e.g. "Valley", shared by
-///   Antelope Valley College and Diablo Valley College) resolves
-///   to null — never a guess.
-/// - Nothing about money is ever produced here; the result type carries
-///   no price at all.
+/// - A campus must resolve against <see cref="IFeeCatalog"/>'s 10
+///   campuses. An ambiguous mention ("Valley" is shared by Antelope
+///   Valley College and Diablo Valley College) resolves to null —
+///   never a guess.
+/// - Nothing about money is ever produced here; the result type
+///   carries no price at all.
 /// </summary>
 public sealed class FallbackExtractor
 {
@@ -34,18 +34,16 @@ public sealed class FallbackExtractor
 
         var campus = FindCampusMention(_catalog, text);
         var term = FindTerm(text);
-        var permitType = FindPermitType(text, term);
         var make = FindMake(text);
-        var color = FindColor(text);
 
         return new ExtractionResult
         {
             College = campus?.Campus,
-            PermitType = permitType,
+            PermitType = FindPermitType(text, term),
             Term = term,
             CarMake = make,
             CarModel = make is null ? null : FindModel(text, make),
-            CarColor = color,
+            CarColor = FindColor(text),
             Plate = FindPlate(text),
             CarState = FindState(text),
             Source = ExtractionSource.Fallback,
@@ -60,9 +58,9 @@ public sealed class FallbackExtractor
     /// Finds the one catalog campus a piece of text is talking about —
     /// a model's college string or a full student sentence alike.
     /// Passes, strongest first:
-    /// 1. the exact catalog name appears (case-insensitive);
-    /// 2. a campus whose significant name tokens ALL appear in the text
-    ///    (unique best by token count — ties mean ambiguity → null);
+    /// 1. the exact catalog name appears verbatim (case-insensitive);
+    /// 2. a campus whose significant name tokens ALL appear in the
+    ///    text (most tokens wins; a tie is ambiguity → null);
     /// 3. a distinctive token that belongs to exactly ONE campus.
     /// Returns null when nothing matches or the match is ambiguous.
     /// </summary>
@@ -86,8 +84,7 @@ public sealed class FallbackExtractor
 
         var textTokens = Tokenize(text);
 
-        // Pass 2: significant-token subset. A campus qualifies when every
-        // significant token of its name is present in the text.
+        // Pass 2: every significant token of the campus name present.
         var qualified = campuses
             .Select(c => (Campus: c, Tokens: SignificantTokens(c.Campus)))
             .Where(x => x.Tokens.Count > 0 && x.Tokens.IsSubsetOf(textTokens))
@@ -127,7 +124,7 @@ public sealed class FallbackExtractor
         return hits.Count == 1 ? hits[0] : null;
     }
 
-    /// <summary>Words of a name that actually identify it (not "College", "State", …).</summary>
+    /// <summary>Words of a campus name that identify it (not "College", "State", …).</summary>
     private static HashSet<string> SignificantTokens(string campusName)
     {
         var stopwords = new HashSet<string>(StringComparer.Ordinal)
@@ -189,6 +186,16 @@ public sealed class FallbackExtractor
     // ------------------------------------------------------------------
     // Vehicle: plate, make, model, color, state
     // ------------------------------------------------------------------
+    //
+    // Plate rules (proven in v1; the plate is the flow's gate field,
+    // so the reader is deliberately narrow but forgiving of spacing):
+    // 1. the word "plate"/"plates"/"license" followed within a few
+    //    characters by 4–12 alphanumerics — SPACES INSIDE THE PLATE
+    //    ARE ALLOWED AND THEN STRIPPED ("plate 8XYZ 123" → "8XYZ123");
+    // 2. failing that, the strict California pattern digit + three
+    //    letters + three digits ("8XYZ123") anywhere in the text.
+    // Whatever wins is normalized: upper case, separators removed,
+    // and it must end up 4–10 alphanumerics or it is not a plate.
 
     private static readonly Regex PlateAfterKeyword = new(
         @"\b(?:plate|plates|license)\b[^A-Za-z0-9]{0,12}([A-Za-z0-9][A-Za-z0-9\- ]{2,10}[A-Za-z0-9])",
@@ -215,8 +222,13 @@ public sealed class FallbackExtractor
     }
 
     /// <summary>Upper-cases and strips separators; sane plates are 4–10 alphanumerics.</summary>
-    private static string? NormalizePlate(string raw)
+    public static string? NormalizePlate(string? raw)
     {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
         var plate = Regex.Replace(raw.ToUpperInvariant(), @"[^A-Z0-9]", "");
         return plate.Length is >= 4 and <= 10 ? plate : null;
     }
@@ -313,7 +325,7 @@ public sealed class FallbackExtractor
 
     private static string? FindColor(string text)
     {
-        // Canonical names mirror the VehicleColor enum (T1).
+        // Canonical names mirror the VehicleColor enum.
         (string Word, string Canonical)[] colors =
         [
             ("black", "Black"), ("white", "White"), ("silver", "Silver"),

@@ -124,3 +124,200 @@ exactly as the README allows.
   SPONSORS.md the Zap is receipt email + ledger sheet. Owner: the
   docs/T7 track; T9 owns only the README run section,
   `.env.example`, and this log.
+
+---
+
+## REDO clean-install runs — Oct 18, 2026
+
+The T9 log above stands as the v1 record, unedited. Below is the REDO edition of this log in full: the independent clean-install runs against the rebuilt tree, including the late-evening re-check entry that closed the Step 5b failure (pristine copy, README steps only, no configuration knobs — app builds, boots, and walks Priya's free path to a VALID public verify).
+
+# CLEAN-INSTALL LOG — REDO edition
+
+**Checker:** R10 (independent; built nothing in this tree)
+**Date:** Oct 18, 2026 (evening, PDT)
+**Tree under test:** `solvia-redo/` as delivered by tracks R0–R9,
+copied pristine (no `bin/`, no `obj/`, no `*.db`) to
+`/tmp/r10-clean/` so nothing the builders left behind could help.
+**Machine:** this sandbox VM — .NET SDK 10.0.402
+(`~/workspace/dotnet10/dotnet`), **no PayPal keys in the
+environment, no Ollama running** (verified: `curl
+http://localhost:11434` → no answer).
+
+The steps followed are the README's own steps, word for word.
+
+---
+
+## Step 1–2 — SDK + code
+
+- `dotnet --version` → 10.0.402 ✔
+- Pristine copy in place of the clone; commands run from its root,
+  as the README directs.
+
+## Step 5a — Build: **PASS**
+
+```
+$ dotnet build src/Solvia.slnx
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+```
+
+## Step 5b — Run, exactly as the README writes it: **FAIL**
+
+```
+$ dotnet run --project src/Solvia
+...
+Unhandled exception. System.IO.FileNotFoundException: College fee data file not found: 'data/fees.csv'. Set FEES_CSV_PATH (or FeesCsvPath) to the repo's data/fees.csv.
+File name: 'data/fees.csv'
+   at Solvia.Services.FeeCatalogService..ctor(String csvPath) in src/Solvia/Services/FeeCatalogService.cs:line 40
+   at Program.<>c.<<Main>$>b__0_1(IServiceProvider sp) in src/Solvia/Program.cs:line 82
+```
+
+**What is wrong (checker's diagnosis, from the code):**
+`dotnet run --project src/Solvia` executes with the project folder
+as the working directory (proof: the run created its `solvia.db`
+at `src/Solvia/solvia.db`). The redo's `Program.cs` hands the
+configured `FeesCsvPath` — the relative string `data/fees.csv` —
+straight to `FeeCatalogService`, which resolves it against the
+working directory, so it looks for `src/Solvia/data/fees.csv` and
+the app dies before it ever listens. The frozen v1 tree anchored
+this path (`Path.Combine(builder.Environment.ContentRootPath,
+"..", "..", solvia.FeesCsvPath)` in its Program.cs); the redo
+dropped the anchor. The database connection string has the same
+relative-path shape, which is why the stray DB landed in the
+project folder.
+
+**Filed against:** R0 (Program.cs registration) / R1
+(FeeCatalogService). **The fix is theirs; the checker changed no
+app code.** One line of path anchoring restores v1's behavior.
+
+## Evidence run — same pristine copy, documented knob set
+
+So the rest of the verification could proceed, the identical copy
+was booted once more with the one documented configuration knob
+the app's own error message and `.env.example` name —
+`FEES_CSV_PATH=<absolute path to the copy's data/fees.csv>` —
+and nothing else different. The app booted, listened on
+http://localhost:5156, and stayed up for the whole walk. This run
+proves the application logic; it does **not** rescue the
+as-documented run above, which is the one a judge would hit.
+
+## Step 6 — Priya's free path, end to end: **PASS** (on the evidence run)
+
+Forms replayed from their own hidden antiforgery fields, cookie
+jar carried through; the verify step used a fresh request with
+**no cookies** (anonymous), as a member of the public would.
+
+| # | Step | Result |
+|---|---|---|
+| 1 | GET `/` | 200, demo switcher lists the six fictional people, Maria default |
+| 2 | POST `/Home/SwitchStudent` id=priya | 302 → `/` ✔ |
+| 3 | GET `/Permits/Apply` as Priya | 200 — **"Add a vehicle first"** card (she has no car yet) ✔ |
+| 4 | POST `/Vehicles/Create` (plate 9PRIYA1, CA, Honda, Civic via "Other — type it", Blue) | 302 → `/Vehicles`; Apply now lists the car as **"9PRIYA1 · CA · Honda Civic"** ✔ |
+| 5 | POST `/Permits/Apply` (Modesto Junior College / Columbia College / YCCD, Term permit, Fall, start = the form's own default date) | **302 → `/Permits/My`** — issued at the POST; the checkout page never rendered ✔ |
+| 6 | GET `/Permits/My` | 200 — tiles (Total permits / Paid / Pending payment), row shows **SOL-2026-584338**, **"Not Required"** spelled out, Receipt + Permit (PDF) actions ✔ |
+| 7 | GET `/Permits/Receipt/{id}` | 200 — permit number + public check link ✔ |
+| 8 | GET the check link `/verify?t=…` **anonymously** | 200 — **✔ VALID**, permit number, type, category (Student), privilege line ("Student/Public Parking Eligible"), payment word ("Not Required") ✔ |
+| 9 | GET `/api/verify?t=…` (JSON twin) | 200 — `{"found":true,"isValid":true,...,"plateState":"CA",...}` — same verdict and fields, plate itself never exposed ✔ |
+| 10 | GET `/Permits/PermitPdf/{id}` | 200 `application/pdf`, body starts `%PDF-` ✔ |
+| 11 | Database read-back | one row: YCCD · Category **Student** (snapshot) · PriceCents **0** · PaymentStatus **NotRequired** · ReceiptNumber **SOL-2026-584338** · Source **form** ✔ |
+
+No PayPal keys were set and none were needed; no Ollama was
+running and none was needed. Nothing was hand-inserted: every row
+came through the app's own forms and services.
+
+---
+
+## Verdict for this log
+
+- Build from a pristine copy, README only: **PASS (0/0)**.
+- Priya's YCCD free path to a VALID public verify, no keys, no
+  Ollama: **PASS** — on the evidence run described above.
+- Run from a pristine copy **exactly as the README writes it**:
+  **FAIL** — the app crashes on the un-anchored relative
+  `data/fees.csv` path before listening (verbatim exception
+  above). Per REDO-PLAN §4 step 2, a clean-install log must be
+  *clean* for the swap; this one is not. **The swap is blocked on
+  this item** until the owning track anchors the path and this
+  log's Step 5b is re-run green from a pristine copy.
+
+---
+
+## RE-CHECK RUN — Oct 18, 2026 (late evening, PDT) — Step 5b re-run green
+
+**Re-checker:** independent fresh eyes (not R10, not a builder;
+nothing fixed, no app or test code changed).
+**Tree under test:** a NEW pristine copy of `solvia-redo/`
+(source only — no `bin/`, no `obj/`, no `*.db`; 206 files) at
+`~/workspace/paypal-hackathon/recheck-scratch/`, on the home
+filesystem per the Lyceum `/tmp` tmpfs lesson. Copy deleted after
+the run.
+**Environment:** `FEES_CSV_PATH`, `FeesCsvPath`,
+`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PayPal__ClientId`,
+`PayPal__ClientSecret`, `PayPal__WebhookId`,
+`ConnectionStrings__SolviaDb`, `ASPNETCORE_URLS` — all
+explicitly **UNSET**. No PayPal keys, no Ollama. SDK 10.0.402,
+same machine as above. README steps followed word for word,
+from the copy's root.
+
+### Step 5a — Build: **PASS**
+
+```
+$ dotnet build src/Solvia.slnx
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+```
+
+### Step 5b — Run, exactly as the README writes it: **PASS**
+
+```
+$ dotnet run --project src/Solvia
+...
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5156
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+```
+
+No `FileNotFoundException` anywhere in the boot log — the
+Finding 1 crash does not reproduce. `GET /` → **200**, demo
+switcher listing the six fictional people. No configuration
+knob of any kind was set for this run: the anchored path finds
+the copy's own `data/fees.csv` on its own.
+
+### Step 6 — Priya's free path, end to end: **PASS** (on this knob-free run)
+
+Forms replayed from their own hidden antiforgery fields, cookie
+jar carried through; the verify step used a fresh request with
+**no cookies** (anonymous).
+
+| # | Step | Result |
+|---|---|---|
+| 1 | GET `/` | 200, demo switcher lists the six fictional people |
+| 2 | POST `/Home/SwitchStudent` id=priya (her own form) | ✔ current person = Priya |
+| 3 | GET `/Permits/Apply` as Priya | 200 — **"Add a vehicle first"** card ✔ |
+| 4 | POST `/Vehicles/Create` (plate 9RECHK1, CA, Honda, Civic via "Other — type it", Blue) | → `/Vehicles`; vehicle saved ✔ |
+| 5 | POST `/Permits/Apply` (Modesto Junior College / Columbia College / YCCD, Term permit, Fall, start = the form's own default date) | lands on **`/Permits/My`** — issued at the POST; no checkout rendered ✔ |
+| 6 | GET `/Permits/My` | permit **SOL-2026-885833**, **"Not Required"** spelled out ✔ |
+| 7 | GET `/Permits/Receipt/{id}` | 200 — carries the permit's public check link ✔ |
+| 8 | GET the check link `/verify?t=…` **anonymously** | 200 — **VALID** ✔ |
+
+### Supporting checks from the same re-check
+
+- `LICENSE` at the redo root — SHA-256
+  `2c73a01d6dfb115c5914c9d69611c7af18d2a6f73b575c7fb27fb53350182874`,
+  identical to the frozen tree's LICENSE.
+- `data/fees.csv` — SHA-256
+  `327aca14c33f99a1ffd412ccdbb8ec434b02c1cb440c17d2e5ce5edfabe5771c`,
+  unchanged.
+- Full suite on the final tree (re-checker's own run,
+  copied-folder xUnit console runner): **Total 180, Failed 0**.
+
+### Verdict for this log
+
+The Step 5b **FAIL** recorded above is **closed**: from a
+pristine copy, with the README's steps only and no knobs set,
+the app builds, boots, and walks Priya's free path to a VALID
+public verify. This log is now *clean*, and the clean-install
+gate no longer blocks the swap.

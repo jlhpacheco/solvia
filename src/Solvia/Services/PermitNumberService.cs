@@ -5,15 +5,17 @@ using Solvia.Data;
 namespace Solvia.Services;
 
 /// <summary>
-/// Issues the two identifiers a live permit carries (BUILD-PLAN T4):
-/// the receipt number — which IS the permit number the student shows on
-/// campus — and the unguessable verify token behind the public
-/// /verify?t= page (T5).
+/// Draws the two identifiers a live permit carries (REDO-PLAN
+/// item 34): the receipt number — which IS the permit number shown
+/// on campus and in the PDF — and the unguessable verify token
+/// behind the public /verify?t= page.
 ///
-/// Receipt numbers are uniqueness-checked against the database with
-/// retry, mirroring the reference app: a candidate that already exists
-/// is discarded and a new one drawn, so two permits can never share a
-/// number even before the unique index gets a say.
+/// Numbers are SOL-YYYY-NNNNNN and uniqueness-checked against the
+/// database with retry (≤10 draws): a candidate that already exists
+/// is discarded and a new one drawn, so two permits can never share
+/// a number even before the unique index gets a say. This service
+/// only DRAWS identifiers; stamping them onto an application is
+/// <see cref="IssuanceService"/>'s one job.
 /// </summary>
 public sealed class PermitNumberService
 {

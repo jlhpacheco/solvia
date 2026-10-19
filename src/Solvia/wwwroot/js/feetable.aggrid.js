@@ -1,4 +1,4 @@
-// AG Grid adapter (T6) — the ONLY AG Grid integration point in Solvia.
+// AG Grid adapter — the ONLY AG Grid integration point in Solvia.
 //
 // Edition: AG Grid Community (free edition, loaded from the official
 // jsDelivr CDN by _FeeTable.cshtml). Community needs no license key,

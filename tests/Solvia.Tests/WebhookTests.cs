@@ -1,6 +1,5 @@
 using System.Net;
-using System.Text.Json;
-using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -13,338 +12,530 @@ using Solvia.Services;
 namespace Solvia.Tests;
 
 /// <summary>
-/// T7 payment-complete webhook tests — fully OFFLINE. A fake
-/// <see cref="HttpMessageHandler"/> stands in for the Zapier Catch Hook
-/// endpoint and a stub <see cref="IPayPalService"/> plays the sandbox,
-/// so no real call leaves the test run.
-///
-/// What is proven here (docs/zapier-recipe.md describes the live Zap):
-/// - a COMPLETED capture that marks the permit Paid fires exactly one
-///   event carrying the permit facts — and no student PII;
-/// - a $0 FREE permit fires the event too (amount 0, no capture id);
-/// - a non-COMPLETED capture fires NOTHING;
-/// - an empty Webhook:Url disables the webhook (no call at all) while
-///   the payment still completes;
-/// - a webhook endpoint that throws or answers 500 can NEVER block or
-///   roll back the payment — the Paid state stands.
+/// R7 inbound-webhook tests (REDO-PLAN item 33 + the item-35
+/// outbound payload): signature truth is a stub
+/// <see cref="IPayPalService"/> (PayPal's verify call is R6's one
+/// talker; here the ANSWER is what matters), the outbound Zapier
+/// POST is captured by a stub handler, and every assertion reads
+/// the database back through a fresh context — saved truth, not
+/// tracked-entity hope.
 /// </summary>
-public sealed class WebhookTests : IDisposable
+public sealed class WebhookTests
 {
-    private const string HookUrl = "https://hooks.example.test/catch/1";
+    // ------------------------------------------------------- harness
 
-    private readonly SqliteConnection _connection;
-    private readonly DbContextOptions<SolviaDbContext> _options;
-
-    public WebhookTests()
+    /// <summary>The PayPal seam, answered by the test. Only signature verification is exercised.</summary>
+    private sealed class StubPayPal : IPayPalService
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
-        _options = new DbContextOptionsBuilder<SolviaDbContext>()
-            .UseSqlite(_connection)
-            .Options;
+        public bool VerifyResult = true;
+        public bool ThrowNotConfigured;
+        public int VerifyCalls;
 
-        using var db = new SolviaDbContext(_options);
-        db.Database.EnsureCreated();
-    }
+        public Task<string> GetAccessTokenAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult("test-token");
 
-    public void Dispose() => _connection.Dispose();
+        public Task<PayPalOrderResult> CreateOrderAsync(
+            int amountCents, string reference, string? returnUrl = null,
+            string? cancelUrl = null, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("The webhook path never creates orders.");
 
-    // ------------------------------------------------------------------
-    // The event fires — on Paid, and on free-issued
-    // ------------------------------------------------------------------
+        public Task<PayPalCaptureResult> CaptureOrderAsync(
+            string orderId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("The webhook path never captures directly.");
 
-    [Fact]
-    public async Task PaidCapture_FiresWebhookOnce_WithPermitFactsAndNoPii()
-    {
-        var hook = new FakeHookHandler();
-        var webhook = NewWebhook(hook, HookUrl);
-        var payPal = new StubPayPalService { CaptureStatus = "COMPLETED" };
-
-        Guid applicationId;
-        using (var db = NewDb())
+        public Task<bool> VerifyWebhookSignatureAsync(
+            string transmissionId, string transmissionTime, string transmissionSig,
+            string certUrl, string authAlgo, string webhookEventJson,
+            CancellationToken cancellationToken = default)
         {
-            applicationId = SeedApplication(db, priceCents: 3000, orderId: "ORDER-1");
-        }
+            VerifyCalls++;
+            if (ThrowNotConfigured)
+            {
+                throw new PayPalNotConfiguredException(
+                    "PayPal sandbox credentials are not configured — test stub.");
+            }
 
-        string? receiptNumber;
-        using (var db = NewDb())
-        {
-            var checkout = NewCheckoutService(db, payPal, webhook);
-            var result = await checkout.CaptureAsync(applicationId);
-            Assert.True(result.Completed);
-            receiptNumber = result.ReceiptNumber;
-        }
-
-        var body = Assert.Single(hook.Bodies);
-        using var json = JsonDocument.Parse(body);
-        var root = json.RootElement;
-        Assert.Equal(receiptNumber, root.GetProperty("permitNumber").GetString());
-        Assert.Equal("Fresno City College", root.GetProperty("campus").GetString());
-        Assert.Equal(3000, root.GetProperty("amountCents").GetInt32());
-        Assert.Equal("CAPTURE-1", root.GetProperty("paypalCaptureId").GetString());
-        Assert.Equal(JsonValueKind.String, root.GetProperty("paidAtUtc").ValueKind);
-        Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("paidAtUtc").GetString()));
-
-        // Permit facts only — no student name, email, or plate anywhere.
-        Assert.DoesNotContain("maria", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("8XYZ123", body);
-        Assert.DoesNotContain("@", body);
-    }
-
-    [Fact]
-    public async Task FreePermit_FiresWebhook_WithZeroAmountAndNoCaptureId()
-    {
-        var hook = new FakeHookHandler();
-        var webhook = NewWebhook(hook, HookUrl);
-        var payPal = new StubPayPalService();
-
-        Guid applicationId;
-        using (var db = NewDb())
-        {
-            applicationId = SeedApplication(db, priceCents: 0, orderId: null);
-        }
-
-        using (var db = NewDb())
-        {
-            var checkout = NewCheckoutService(db, payPal, webhook);
-            var result = await checkout.StartAsync(
-                applicationId, "https://localhost/return", "https://localhost/cancel");
-            Assert.Equal(CheckoutStartKind.FreePermitConfirmed, result.Kind);
-        }
-
-        var body = Assert.Single(hook.Bodies);
-        using var json = JsonDocument.Parse(body);
-        var root = json.RootElement;
-        Assert.False(string.IsNullOrWhiteSpace(
-            root.GetProperty("permitNumber").GetString()));
-        Assert.Equal(0, root.GetProperty("amountCents").GetInt32());
-        Assert.Equal(JsonValueKind.Null, root.GetProperty("paypalCaptureId").ValueKind);
-    }
-
-    // ------------------------------------------------------------------
-    // The event does NOT fire — failed capture, or webhook disabled
-    // ------------------------------------------------------------------
-
-    [Fact]
-    public async Task FailedCapture_FiresNoWebhook()
-    {
-        var hook = new FakeHookHandler();
-        var webhook = NewWebhook(hook, HookUrl);
-        var payPal = new StubPayPalService { CaptureStatus = "PENDING" };
-
-        Guid applicationId;
-        using (var db = NewDb())
-        {
-            applicationId = SeedApplication(db, priceCents: 3000, orderId: "ORDER-1");
-        }
-
-        using (var db = NewDb())
-        {
-            var checkout = NewCheckoutService(db, payPal, webhook);
-            var result = await checkout.CaptureAsync(applicationId);
-            Assert.False(result.Completed);
-        }
-
-        Assert.Empty(hook.Bodies);
-    }
-
-    [Fact]
-    public async Task EmptyWebhookUrl_DisablesEvent_AndPaymentStillCompletes()
-    {
-        var hook = new FakeHookHandler();
-        var webhook = NewWebhook(hook, url: "");
-        Assert.False(webhook.IsEnabled);
-        var payPal = new StubPayPalService { CaptureStatus = "COMPLETED" };
-
-        Guid applicationId;
-        using (var db = NewDb())
-        {
-            applicationId = SeedApplication(db, priceCents: 3000, orderId: "ORDER-1");
-        }
-
-        using (var db = NewDb())
-        {
-            var checkout = NewCheckoutService(db, payPal, webhook);
-            var result = await checkout.CaptureAsync(applicationId);
-            Assert.True(result.Completed);
-        }
-
-        Assert.Empty(hook.Bodies); // no URL configured → no call attempted
-
-        using (var db = NewDb())
-        {
-            var saved = await db.PermitApplications.SingleAsync(a => a.Id == applicationId);
-            Assert.Equal(PaymentStatus.Paid, saved.PaymentStatus);
+            return Task.FromResult(VerifyResult);
         }
     }
 
-    // ------------------------------------------------------------------
-    // The webhook can never hurt the payment
-    // ------------------------------------------------------------------
-
-    [Fact]
-    public async Task WebhookOutage_NeverBlocksOrRollsBackThePayment()
+    /// <summary>Captures every outbound webhook POST instead of sending it.</summary>
+    private sealed class CapturingHandler : HttpMessageHandler
     {
-        var hook = new FakeHookHandler { Throws = true };
-        var webhook = NewWebhook(hook, HookUrl);
-        var payPal = new StubPayPalService { CaptureStatus = "COMPLETED" };
+        public List<string> Bodies { get; } = [];
 
-        Guid applicationId;
-        using (var db = NewDb())
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            applicationId = SeedApplication(db, priceCents: 3000, orderId: "ORDER-1");
-        }
-
-        using (var db = NewDb())
-        {
-            var checkout = NewCheckoutService(db, payPal, webhook);
-            var result = await checkout.CaptureAsync(applicationId);
-            Assert.True(result.Completed); // the send blew up; capture still answered
-        }
-
-        using (var db = NewDb())
-        {
-            var saved = await db.PermitApplications.SingleAsync(a => a.Id == applicationId);
-            Assert.Equal(PaymentStatus.Paid, saved.PaymentStatus);
-            Assert.NotNull(saved.PaidAtUtc);
+            Bodies.Add(await request.Content!.ReadAsStringAsync(cancellationToken));
+            return new HttpResponseMessage(HttpStatusCode.OK);
         }
     }
 
-    [Fact]
-    public async Task WebhookServerError_NeverBlocksOrRollsBackThePayment()
+    private sealed record World(
+        SolviaDbContext Db,
+        Microsoft.Data.Sqlite.SqliteConnection Connection,
+        StubPayPal PayPal,
+        CapturingHandler Outbound,
+        PayPalWebhookHandler Handler,
+        PaymentWebhookService PaymentWebhook);
+
+    private static World NewWorld(string? publicBaseUrl = null)
     {
-        var hook = new FakeHookHandler { Status = HttpStatusCode.InternalServerError };
-        var webhook = NewWebhook(hook, HookUrl);
-        var payPal = new StubPayPalService { CaptureStatus = "COMPLETED" };
-
-        Guid applicationId;
-        using (var db = NewDb())
-        {
-            applicationId = SeedApplication(db, priceCents: 3000, orderId: "ORDER-1");
-        }
-
-        using (var db = NewDb())
-        {
-            var checkout = NewCheckoutService(db, payPal, webhook);
-            var result = await checkout.CaptureAsync(applicationId);
-            Assert.True(result.Completed);
-        }
-
-        Assert.Single(hook.Bodies); // the send WAS attempted…
-
-        using (var db = NewDb())
-        {
-            var saved = await db.PermitApplications.SingleAsync(a => a.Id == applicationId);
-            Assert.Equal(PaymentStatus.Paid, saved.PaymentStatus); // …and Paid stands
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
-
-    private SolviaDbContext NewDb() => new(_options);
-
-    private static PaymentWebhookService NewWebhook(FakeHookHandler handler, string url) =>
-        new(
-            new HttpClient(handler),
-            Options.Create(new WebhookOptions { Url = url }),
+        var (db, connection) = RedoTestDb.Create();
+        var payPal = new StubPayPal();
+        var issuance = new IssuanceService(new PermitNumberService(db));
+        var outbound = new CapturingHandler();
+        var paymentWebhook = new PaymentWebhookService(
+            new HttpClient(outbound),
+            Options.Create(new WebhookOptions
+            {
+                Url = "https://hooks.example.test/catch",
+                PublicBaseUrl = publicBaseUrl ?? "",
+            }),
             NullLogger<PaymentWebhookService>.Instance);
+        var handler = new PayPalWebhookHandler(
+            db, payPal, issuance, paymentWebhook,
+            NullLogger<PayPalWebhookHandler>.Instance);
+        return new World(db, connection, payPal, outbound, handler, paymentWebhook);
+    }
 
-    private static CheckoutService NewCheckoutService(
-        SolviaDbContext db, IPayPalService payPal, PaymentWebhookService webhook) =>
-        new(db, payPal, new PermitNumberService(db),
-            NullLogger<CheckoutService>.Instance, webhook);
-
-    /// <summary>
-    /// Seeds Maria's vehicle + one Pending application at Fresno City
-    /// College, optionally already carrying a PayPal order id.
-    /// </summary>
-    private static Guid SeedApplication(SolviaDbContext db, int priceCents, string? orderId)
+    private static Vehicle AddVehicle(
+        SolviaDbContext db, string studentId, string plate = "8XYZ123")
     {
         var vehicle = new Vehicle
         {
             Id = Guid.NewGuid(),
-            StudentId = "maria", // seeded fictional student
-            Plate = "8XYZ123",
+            StudentId = studentId,
+            Plate = plate,
             State = UsState.CA,
             Color = VehicleColor.Blue,
             Make = "Honda",
             Model = "Civic",
         };
         db.Vehicles.Add(vehicle);
+        db.SaveChanges();
+        return vehicle;
+    }
 
+    private static PermitApplication AddApplication(
+        SolviaDbContext db,
+        string studentId = "maria",
+        UserCategory category = UserCategory.Student,
+        int priceCents = 3000,
+        PaymentStatus payment = PaymentStatus.Pending,
+        string? captureId = null,
+        string? orderId = null)
+    {
+        var type = db.PermitTypes.Single(t => t.Code == PermitTypeCode.Term);
         var application = new PermitApplication
         {
             Id = Guid.NewGuid(),
-            StudentId = "maria",
+            StudentId = studentId,
             Campus = "Fresno City College",
-            VehicleId = vehicle.Id,
-            PermitTypeId = 2, // seeded Term type
+            Category = category,
+            VehicleId = AddVehicle(db, studentId).Id,
+            PermitTypeId = type.Id,
+            Term = TermKind.Fall,
+            Source = "form",
             StartDate = new DateOnly(2026, 8, 24),
-            EndDate = new DateOnly(2026, 12, 11),
+            EndDate = new DateOnly(2026, 12, 22),
             Status = ApplicationStatus.Pending,
             PriceCents = priceCents,
-            PaymentStatus = PaymentStatus.Pending,
+            PaymentStatus = payment,
             PayPalOrderId = orderId,
+            PayPalCaptureId = captureId,
             SubmittedAtUtc = DateTime.UtcNow,
+            ConcurrencyToken = Guid.NewGuid(),
         };
         db.PermitApplications.Add(application);
         db.SaveChanges();
-        return application.Id;
+        return application;
     }
 
-    /// <summary>An offline PayPal: capture answers the configured status.</summary>
-    private sealed class StubPayPalService : IPayPalService
+    private static async Task<PermitApplication> Reload(World w, Guid id) =>
+        await RedoTestDb.NewContext(w.Connection).PermitApplications
+            .SingleAsync(a => a.Id == id);
+
+    private static async Task<List<WebhookEventLog>> EventLogs(World w) =>
+        await RedoTestDb.NewContext(w.Connection).WebhookEventLogs
+            .OrderBy(l => l.ReceivedAtUtc).ToListAsync();
+
+    private static HeaderDictionary SignedHeaders() => new()
     {
-        public string CaptureStatus { get; set; } = "COMPLETED";
+        ["paypal-transmission-id"] = "transmission-1",
+        ["paypal-transmission-time"] = "2026-10-19T00:00:00Z",
+        ["paypal-transmission-sig"] = "test-signature",
+        ["paypal-cert-url"] = "https://api.sandbox.paypal.com/certs/test.pem",
+        ["paypal-auth-algo"] = "SHA256withRSA",
+    };
 
-        public Task<string> GetAccessTokenAsync(
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult("TEST-ACCESS-TOKEN");
+    private static string CaptureCompletedEvent(
+        string eventId, string captureId, string amountValue, string? orderId = null) =>
+        "{ \"id\": \"" + eventId + "\", " +
+        "\"event_type\": \"PAYMENT.CAPTURE.COMPLETED\", " +
+        "\"resource_type\": \"capture\", " +
+        "\"resource\": { \"id\": \"" + captureId + "\", \"status\": \"COMPLETED\", " +
+        "\"amount\": { \"value\": \"" + amountValue + "\", \"currency_code\": \"USD\" }" +
+        (orderId is null
+            ? ""
+            : ", \"supplementary_data\": { \"related_ids\": { \"order_id\": \"" +
+              orderId + "\" } }") +
+        " } }";
 
-        public Task<PayPalOrderResult> CreateOrderAsync(
-            int amountCents,
-            string reference,
-            string? returnUrl = null,
-            string? cancelUrl = null,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(new PayPalOrderResult(
-                "ORDER-1", "CREATED",
-                "https://www.sandbox.paypal.com/checkoutnow?token=ORDER-1"));
+    // ------------------------------------------------------- rejects
 
-        public Task<PayPalCaptureResult> CaptureOrderAsync(
-            string orderId,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(new PayPalCaptureResult(
-                CaptureStatus,
-                CaptureStatus == "COMPLETED" ? "CAPTURE-1" : null));
+    [Fact]
+    public async Task BadSignature_Returns401_NothingSaved()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, captureId: "CAP-1");
+        w.PayPal.VerifyResult = false;
+
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-1", "30.00"), SignedHeaders());
+
+        Assert.Equal(401, outcome.StatusCode);
+        Assert.Equal(PayPalWebhookHandler.OutcomeRejected, outcome.Outcome);
+        Assert.Empty(await EventLogs(w));
+        var saved = await Reload(w, app.Id);
+        Assert.Equal(PaymentStatus.Pending, saved.PaymentStatus);
+        Assert.Null(saved.ReceiptNumber);
     }
 
-    /// <summary>
-    /// An offline stand-in for the Zapier Catch Hook endpoint: records
-    /// every request body, and can be told to answer an error status or
-    /// to throw outright (a dead endpoint).
-    /// </summary>
-    private sealed class FakeHookHandler : HttpMessageHandler
+    [Fact]
+    public async Task NotConfigured_Returns401_NothingSaved()
     {
-        public List<string> Bodies { get; } = [];
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, captureId: "CAP-1");
+        w.PayPal.ThrowNotConfigured = true;
 
-        public HttpStatusCode Status { get; set; } = HttpStatusCode.OK;
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-1", "30.00"), SignedHeaders());
 
-        public bool Throws { get; set; }
+        Assert.Equal(401, outcome.StatusCode);
+        Assert.Empty(await EventLogs(w));
+        Assert.Equal(PaymentStatus.Pending, (await Reload(w, app.Id)).PaymentStatus);
+    }
 
-        protected override async Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken)
-        {
-            if (Throws)
-            {
-                throw new HttpRequestException("Simulated webhook endpoint outage.");
-            }
+    [Fact]
+    public async Task EmptyBody_Returns401()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
 
-            Bodies.Add(await request.Content!.ReadAsStringAsync(cancellationToken));
-            return new HttpResponseMessage(Status);
-        }
+        var outcome = await w.Handler.HandleAsync("  ", SignedHeaders());
+
+        Assert.Equal(401, outcome.StatusCode);
+        Assert.Equal(0, w.PayPal.VerifyCalls);
+        Assert.Empty(await EventLogs(w));
+    }
+
+    [Fact]
+    public async Task MissingSignatureHeaders_Returns401()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        AddApplication(w.Db, captureId: "CAP-1");
+
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-1", "30.00"), new HeaderDictionary());
+
+        Assert.Equal(401, outcome.StatusCode);
+        Assert.Empty(await EventLogs(w));
+    }
+
+    [Fact]
+    public async Task MissingEventId_Returns400()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+
+        var outcome = await w.Handler.HandleAsync(
+            "{ \"event_type\": \"PAYMENT.CAPTURE.COMPLETED\", \"resource\": { } }",
+            SignedHeaders());
+
+        Assert.Equal(400, outcome.StatusCode);
+        Assert.Empty(await EventLogs(w));
+    }
+
+    // --------------------------------------------------------- acting
+
+    [Fact]
+    public async Task CorrectEvent_OnUnpaidApplication_PaysAndIssues()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, captureId: "CAP-1");
+
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-1", "30.00"),
+            SignedHeaders(), "https://solvia.example.test");
+
+        Assert.Equal(200, outcome.StatusCode);
+        Assert.Equal(PayPalWebhookHandler.OutcomeActed, outcome.Outcome);
+        var saved = await Reload(w, app.Id);
+        Assert.Equal(PaymentStatus.Paid, saved.PaymentStatus);
+        Assert.NotNull(saved.PaidAtUtc);
+        Assert.NotNull(saved.ReceiptNumber);
+        Assert.NotNull(saved.VerifyToken);
+        Assert.NotNull(saved.ReceiptIssuedAtUtc);
+        var logs = await EventLogs(w);
+        var log = Assert.Single(logs);
+        Assert.Equal(PayPalWebhookHandler.OutcomeActed, log.Outcome);
+        Assert.NotNull(log.ProcessedAtUtc);
+        Assert.Single(w.Outbound.Bodies);
+    }
+
+    [Fact]
+    public async Task SameEventTwice_SecondDeliveryIsLoggedNoOp()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, captureId: "CAP-1");
+        var body = CaptureCompletedEvent("EVT-1", "CAP-1", "30.00");
+
+        var first = await w.Handler.HandleAsync(
+            body, SignedHeaders(), "https://solvia.example.test");
+        var receiptAfterFirst = (await Reload(w, app.Id)).ReceiptNumber;
+        var second = await w.Handler.HandleAsync(
+            body, SignedHeaders(), "https://solvia.example.test");
+
+        Assert.Equal(PayPalWebhookHandler.OutcomeActed, first.Outcome);
+        Assert.Equal(200, second.StatusCode);
+        Assert.Equal(PayPalWebhookHandler.OutcomeDuplicate, second.Outcome);
+        // One log row (the acted one), one issuance, one outbound send.
+        var log = Assert.Single(await EventLogs(w));
+        Assert.Equal(PayPalWebhookHandler.OutcomeActed, log.Outcome);
+        Assert.Equal(receiptAfterFirst, (await Reload(w, app.Id)).ReceiptNumber);
+        Assert.Single(w.Outbound.Bodies);
+    }
+
+    [Fact]
+    public async Task AmountMismatch_MarksFailed_NoIssuance()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, captureId: "CAP-1", priceCents: 3000);
+
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-1", "25.00"), SignedHeaders());
+
+        Assert.Equal(PayPalWebhookHandler.OutcomeFailed, outcome.Outcome);
+        var saved = await Reload(w, app.Id);
+        Assert.Equal(PaymentStatus.Failed, saved.PaymentStatus);
+        Assert.Null(saved.ReceiptNumber);
+        Assert.Null(saved.VerifyToken);
+        Assert.Null(saved.PaidAtUtc);
+        Assert.Empty(w.Outbound.Bodies);
+    }
+
+    [Fact]
+    public async Task EmployeeApplication_EventMarksFailed_NoIssuance()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(
+            w.Db, studentId: "elena", category: UserCategory.Employee,
+            captureId: "CAP-1");
+
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-1", "30.00"), SignedHeaders());
+
+        Assert.Equal(PayPalWebhookHandler.OutcomeFailed, outcome.Outcome);
+        var saved = await Reload(w, app.Id);
+        Assert.Equal(PaymentStatus.Failed, saved.PaymentStatus);
+        Assert.Null(saved.ReceiptNumber);
+    }
+
+    [Fact]
+    public async Task OtherEventType_LoggedAndIgnored()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, captureId: "CAP-1");
+
+        var outcome = await w.Handler.HandleAsync(
+            "{ \"id\": \"EVT-9\", \"event_type\": \"PAYMENT.CAPTURE.DENIED\", " +
+            "\"resource\": { \"id\": \"CAP-1\" } }",
+            SignedHeaders());
+
+        Assert.Equal(200, outcome.StatusCode);
+        Assert.Equal(PayPalWebhookHandler.OutcomeIgnored, outcome.Outcome);
+        Assert.Equal(PaymentStatus.Pending, (await Reload(w, app.Id)).PaymentStatus);
+        var log = Assert.Single(await EventLogs(w));
+        Assert.Equal(PayPalWebhookHandler.OutcomeIgnored, log.Outcome);
+        Assert.Empty(w.Outbound.Bodies);
+    }
+
+    [Fact]
+    public async Task UnknownCapture_LoggedUnmatched_NothingChanges()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, captureId: "CAP-1");
+
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-OTHER", "30.00"), SignedHeaders());
+
+        Assert.Equal(200, outcome.StatusCode);
+        Assert.Equal(PayPalWebhookHandler.OutcomeUnmatched, outcome.Outcome);
+        Assert.Equal(PaymentStatus.Pending, (await Reload(w, app.Id)).PaymentStatus);
+        Assert.Single(await EventLogs(w));
+    }
+
+    [Fact]
+    public async Task OrderIdFallback_FindsApplicationBeforeCaptureIdRecorded()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, orderId: "ORDER-9");
+
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-9", "30.00", orderId: "ORDER-9"),
+            SignedHeaders());
+
+        Assert.Equal(PayPalWebhookHandler.OutcomeActed, outcome.Outcome);
+        var saved = await Reload(w, app.Id);
+        Assert.Equal(PaymentStatus.Paid, saved.PaymentStatus);
+        Assert.Equal("CAP-9", saved.PayPalCaptureId);
+        Assert.NotNull(saved.ReceiptNumber);
+    }
+
+    [Fact]
+    public async Task AlreadyPaidApplication_WebhookIssuesIfAbsent()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, payment: PaymentStatus.Paid, captureId: "CAP-1");
+        app.PaidAtUtc = DateTime.UtcNow;
+        w.Db.SaveChanges();
+
+        var outcome = await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-1", "30.00"),
+            SignedHeaders(), "https://solvia.example.test");
+
+        Assert.Equal(PayPalWebhookHandler.OutcomeActed, outcome.Outcome);
+        var saved = await Reload(w, app.Id);
+        Assert.Equal(PaymentStatus.Paid, saved.PaymentStatus);
+        Assert.NotNull(saved.ReceiptNumber);
+        Assert.NotNull(saved.VerifyToken);
+        Assert.Single(w.Outbound.Bodies);
+    }
+
+    // ------------------------------------------------------- outbound
+
+    [Fact]
+    public async Task OutboundPayload_HasPermitFacts_AndNoStudentPii()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddApplication(w.Db, captureId: "CAP-1");
+
+        await w.Handler.HandleAsync(
+            CaptureCompletedEvent("EVT-1", "CAP-1", "30.00"),
+            SignedHeaders(), "https://solvia.example.test");
+
+        var saved = await Reload(w, app.Id);
+        var payload = Assert.Single(w.Outbound.Bodies);
+        Assert.Contains("\"permitNumber\":\"" + saved.ReceiptNumber + "\"", payload);
+        Assert.Contains(
+            "\"verifyUrl\":\"https://solvia.example.test/verify?t=" +
+            saved.VerifyToken + "\"", payload);
+        Assert.Contains("\"receiptIssuedAtUtc\":", payload);
+        Assert.Contains("\"campus\":\"Fresno City College\"", payload);
+        Assert.Contains("\"amountCents\":3000", payload);
+        // No student PII, ever: no name, no email, no plate.
+        Assert.DoesNotContain("Maria", payload);
+        Assert.DoesNotContain("student.example", payload);
+        Assert.DoesNotContain("8XYZ123", payload);
+        Assert.DoesNotContain("plate", payload, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ------------------------------------- verifyUrl origin fallback
+    // The checkout capture path (CheckoutService) has no HTTP
+    // request, so it calls NotifyPermitIssuedAsync with a null
+    // origin. Item 35 still wants the payload to carry the public
+    // verify link — the configured Webhook:PublicBaseUrl supplies
+    // the origin, an explicit caller origin beats it, and with
+    // neither the link is absent (never invented).
+
+    private static PermitApplication AddIssuedApplication(SolviaDbContext db)
+    {
+        var app = AddApplication(db, payment: PaymentStatus.Paid, captureId: "CAP-1");
+        app.ReceiptNumber = "SOL-2026-000001";
+        app.VerifyToken = "TOKEN-ABC";
+        app.PaidAtUtc = DateTime.UtcNow;
+        app.ReceiptIssuedAtUtc = DateTime.UtcNow;
+        db.SaveChanges();
+        return app;
+    }
+
+    [Fact]
+    public async Task OutboundVerifyUrl_FallsBackToConfiguredPublicBaseUrl()
+    {
+        var w = NewWorld(publicBaseUrl: "https://config.example.test");
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddIssuedApplication(w.Db);
+
+        // Capture-path shape: no caller origin at all.
+        await w.PaymentWebhook.NotifyPermitIssuedAsync(app, publicBaseUrl: null);
+
+        var payload = Assert.Single(w.Outbound.Bodies);
+        Assert.Contains(
+            "\"verifyUrl\":\"https://config.example.test/verify?t=TOKEN-ABC\"",
+            payload);
+    }
+
+    [Fact]
+    public async Task OutboundVerifyUrl_ExplicitOriginWinsOverConfigured()
+    {
+        var w = NewWorld(publicBaseUrl: "https://config.example.test");
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddIssuedApplication(w.Db);
+
+        // Handler-path shape: the caller's request origin is passed.
+        await w.PaymentWebhook.NotifyPermitIssuedAsync(
+            app, "https://explicit.example.test");
+
+        var payload = Assert.Single(w.Outbound.Bodies);
+        Assert.Contains(
+            "\"verifyUrl\":\"https://explicit.example.test/verify?t=TOKEN-ABC\"",
+            payload);
+        Assert.DoesNotContain("config.example.test", payload);
+    }
+
+    [Fact]
+    public async Task OutboundVerifyUrl_AbsentWhenNoOriginAnywhere()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = AddIssuedApplication(w.Db);
+
+        await w.PaymentWebhook.NotifyPermitIssuedAsync(app, publicBaseUrl: null);
+
+        var payload = Assert.Single(w.Outbound.Bodies);
+        Assert.Contains("\"verifyUrl\":null", payload);
+        Assert.DoesNotContain("/verify?t=", payload);
     }
 }

@@ -1,65 +1,69 @@
 @model Solvia.Models.ViewModels.ReceiptViewModel
 @{
     ViewData["Title"] = "Your permit";
+    string Date(System.DateOnly d) => d.ToString("MMM d, yyyy");
 }
 
 @if (Model.IsLive)
 {
-    <h1 class="display-4 fw-bold">Permit live &#10003;</h1>
+    <h1 class="display-4 fw-bold mt-4">Permit live &#10003;</h1>
 }
 else
 {
-    <h1 class="display-4 fw-bold">Not paid yet</h1>
-    <p class="fs-3">This permit is not live. It goes live only when a PayPal payment completes.</p>
-    <a class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3" href="/Checkout/@Model.Id">Finish paying</a>
+    <h1 class="display-4 fw-bold mt-4">Not paid yet</h1>
+    <p class="fs-4">This permit is not live. It goes live only when a PayPal payment completes.</p>
+    <a class="btn btn-primary sv-cta w-100 mb-3" href="/Checkout/@Model.Id">Finish paying</a>
 }
 
-<div class="receipt-card">
-<p class="fs-4 mb-1">Permit number</p>
-<p class="receipt-number">@(Model.ReceiptNumber ?? "—")</p>
+<div class="sv-card mt-3">
+    <p class="fs-4 mb-1">Permit number</p>
+    <p class="display-5 fw-bold">@(Model.ReceiptNumber ?? "—")</p>
 
-<dl class="fs-3">
-    <dt>College</dt>
-    <dd>@Model.College</dd>
+    <dl class="fs-4 mb-0">
+        <dt>College</dt>
+        <dd>@Model.College</dd>
 
-    <dt>Car</dt>
-    <dd>@Model.CarLine</dd>
+        <dt>Category</dt>
+        <dd>@Model.CategoryLabel</dd>
 
-    <dt>Permit</dt>
-    <dd>@Model.TypeName</dd>
+        <dt>Car</dt>
+        <dd>@Model.CarLine — plate @Model.PlateLine</dd>
 
-    <dt>Good for</dt>
-    <dd>@Model.StartDate.ToString("MMM d, yyyy") to @Model.EndDate.ToString("MMM d, yyyy")</dd>
+        <dt>Permit</dt>
+        <dd>@Model.TypeName</dd>
 
-    <dt>Total</dt>
-    <dd>@Model.TotalDisplay</dd>
-</dl>
+        <dt>Good for</dt>
+        <dd>@Date(Model.StartDate) to @Date(Model.EndDate)</dd>
 
-@if (Model.PayPalOrderId is not null || Model.PayPalCaptureId is not null)
-{
-    <div class="receipt-ids mt-3">
-        <p class="fs-5 fw-semibold mb-2">Paid with PayPal (sandbox)</p>
-        @if (Model.PayPalOrderId is not null)
-        {
-            <p class="mb-1">PayPal order ID<br /><code>@Model.PayPalOrderId</code></p>
-        }
-        @if (Model.PayPalCaptureId is not null)
-        {
-            <p class="mb-0">PayPal capture ID<br /><code>@Model.PayPalCaptureId</code></p>
-        }
-    </div>
-}
-@if (Model.IsFree)
-{
-    <p class="fs-4">Free at your college — no payment was needed.</p>
-}
+        <dt>Total</dt>
+        <dd>@Model.TotalDisplay</dd>
+    </dl>
 
-@if (Model.VerifyUrl is not null)
-{
-    <p class="fs-4 mt-4 mb-2">Anyone can check this permit:</p>
-    <a class="btn btn-primary btn-lg w-100 py-3 fs-4" href="@Model.VerifyUrl">Check this permit</a>
-    <p class="fs-6 text-muted text-break mt-2 mb-0">@Model.VerifyUrl</p>
-}
+    @if (Model.PayPalOrderId is not null || Model.PayPalCaptureId is not null)
+    {
+        <div class="mt-3">
+            <p class="fs-5 fw-semibold mb-2">Paid with PayPal (sandbox)</p>
+            @if (Model.PayPalOrderId is not null)
+            {
+                <p class="mb-1">PayPal order ID<br /><code>@Model.PayPalOrderId</code></p>
+            }
+            @if (Model.PayPalCaptureId is not null)
+            {
+                <p class="mb-0">PayPal capture ID<br /><code>@Model.PayPalCaptureId</code></p>
+            }
+        </div>
+    }
+    @if (Model.IsFree)
+    {
+        <p class="fs-4 mt-3 mb-0">Free at your college — no payment was needed.</p>
+    }
+
+    @if (Model.VerifyUrl is not null)
+    {
+        <p class="fs-4 mt-4 mb-2">Anyone can check this permit:</p>
+        <a class="btn btn-primary btn-lg w-100 py-3 fs-4" href="@Model.VerifyUrl">Check this permit</a>
+        <p class="fs-6 text-muted text-break mt-2 mb-0">@Model.VerifyUrl</p>
+    }
 </div>
 
 @if (Model.IsLive)

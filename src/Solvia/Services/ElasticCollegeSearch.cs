@@ -6,7 +6,7 @@ using Solvia.Config;
 namespace Solvia.Services;
 
 /// <summary>
-/// The Elastic college search (BUILD-PLAN T8, stretch): the same
+/// The Elastic college search (REDO-PLAN §2e, R8): the same
 /// <see cref="ICollegeSearch"/> contract served by a local
 /// Elasticsearch <c>colleges</c> index — one index over the 10
 /// campuses, hybrid keyword <c>multi_match</c> over the campus name
@@ -23,7 +23,7 @@ namespace Solvia.Services;
 ///   invent or drift a fee.
 /// - ANY failure — node down, timeout, non-2xx, malformed reply —
 ///   falls back to <see cref="BuiltinCollegeSearch"/> and the result
-///   says ServedBy "builtin". The pick screen never dies because a
+///   says ServedBy "builtin". The search page never dies because a
 ///   search server is down, and never pretends Elastic answered
 ///   when it didn't.
 /// - Selected only when config <c>Search:Provider</c> is "elastic";

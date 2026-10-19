@@ -4,7 +4,7 @@
 
 > **DRAFT — PayPal AI Hackathon project, in preparation. Not yet submitted.**
 
-**Solvia** — a simple AI helper that lets a college student pay what is due for her vehicle permit, fast, with PayPal.
+**Solvia** — a simple helper that lets a college student pay what is due for her vehicle permit, fast, with PayPal.
 
 ## The name
 
@@ -19,14 +19,16 @@ Together: *pay what is due for the vehicle on the road.*
 
 Maria is a fictional student. It is her first day.
 
-1. Maria picks her college.
-2. The AI asks three questions only: **School? Car? Term?**
-3. The AI shows the **exact total first**, taken from a real fee table (see `data/fees.csv` — 10 campuses, every one publishing its student semester price, from the 2026-10-18 scan of 25 mycampuspermit.com pages; only the 10 with a published price ship, and no price is ever guessed).
-4. Maria approves the total.
-5. **PayPal Sandbox pays.** Test money only — no real money, no real student data.
-6. Maria gets a receipt. Her permit is live. She can park.
+1. Maria opens Solvia and picks how to start:
+   - **Ask Solvia (the AI door):** the AI asks three questions only: **School? Car? Term?**
+   - **The classic form:** pick campus, car, permit type, and start date — the same shape colleges already use.
+2. Both doors build the **same application** through the same brain, and both show the **exact total first**, taken from a real fee table (see `data/fees.csv` — 10 campuses, every one publishing its student semester price, from the 2026-10-18 scan of 25 mycampuspermit.com pages; only the 10 with a published price ship, and no price is ever guessed).
+3. Maria approves the total.
+4. **PayPal Sandbox pays.** Test money only — no real money, no real student data.
+5. Maria gets a receipt with the PayPal transaction ID. Her permit is live, with a downloadable PDF. She can park.
+6. Anyone can check the permit, no login, at its public link (`/verify?t=…`). The college sees a roster: who paid, who didn't.
 
-No long form. No line. No price surprise at the end.
+Two more fictional people show the edges honestly: **Elena** is a college employee — employees are exempt, so her permit is issued free at Apply and she never sees a checkout page. **Pat** is a member of the public and pays the published fee like a student.
 
 Full flow: [docs/USE-CASE.md](docs/USE-CASE.md)
 
@@ -34,10 +36,10 @@ Full flow: [docs/USE-CASE.md](docs/USE-CASE.md)
 
 | Part | Tool |
 |---|---|
-| Payments (central) | PayPal Sandbox — Orders API (create order → student approves → capture), called directly over HTTPS from the app |
-| AI (central) | **Phi-4-mini** — a simple open model, run locally via **Ollama** (MIT-licensed model; structured JSON extraction of school / car / term) |
-| Fee table | **AG Grid Community edition** (free, sponsor) — the 10-college fee table |
-| College search | Built-in deterministic search ships by default; an **Elastic** (sponsor) provider sits behind the same config seam — ELSER did not run and is not claimed — see [docs/SPONSORS.md](docs/SPONSORS.md) |
+| Payments (central) | PayPal Sandbox — Orders API (create order → student approves → capture), called directly over HTTPS from the app; a signature-verified PayPal webhook is the second road to the same truth. Paid lands only from a COMPLETED capture — never from a return page |
+| AI (central) | **Phi-4-mini** — a simple open model, run locally via **Ollama** (MIT-licensed model; structured extraction of school / car / term — the extraction has no price field, so the fee table, never the model, sets the price) |
+| Fee table | **AG Grid Community edition** (free, sponsor) — the 10-college fee table, with a built-in table renderer behind the same seam showing identical values |
+| College search | Built-in deterministic search ships by default; an **Elastic** (sponsor) provider sits behind the same config seam — the live Elastic node was not run for this build and ELSER is not claimed — see [docs/SPONSORS.md](docs/SPONSORS.md) |
 | Term calendar | Native calendar list (built-in) — term start, permit end, renewal date. Bryntum is **not** used: it has no free edition, and its 45-day trial would expire during judging — see [docs/SPONSORS.md](docs/SPONSORS.md) |
 | Hosted copy | **Render** (sponsor) — **planned, not yet deployed.** There is no hosted URL yet; judges run it locally with the steps below |
 | Workflow sponsors | **APIMatic** (context document for Solvia's own API — [docs/apimatic-context.md](docs/apimatic-context.md)), **Postman** (sandbox flow collection — saved in [postman/](postman/)), **Zapier** (payment-complete webhook in the app → receipt email + ledger sheet; the live Zap is created in your own Zapier account — [docs/zapier-recipe.md](docs/zapier-recipe.md)), **KERNEL** (fee-refresh job — [tools/fee-refresh/](tools/fee-refresh/); the portable script ships, KERNEL is its production runner in the plan) |
@@ -56,10 +58,10 @@ Privacy is *why* the AI runs the way it does. The Chancellor's Office guidance s
 
 - [x] Project **meaningfully uses both PayPal and AI** — PayPal is every money step; the AI does the asking, checking, and total.
 - [x] **PayPal Sandbox only** — fictitious test accounts, mock transactions, no real money, no real student data (Maria is fictional).
-- [x] **Working prototype** — judges can run it locally from the steps below, and a hosted copy is planned on Render.
-- [x] **Public repository with an open-source license** — this repo is public, [MIT License](LICENSE) at the top level.
+- [x] **Working prototype** — judges can run it locally from the steps below; a hosted copy is planned on Render (not yet deployed).
+- [x] **Public repository with an open-source license** — this repo is public, MIT License at the top level.
 - [x] **Tools are listed and explained** — see the table above.
-- [x] **New project** — new name, new repo, built during the hackathon submission period (Oct 1 – Nov 12, 2026). Structural reference only was taken from the author's earlier private permit app; this repo is permit-only and does not copy its code or secrets.
+- [x] **New project** — new name, new repo, built during the hackathon submission period (Oct 1 – Nov 12, 2026). Solvia's permit core follows the design of the author's own earlier permit application, CarPermitApp; the code here is fresh, and no code, config values, or secrets were copied from it.
 - [ ] Demo video: under 3 minutes, public on YouTube, showing the app working end to end — **to be recorded**.
 - [ ] Submission text in English — this README and the Devpost text.
 - [ ] Demo stays free for judges to test through the judging period (Dec 1–15, 2026).
@@ -69,8 +71,8 @@ Deadline: **Nov 12, 2026, 12:00 PM Pacific Time.**
 ## Run it locally
 
 You need one thing installed first. Everything else is optional.
-These steps were executed word-for-word from a fresh clone — see
-[docs/CLEAN-INSTALL-LOG.md](docs/CLEAN-INSTALL-LOG.md).
+These steps are what the checker executed from a pristine copy;
+that run is recorded in [docs/CLEAN-INSTALL-LOG.md](docs/CLEAN-INSTALL-LOG.md).
 
 ### Step 1 — Install the .NET 10 SDK (the only requirement)
 
@@ -90,6 +92,9 @@ You should see a version starting with `10.`
 git clone https://github.com/jlhpacheco/solvia.git
 cd solvia
 ```
+
+Run every later command from this folder (the repo root) — the app
+finds its fee table at `data/fees.csv` relative to it.
 
 ### Step 3 — (Optional) Add your free PayPal Sandbox keys
 
@@ -145,7 +150,9 @@ Solvia's AI runs 100% on your own computer. To use the real model:
 **You can skip this step.** If Ollama is not running, Solvia uses a
 built-in fallback reader that understands the same answers
 (school / car / term) with simple rules — the demo never dies
-because the AI is off, and the screens work the same either way.
+because the AI is off, the screens work the same either way, and
+every answer is labeled honestly with which reader produced it
+(`ollama` or `fallback`).
 
 ### Step 5 — Build and run
 
@@ -162,22 +169,32 @@ Open the address the app prints — **http://localhost:5156**:
 
 | Page | What it is |
 |---|---|
-| http://localhost:5156/ | Home — pick which fictional student you are (Maria is the default) |
-| http://localhost:5156/Permits/Apply | The student flow: pick your college |
+| http://localhost:5156/ | Home — pick which fictional person you are (Maria is the default) |
+| http://localhost:5156/Permits/Ask | The AI door: three questions (school / car / term) |
+| http://localhost:5156/Permits/Apply | The classic form door: campus, your car, permit type, start date |
+| http://localhost:5156/Permits/My | My Permits — your applications, receipts, and permit PDFs |
+| http://localhost:5156/Vehicles | Your vehicle garage — add / edit your cars |
 | http://localhost:5156/College/Fees | The 10-college fee table (AG Grid Community) |
 | http://localhost:5156/College/Dates | Term dates — term start, permit end, renewal date |
 | http://localhost:5156/College/Roster | The college side: who paid, who hasn't |
-| The receipt page at the end of the flow | Your permit number, plus a public check link (`/verify?t=…`) anyone can open |
+| The check link on any receipt (`/verify?t=…`) | Anonymous public permit check — answers VALID or not |
 
 ### Step 6 — Try the free path (no keys, no Ollama needed)
 
-1. On the home page, switch the student to **Priya**.
-2. Open **Apply** and pick **Modesto Junior College / Columbia
-   College / YCCD** — permits there are FREE.
-3. Answer the 3 questions (your car in your own words, Term permit,
-   Fall), review the total — **$0 — FREE** — and confirm.
-4. Your permit is live. The receipt shows a check link; open it
-   and it answers **VALID**.
+1. On the home page, switch the person to **Priya**.
+2. Open **Apply**. Priya has no car yet, so Solvia first shows an
+   "Add a vehicle first" card — add any car (plate, state, make,
+   model, color).
+3. Back on **Apply**, pick **Modesto Junior College / Columbia
+   College / YCCD** — permits there are FREE — permit type
+   **Term permit**, any start date inside the term, and submit.
+4. A $0 permit is issued on the spot: no checkout page, no PayPal.
+   You land on **My Permits** with a permit number.
+5. Open the permit's check link — it answers **VALID**, no login.
+
+Try **Elena** the same way at any campus: she is an employee, so
+her permit is issued free at Apply at every college, and her PDF
+says **EXEMPT (Employee)**.
 
 ## Why PayPal
 
@@ -193,8 +210,10 @@ Thank you, PayPal. Built with PayPal, in San Jose.
 
 ## Data note
 
-`data/fees.csv` is research data scanned 2026-10-18 from the public pages of mycampuspermit.com (Parking Management Bureau), the incumbent permit store for these campuses. The shipped table holds exactly the 10 campuses that published a student semester price in that scan of 25 PMB pages; the other 15 published none and are not in the app. Every shipped row has a price (FREE is a price) — we never filled a price in. See the research aggregate for counts and method.
+`data/fees.csv` is research data scanned 2026-10-18 from the public pages of mycampuspermit.com (Parking Management Bureau), the incumbent permit store for these campuses. The shipped table holds exactly the 10 campuses that published a student semester price in that scan of 25 PMB pages; the other 15 published none and are not in the app. Every shipped row has a price (FREE is a price) — we never filled a price in.
 
 ## License
 
 MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Jose Luis Pacheco.
+
+Third-party components and their licenses: [NOTICES.md](NOTICES.md).

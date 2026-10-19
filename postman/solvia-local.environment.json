@@ -1,1 +1,37 @@
-{"_postman_variable_scope":"environment","id":"501v1a00-3nv1-4000-8000-501v1a000001","name":"Solvia local — sandbox app","values":[{"enabled":true,"key":"baseUrl","type":"default","value":"http://localhost:5156"},{"enabled":true,"key":"permitApplicationId","type":"default","value":""},{"enabled":true,"key":"paypalOrderId","type":"default","value":""},{"enabled":true,"key":"verifyToken","type":"default","value":""}]}
+{
+  "_postman_variable_scope": "environment",
+  "id": "eb722b7c-cfab-4297-8ca1-bc635090c080",
+  "name": "Solvia local \u2014 sandbox app",
+  "values": [
+    {
+      "enabled": true,
+      "key": "baseUrl",
+      "type": "default",
+      "value": "http://localhost:5156"
+    },
+    {
+      "enabled": true,
+      "key": "permitApplicationId",
+      "type": "default",
+      "value": ""
+    },
+    {
+      "enabled": true,
+      "key": "paypalOrderId",
+      "type": "default",
+      "value": ""
+    },
+    {
+      "enabled": true,
+      "key": "verifyToken",
+      "type": "default",
+      "value": ""
+    },
+    {
+      "enabled": true,
+      "key": "antiforgeryToken",
+      "type": "default",
+      "value": ""
+    }
+  ]
+}

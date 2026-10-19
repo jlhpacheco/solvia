@@ -5,30 +5,37 @@ namespace Solvia.Services;
 /// <summary>Which path produced an <see cref="ExtractionResult"/>.</summary>
 public enum ExtractionSource
 {
-    /// <summary>The local AI model (Phi-4-mini via Ollama) answered and
-    /// its answer passed validation against the fee catalog.</summary>
+    /// <summary>
+    /// The local AI model (Microsoft Phi-4-mini via Ollama) answered,
+    /// and its answer passed validation against the fee catalog.
+    /// Serialized on the wire as "ollama".
+    /// </summary>
     Ollama,
 
-    /// <summary>The deterministic rule-based extractor answered —
-    /// because Ollama was unreachable, timed out, or its answer failed
-    /// validation. The demo never dies because the model is down.</summary>
+    /// <summary>
+    /// The deterministic rule-based extractor answered — because
+    /// Ollama was unreachable, timed out, or returned an answer that
+    /// failed validation. Serialized on the wire as "fallback".
+    /// </summary>
     Fallback,
 }
 
 /// <summary>
-/// The validated permit draft extracted from a student's plain-words
-/// answers (BUILD-PLAN §2 contract, owned by T3). This is the ONLY thing
-/// the AI is allowed to produce:
+/// A permit draft read out of a student's own words — the ONLY thing
+/// the extraction layer is allowed to produce (REDO-PLAN §3 R3).
 ///
-/// - <see cref="College"/> is the catalog's canonical campus name,
-///   resolved against <see cref="IFeeCatalog"/> — the extractor can
-///   never return a campus the catalog does not know.
-/// - There is deliberately NO price field on this type, and none can be
-///   added by the model: the AI never sets the price. The price always
-///   comes from <see cref="IFeeCatalog"/> later, from the campus's real
+/// Two construction guarantees:
+/// - <see cref="College"/> is always the fee catalog's canonical
+///   campus name, resolved against <see cref="IFeeCatalog"/>. Neither
+///   the model nor the rules can name a campus the catalog does not
+///   know: an unresolvable college voids the model answer outright.
+/// - There is NO price member on this type — not hidden, not
+///   nullable, absent. The AI can never set a price; pricing reads
+///   <see cref="IFeeCatalog"/> later, from the campus's real
 ///   published fee row.
-/// - Missing information stays null; the flow asks only for what is
-///   missing (school / car / term — 3 questions max).
+///
+/// Anything the student did not state stays null; the flow asks only
+/// for what is missing (school / car / term — three questions max).
 /// </summary>
 public sealed record ExtractionResult
 {
@@ -48,7 +55,7 @@ public sealed record ExtractionResult
     /// <summary>Canonical color name (e.g. "Blue") when recognized.</summary>
     public string? CarColor { get; init; }
 
-    /// <summary>Plate as typed, normalized to upper case without spaces.</summary>
+    /// <summary>Plate as typed, normalized to upper case, separators stripped.</summary>
     public string? Plate { get; init; }
 
     /// <summary>Two-letter plate state (e.g. "CA"), or null.</summary>
@@ -59,17 +66,16 @@ public sealed record ExtractionResult
 }
 
 /// <summary>
-/// Turns a student's plain answers into a validated
-/// <see cref="ExtractionResult"/>. The primary implementation asks the
-/// local AI model (Microsoft Phi-4-mini via Ollama — 100% on the
-/// student's own computer, so student data never leaves the machine);
-/// ANY model failure falls back to deterministic rule-based extraction,
-/// so extraction always answers.
+/// Reads a permit draft out of one student message. The primary
+/// implementation asks the local AI model (Phi-4-mini via Ollama —
+/// 100% on the student's own computer, so their words never leave
+/// the machine and never train anything); ANY model failure lands in
+/// the deterministic fallback, so extraction always answers.
 /// </summary>
 public interface IAiExtractor
 {
     /// <summary>
-    /// Extracts the permit draft from one student message. Never throws
+    /// Extracts the draft from the student's message. Never throws
     /// for a model/Ollama failure — those land in the fallback.
     /// </summary>
     Task<ExtractionResult> ExtractAsync(

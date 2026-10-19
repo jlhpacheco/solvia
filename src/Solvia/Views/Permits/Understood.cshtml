@@ -1,102 +1,103 @@
 @model Solvia.Models.ViewModels.PermitDraftViewModel
 @{
     ViewData["Title"] = "Did I get this right?";
-    var plateMissing = Model.PlateMissing || string.IsNullOrWhiteSpace(Model.Plate);
+    var stateNames = Enum.GetNames<Solvia.Models.Enums.UsState>();
+    var colorNames = Enum.GetNames<Solvia.Models.Enums.VehicleColor>();
+    var chosenState = string.IsNullOrWhiteSpace(Model.CarState) ? "CA" : Model.CarState;
+    var chosenColor = !string.IsNullOrWhiteSpace(Model.CarColor) &&
+                      Array.IndexOf(colorNames, Model.CarColor) >= 0
+        ? Model.CarColor
+        : "Other";
 }
 
-<h1 class="display-5 fw-bold">Here is what I understood</h1>
+<h1 class="mt-4">Did I get this right?</h1>
+<p class="fs-5 text-muted">@Model.SourceNote</p>
+<p class="fs-5">
+    The reading only <em>pre-fills</em> the boxes — fix anything by typing.
+    What you leave here is what gets saved.
+</p>
 
-<form method="post" action="/Permits/Review">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="ApplicationId" value="@Model.ApplicationId" />
-    <input type="hidden" name="College" value="@Model.College" />
-    <input type="hidden" name="CarText" value="@Model.CarText" />
-    <input type="hidden" name="PermitType" value="@Model.PermitType" />
-    <input type="hidden" name="Term" value="@Model.Term" />
-    <input type="hidden" name="Source" value="@Model.Source" />
-
-    <div class="sv-card mb-4">
-        <dl class="fs-3">
-            <dt>Your college</dt>
-            <dd>@Model.College</dd>
-
-            <dt>Your permit</dt>
-            <dd>@Model.PermitSummary</dd>
-        </dl>
-
-        <p class="fs-3 fw-bold mb-2">Your car — fix anything that is wrong:</p>
-
-        <div class="row g-3 mb-3">
-            <div class="col-md-8">
-                <label class="form-label fs-4 fw-bold" for="plateInput">Plate</label>
-                <input id="plateInput" name="Plate" type="text" class="form-control fs-3"
-                       value="@Model.Plate" placeholder="Type your plate here"
-                       autocomplete="off" required />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label fs-4 fw-bold" for="stateInput">Plate state</label>
-                <select id="stateInput" name="CarState" class="form-select fs-3">
-                    @foreach (var state in Enum.GetNames<Solvia.Models.Enums.UsState>())
-                    {
-                        <option value="@state" selected="@(state == (Model.CarState ?? "CA"))">@state</option>
-                    }
-                </select>
-            </div>
-        </div>
-
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label fs-4 fw-bold" for="colorInput">Color</label>
-                <input id="colorInput" name="CarColor" type="text" class="form-control fs-4"
-                       value="@Model.CarColor" autocomplete="off" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label fs-4 fw-bold" for="makeInput">Make</label>
-                <input id="makeInput" name="CarMake" type="text" class="form-control fs-4"
-                       value="@Model.CarMake" autocomplete="off" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label fs-4 fw-bold" for="modelInput">Model</label>
-                <input id="modelInput" name="CarModel" type="text" class="form-control fs-4"
-                       value="@Model.CarModel" autocomplete="off" />
-            </div>
-        </div>
-
-        @if (Model.Source == "ollama")
-        {
-            <p class="fs-5 text-muted mt-3 mb-0">Read by the AI on this computer.</p>
-        }
-        else
-        {
-            <p class="fs-5 text-muted mt-3 mb-0">answered by our backup reader</p>
-        }
+@if (Model.PlateMissing)
+{
+    <div class="alert alert-warning fs-4" role="alert">
+        <strong>I still need your plate</strong> — type it in the box below.
+        Nothing moves on until your permit has a plate.
     </div>
+}
 
-    @if (plateMissing)
-    {
-        <div id="platePrompt" class="alert alert-warning fs-3 fw-bold" role="alert">
-            I still need your plate — type it here, in the Plate box above.
-        </div>
-    }
-
-    <button id="continueButton" type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3">Yes — show my total</button>
-    <button type="submit" formaction="/Permits/Questions" formnovalidate
-            class="btn btn-outline-secondary btn-lg w-100 py-3 fs-3">Fix it</button>
-</form>
-
-<script>
-    // Client nicety only — the server checks the plate again and the
-    // flow cannot advance past this screen until it is non-blank.
-    (function () {
-        var plate = document.getElementById('plateInput');
-        var button = document.getElementById('continueButton');
-        var prompt = document.getElementById('platePrompt');
-        function sync() {
-            var has = plate.value.trim().length > 0;
-            button.disabled = !has;
-            if (prompt) { prompt.style.display = has ? 'none' : ''; }
+<div class="sv-card mt-3">
+    <form asp-action="Review" method="post">
+        @if (Model.ApplicationId is { } draftId)
+        {
+            <input type="hidden" name="ApplicationId" value="@draftId" />
         }
-        plate.addEventListener('input', sync);
-        sync();
-    })();
-</script>
+        <input type="hidden" name="College" value="@Model.College" />
+        <input type="hidden" name="CarText" value="@Model.CarText" />
+        <input type="hidden" name="PermitType" value="@Model.PermitType" />
+        <input type="hidden" name="Term" value="@Model.Term" />
+        <input type="hidden" name="Source" value="@Model.Source" />
+
+        <p class="fs-4 mb-3">
+            College: <strong>@Model.College</strong><br />
+            Permit: <strong>@(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Daily ? "Day pass" : "Term permit") · @Model.Term</strong>
+        </p>
+
+        <div class="mb-3">
+            <label class="form-label fs-4" for="plateInput">License plate</label>
+            <input class="form-control form-control-lg fs-3" id="plateInput" name="Plate"
+                   value="@Model.Plate" autocomplete="off" placeholder="Type your plate" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fs-4" for="CarState">Plate state</label>
+            <select class="form-select form-select-lg" id="CarState" name="CarState">
+                @foreach (var state in stateNames)
+                {
+                    <option value="@state" selected="@(chosenState == state)">@state</option>
+                }
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fs-4" for="CarMake">Make</label>
+            <input class="form-control form-control-lg" id="CarMake" name="CarMake" value="@Model.CarMake" autocomplete="off" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fs-4" for="CarModel">Model</label>
+            <input class="form-control form-control-lg" id="CarModel" name="CarModel" value="@Model.CarModel" autocomplete="off" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fs-4" for="CarColor">Color</label>
+            <select class="form-select form-select-lg" id="CarColor" name="CarColor">
+                @foreach (var color in colorNames)
+                {
+                    <option value="@color" selected="@(chosenColor == color)">@color</option>
+                }
+            </select>
+        </div>
+
+        <button type="submit" id="continueButton" class="btn btn-primary sv-cta w-100 mt-2">
+            Yes — show my total
+        </button>
+        <button type="submit" class="btn btn-outline-secondary btn-lg w-100 mt-2 py-3"
+                formaction="@Url.Action("Questions", "Permits")" formnovalidate>
+            Fix it — back to the questions
+        </button>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        // A nicety only — the server gate is the law: no plate, no advance.
+        (function () {
+            var plate = document.getElementById('plateInput');
+            var button = document.getElementById('continueButton');
+            if (!plate || !button) { return; }
+            function sync() { button.disabled = plate.value.trim().length === 0; }
+            plate.addEventListener('input', sync);
+            sync();
+        })();
+    </script>
+}

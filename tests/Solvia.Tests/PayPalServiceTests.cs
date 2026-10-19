@@ -1,403 +1,212 @@
 using System.Net;
 using System.Text;
-using System.Text.Json;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Solvia.Config;
-using Solvia.Data;
-using Solvia.Models;
-using Solvia.Models.Enums;
 using Solvia.Services;
 
 namespace Solvia.Tests;
 
 /// <summary>
-/// T4 PayPal tests — fully OFFLINE. A fake <see cref="HttpMessageHandler"/>
-/// plays the PayPal sandbox (token, create-order, capture), so no real
-/// PayPal call ever leaves the test run. The live sandbox round trip is
-/// the plan's done-test on Jose Luis's PC once his sandbox keys exist.
-///
-/// What is proven here:
-/// - create-order sends intent CAPTURE, the exact USD amount from
-///   PriceCents, and our reference — after a client-credentials token
-///   call (Basic auth, grant_type=client_credentials);
-/// - a COMPLETED capture marks the application Paid — with PaidAtUtc,
-///   the capture id, a receipt/permit number, and a verify token;
-/// - a non-COMPLETED capture NEVER marks Paid;
-/// - missing credentials fail fast with a clear error that contains no
-///   secret and makes no HTTP call;
-/// - a $0 FREE permit confirms as NotRequired with no PayPal call.
+/// R6 PayPal client tests (REDO-PLAN items 30–32): the one PayPal
+/// talker, proven against a FAKE <see cref="HttpMessageHandler"/>
+/// (the sandbox blocks app-process TCP — the round trip is proven
+/// at the handler level, per the Lyceum). Exact money formatting,
+/// capture-id parsing, not-configured failing BEFORE any HTTP, and
+/// webhook-signature verification for R7.
 /// </summary>
-public sealed class PayPalServiceTests : IDisposable
+public sealed class PayPalServiceTests
 {
-    private const string SandboxBase = "https://api-m.sandbox.paypal.com/";
+    // ------------------------------------------------------- harness
 
-    private readonly SqliteConnection _connection;
-    private readonly DbContextOptions<SolviaDbContext> _options;
-
-    public PayPalServiceTests()
+    private sealed class FakePayPalHandler : HttpMessageHandler
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
-        _options = new DbContextOptionsBuilder<SolviaDbContext>()
-            .UseSqlite(_connection)
-            .Options;
+        public int TokenCalls;
+        public int CreateCalls;
+        public int CaptureCalls;
+        public int VerifyCalls;
+        public string? LastCreateBody;
+        public string CaptureStatus = "COMPLETED";
+        public string VerifyStatus = "SUCCESS";
 
-        using var db = new SolviaDbContext(_options);
-        db.Database.EnsureCreated();
-    }
-
-    public void Dispose() => _connection.Dispose();
-
-    // ------------------------------------------------------------------
-    // Create order: request shape
-    // ------------------------------------------------------------------
-
-    [Fact]
-    public async Task CreateOrder_SendsCaptureIntentExactUsdAmountAndReference()
-    {
-        var handler = new FakePayPalHandler();
-        var payPal = NewPayPalService(handler);
-
-        var result = await payPal.CreateOrderAsync(
-            amountCents: 3000,
-            reference: "APP-REF-1",
-            returnUrl: "https://localhost:5001/Checkout/Return",
-            cancelUrl: "https://localhost:5001/Checkout/Cancel");
-
-        Assert.Equal("ORDER-123", result.OrderId);
-        Assert.Equal(
-            "https://www.sandbox.paypal.com/checkoutnow?token=ORDER-123",
-            result.ApproveUrl);
-
-        // First call: the OAuth token exchange.
-        var tokenRequest = handler.Requests[0];
-        Assert.Equal("POST", tokenRequest.Method);
-        Assert.Equal("/v1/oauth2/token", tokenRequest.Path);
-        var expectedBasic = "Basic " + Convert.ToBase64String(
-            Encoding.UTF8.GetBytes("test-client-id:test-client-secret"));
-        Assert.Equal(expectedBasic, tokenRequest.Authorization);
-        Assert.Contains("grant_type=client_credentials", tokenRequest.Body);
-
-        // Second call: create order, Bearer-authenticated, exact shape.
-        var createRequest = handler.Requests[1];
-        Assert.Equal("POST", createRequest.Method);
-        Assert.Equal("/v2/checkout/orders", createRequest.Path);
-        Assert.Equal("Bearer TEST-ACCESS-TOKEN", createRequest.Authorization);
-
-        using var body = JsonDocument.Parse(createRequest.Body!);
-        var root = body.RootElement;
-        Assert.Equal("CAPTURE", root.GetProperty("intent").GetString());
-        var unit = root.GetProperty("purchase_units")[0];
-        Assert.Equal("APP-REF-1", unit.GetProperty("reference_id").GetString());
-        var amount = unit.GetProperty("amount");
-        Assert.Equal("USD", amount.GetProperty("currency_code").GetString());
-        Assert.Equal("30.00", amount.GetProperty("value").GetString());
-        var context = root.GetProperty("application_context");
-        Assert.Equal(
-            "https://localhost:5001/Checkout/Return",
-            context.GetProperty("return_url").GetString());
-        Assert.Equal(
-            "https://localhost:5001/Checkout/Cancel",
-            context.GetProperty("cancel_url").GetString());
-    }
-
-    [Theory]
-    [InlineData(3000, "30.00")]    // Fresno City semester fee
-    [InlineData(22950, "229.50")]  // CSU Monterey Bay semester fee
-    [InlineData(5, "0.05")]        // exact cents, never rounded dollars
-    public async Task CreateOrder_FormatsCentsExactly(int cents, string expectedValue)
-    {
-        var handler = new FakePayPalHandler();
-        var payPal = NewPayPalService(handler);
-
-        await payPal.CreateOrderAsync(cents, "APP-REF-2");
-
-        var createRequest = handler.Requests.Single(r => r.Path == "/v2/checkout/orders");
-        using var body = JsonDocument.Parse(createRequest.Body!);
-        var value = body.RootElement
-            .GetProperty("purchase_units")[0]
-            .GetProperty("amount")
-            .GetProperty("value")
-            .GetString();
-        Assert.Equal(expectedValue, value);
-    }
-
-    // ------------------------------------------------------------------
-    // Capture: the ONLY road to Paid
-    // ------------------------------------------------------------------
-
-    [Fact]
-    public async Task Capture_Completed_MarksApplicationPaidWithCaptureId()
-    {
-        var handler = new FakePayPalHandler(); // capture answers COMPLETED
-        var payPal = NewPayPalService(handler);
-
-        Guid applicationId;
-        using (var db = NewDb())
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            applicationId = SeedApplication(db, priceCents: 3000, orderId: "ORDER-123");
+            var path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/v1/oauth2/token", StringComparison.Ordinal))
+            {
+                TokenCalls++;
+                return Json("""{"access_token":"test-token","token_type":"Bearer","expires_in":32400}""");
+            }
+
+            if (path.EndsWith("/v1/notifications/verify-webhook-signature", StringComparison.Ordinal))
+            {
+                VerifyCalls++;
+                return Json($$"""{"verification_status":"{{VerifyStatus}}"}""");
+            }
+
+            if (path.Contains("/capture", StringComparison.Ordinal))
+            {
+                CaptureCalls++;
+                return Json(
+                    "{\"id\":\"ORDER-1\",\"status\":\"" + CaptureStatus + "\"," +
+                    "\"purchase_units\":[{\"reference_id\":\"abc\",\"payments\":" +
+                    "{\"captures\":[{\"id\":\"CAP-9\",\"status\":\"" + CaptureStatus +
+                    "\"}]}}]}");
+            }
+
+            if (path.EndsWith("/v2/checkout/orders", StringComparison.Ordinal))
+            {
+                CreateCalls++;
+                LastCreateBody = request.Content is null
+                    ? null
+                    : await request.Content.ReadAsStringAsync(cancellationToken);
+                return Json("""
+                    {"id":"ORDER-1","status":"CREATED","links":[
+                      {"href":"https://api-m.sandbox.paypal.com/v2/checkout/orders/ORDER-1","rel":"self","method":"GET"},
+                      {"href":"https://www.sandbox.paypal.com/checkoutnow?token=ORDER-1","rel":"approve","method":"GET"}]}
+                    """);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound)
+            {
+                Content = new StringContent(
+                    """{"name":"RESOURCE_NOT_FOUND","message":"not here"}""",
+                    Encoding.UTF8, "application/json"),
+            };
         }
 
-        using (var db = NewDb())
+        private static HttpResponseMessage Json(string body) => new(HttpStatusCode.OK)
         {
-            var checkout = NewCheckoutService(db, payPal);
-            var result = await checkout.CaptureAsync(applicationId);
-            Assert.True(result.Completed);
-            Assert.Equal("COMPLETED", result.Status);
-            Assert.Equal("CAPTURE-789", result.CaptureId);
-            Assert.False(string.IsNullOrWhiteSpace(result.ReceiptNumber));
-        }
-
-        using (var db = NewDb())
-        {
-            var saved = await db.PermitApplications.SingleAsync(a => a.Id == applicationId);
-            Assert.Equal(PaymentStatus.Paid, saved.PaymentStatus);
-            Assert.NotNull(saved.PaidAtUtc);
-            Assert.Equal("CAPTURE-789", saved.PayPalCaptureId);
-            Assert.Equal("ORDER-123", saved.PayPalOrderId);
-            Assert.False(string.IsNullOrWhiteSpace(saved.ReceiptNumber));
-            Assert.False(string.IsNullOrWhiteSpace(saved.VerifyToken));
-        }
-    }
-
-    [Fact]
-    public async Task Capture_NotCompleted_NeverMarksApplicationPaid()
-    {
-        var handler = new FakePayPalHandler
-        {
-            CaptureBody = """
-                {
-                  "id": "ORDER-123",
-                  "status": "PENDING",
-                  "purchase_units": [
-                    { "payments": { "captures": [
-                      { "id": "CAPTURE-PENDING", "status": "PENDING" }
-                    ] } }
-                  ]
-                }
-                """,
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
-        var payPal = NewPayPalService(handler);
-
-        Guid applicationId;
-        using (var db = NewDb())
-        {
-            applicationId = SeedApplication(db, priceCents: 3000, orderId: "ORDER-123");
-        }
-
-        using (var db = NewDb())
-        {
-            var checkout = NewCheckoutService(db, payPal);
-            var result = await checkout.CaptureAsync(applicationId);
-            Assert.False(result.Completed);
-            Assert.Equal("PENDING", result.Status);
-        }
-
-        using (var db = NewDb())
-        {
-            var saved = await db.PermitApplications.SingleAsync(a => a.Id == applicationId);
-            Assert.NotEqual(PaymentStatus.Paid, saved.PaymentStatus);
-            Assert.Equal(PaymentStatus.Failed, saved.PaymentStatus);
-            Assert.Null(saved.PaidAtUtc);
-            Assert.Null(saved.PayPalCaptureId);
-            Assert.Null(saved.ReceiptNumber);
-        }
     }
 
-    // ------------------------------------------------------------------
-    // Credentials + the free case
-    // ------------------------------------------------------------------
-
-    [Fact]
-    public async Task MissingCredentials_FailsFastWithClearErrorAndNoSecret()
+    private static PayPalService NewService(
+        FakePayPalHandler handler, PayPalOptions? options = null)
     {
-        var handler = new FakePayPalHandler();
-        var http = new HttpClient(handler) { BaseAddress = new Uri(SandboxBase) };
-        var options = Options.Create(new PayPalOptions
-        {
-            ClientId = "", // missing
-            ClientSecret = "SENTINEL-SECRET-VALUE",
-            BaseUrl = SandboxBase,
-        });
-        var payPal = new PayPalService(http, options, NullLogger<PayPalService>.Instance);
-
-        var ex = await Assert.ThrowsAsync<PayPalNotConfiguredException>(
-            () => payPal.CreateOrderAsync(3000, "APP-REF-3"));
-
-        // Clear about WHAT is missing; silent about every value.
-        Assert.Contains("PAYPAL_CLIENT_ID", ex.Message);
-        Assert.DoesNotContain("SENTINEL-SECRET-VALUE", ex.Message);
-
-        // Fail-fast: no HTTP call was even attempted (no crash loop).
-        Assert.Empty(handler.Requests);
-    }
-
-    [Fact]
-    public async Task FreePermit_Start_ConfirmsNotRequiredWithoutAnyPayPalCall()
-    {
-        var handler = new FakePayPalHandler();
-        var payPal = NewPayPalService(handler);
-
-        Guid applicationId;
-        using (var db = NewDb())
-        {
-            applicationId = SeedApplication(db, priceCents: 0, orderId: null);
-        }
-
-        using (var db = NewDb())
-        {
-            var checkout = NewCheckoutService(db, payPal);
-            var result = await checkout.StartAsync(
-                applicationId, "https://localhost/return", "https://localhost/cancel");
-            Assert.Equal(CheckoutStartKind.FreePermitConfirmed, result.Kind);
-        }
-
-        Assert.Empty(handler.Requests); // PayPal was never called for $0.
-
-        using (var db = NewDb())
-        {
-            var saved = await db.PermitApplications.SingleAsync(a => a.Id == applicationId);
-            Assert.Equal(PaymentStatus.NotRequired, saved.PaymentStatus);
-            Assert.Null(saved.PayPalOrderId);
-            Assert.False(string.IsNullOrWhiteSpace(saved.ReceiptNumber));
-            Assert.False(string.IsNullOrWhiteSpace(saved.VerifyToken));
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
-
-    private SolviaDbContext NewDb() => new(_options);
-
-    private static PayPalService NewPayPalService(FakePayPalHandler handler)
-    {
-        var http = new HttpClient(handler) { BaseAddress = new Uri(SandboxBase) };
-        var options = Options.Create(new PayPalOptions
+        options ??= new PayPalOptions
         {
             ClientId = "test-client-id",
             ClientSecret = "test-client-secret",
-            Environment = "sandbox",
-            BaseUrl = SandboxBase,
+            WebhookId = "WH-TEST-1",
+        };
+        return new PayPalService(
+            new HttpClient(handler),
+            Options.Create(options),
+            NullLogger<PayPalService>.Instance);
+    }
+
+    // --------------------------------------------------------- tests
+
+    [Fact]
+    public async Task CreateOrder_ReturnsIdAndApproveUrl_SendsExactMoney()
+    {
+        var handler = new FakePayPalHandler();
+        var service = NewService(handler);
+
+        var order = await service.CreateOrderAsync(
+            3000, "applicationref", "https://example.test/return", "https://example.test/cancel");
+
+        Assert.Equal("ORDER-1", order.OrderId);
+        Assert.Contains("sandbox.paypal.com", order.ApproveUrl);
+        Assert.Equal(1, handler.TokenCalls);
+        Assert.Equal(1, handler.CreateCalls);
+        // Exact money: 3000 cents is the string "30.00", currency USD,
+        // tagged with the reference — never a float, never a guess.
+        Assert.Contains("\"value\":\"30.00\"", handler.LastCreateBody);
+        Assert.Contains("\"currency_code\":\"USD\"", handler.LastCreateBody);
+        Assert.Contains("\"reference_id\":\"applicationref\"", handler.LastCreateBody);
+        Assert.Contains("\"return_url\":\"https://example.test/return\"", handler.LastCreateBody);
+    }
+
+    [Fact]
+    public async Task Capture_Completed_ParsesStatusAndCaptureId()
+    {
+        var handler = new FakePayPalHandler();
+        var service = NewService(handler);
+
+        var capture = await service.CaptureOrderAsync("ORDER-1");
+
+        Assert.Equal("COMPLETED", capture.Status);
+        Assert.Equal("CAP-9", capture.CaptureId);
+        Assert.Equal(1, handler.CaptureCalls);
+    }
+
+    [Fact]
+    public async Task Capture_NonCompleted_StatusPassesThroughVerbatim()
+    {
+        var handler = new FakePayPalHandler { CaptureStatus = "PENDING" };
+        var service = NewService(handler);
+
+        var capture = await service.CaptureOrderAsync("ORDER-1");
+
+        // The service reports; CheckoutService decides. PENDING is
+        // NOT completed and must arrive unaltered.
+        Assert.Equal("PENDING", capture.Status);
+    }
+
+    [Fact]
+    public async Task NotConfigured_ThrowsBeforeAnyHttpCall()
+    {
+        var handler = new FakePayPalHandler();
+        var service = NewService(handler, new PayPalOptions
+        {
+            ClientId = "",
+            ClientSecret = "",
         });
-        return new PayPalService(http, options, NullLogger<PayPalService>.Instance);
+
+        var ex = await Assert.ThrowsAsync<PayPalNotConfiguredException>(
+            () => service.CreateOrderAsync(3000, "ref"));
+        Assert.Contains("PAYPAL_CLIENT_ID", ex.Message);
+        Assert.Equal(0, handler.TokenCalls);
+        Assert.Equal(0, handler.CreateCalls);
     }
 
-    private static CheckoutService NewCheckoutService(SolviaDbContext db, IPayPalService payPal) =>
-        new(db, payPal, new PermitNumberService(db), NullLogger<CheckoutService>.Instance);
-
-    /// <summary>
-    /// Seeds Maria's vehicle + one Pending application at the given price,
-    /// optionally already carrying a PayPal order id. Returns the id.
-    /// </summary>
-    private static Guid SeedApplication(SolviaDbContext db, int priceCents, string? orderId)
+    [Fact]
+    public async Task VerifyWebhookSignature_Success_ReturnsTrue()
     {
-        var vehicle = new Vehicle
-        {
-            Id = Guid.NewGuid(),
-            StudentId = "maria", // seeded fictional student
-            Plate = "8XYZ123",
-            State = UsState.CA,
-            Color = VehicleColor.Blue,
-            Make = "Honda",
-            Model = "Civic",
-        };
-        db.Vehicles.Add(vehicle);
+        var handler = new FakePayPalHandler();
+        var service = NewService(handler);
 
-        var application = new PermitApplication
-        {
-            Id = Guid.NewGuid(),
-            StudentId = "maria",
-            VehicleId = vehicle.Id,
-            PermitTypeId = 2, // seeded Term type
-            StartDate = new DateOnly(2026, 8, 24),
-            EndDate = new DateOnly(2026, 12, 11),
-            Status = ApplicationStatus.Pending,
-            PriceCents = priceCents,
-            PaymentStatus = PaymentStatus.Pending,
-            PayPalOrderId = orderId,
-            SubmittedAtUtc = DateTime.UtcNow,
-        };
-        db.PermitApplications.Add(application);
-        db.SaveChanges();
-        return application.Id;
+        var verified = await service.VerifyWebhookSignatureAsync(
+            "trans-1", "2026-10-18T00:00:00Z", "sig", "https://cert.example/x.pem",
+            "SHA256withRSA", """{"id":"evt-1","event_type":"PAYMENT.CAPTURE.COMPLETED"}""");
+
+        Assert.True(verified);
+        Assert.Equal(1, handler.VerifyCalls);
     }
 
-    /// <summary>
-    /// An offline stand-in for the PayPal sandbox: records every request
-    /// and answers token / create-order / capture with canned JSON.
-    /// <see cref="CaptureBody"/> is settable so a test can make the
-    /// capture come back as something other than COMPLETED.
-    /// </summary>
-    private sealed class FakePayPalHandler : HttpMessageHandler
+    [Fact]
+    public async Task VerifyWebhookSignature_Failure_ReturnsFalse()
     {
-        public sealed record RecordedRequest(
-            string Method, string Path, string? Body, string? Authorization);
+        var handler = new FakePayPalHandler { VerifyStatus = "FAILURE" };
+        var service = NewService(handler);
 
-        public List<RecordedRequest> Requests { get; } = [];
+        var verified = await service.VerifyWebhookSignatureAsync(
+            "trans-1", "2026-10-18T00:00:00Z", "sig", "https://cert.example/x.pem",
+            "SHA256withRSA", """{"id":"evt-1"}""");
 
-        public string CaptureBody { get; set; } = """
-            {
-              "id": "ORDER-123",
-              "status": "COMPLETED",
-              "purchase_units": [
-                { "payments": { "captures": [
-                  { "id": "CAPTURE-789", "status": "COMPLETED" }
-                ] } }
-              ]
-            }
-            """;
+        Assert.False(verified);
+    }
 
-        protected override async Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken)
+    [Fact]
+    public async Task VerifyWebhookSignature_NoWebhookIdConfigured_ReturnsFalseWithoutCalling()
+    {
+        var handler = new FakePayPalHandler();
+        var service = NewService(handler, new PayPalOptions
         {
-            var body = request.Content is null
-                ? null
-                : await request.Content.ReadAsStringAsync(cancellationToken);
-            var path = request.RequestUri!.AbsolutePath;
-            Requests.Add(new RecordedRequest(
-                request.Method.Method,
-                path,
-                body,
-                request.Headers.Authorization?.ToString()));
+            ClientId = "test-client-id",
+            ClientSecret = "test-client-secret",
+            WebhookId = "",
+        });
 
-            if (path == "/v1/oauth2/token")
-            {
-                return Json("""
-                    { "access_token": "TEST-ACCESS-TOKEN", "token_type": "Bearer", "expires_in": 32400 }
-                    """);
-            }
+        var verified = await service.VerifyWebhookSignatureAsync(
+            "trans-1", "2026-10-18T00:00:00Z", "sig", "https://cert.example/x.pem",
+            "SHA256withRSA", """{"id":"evt-1"}""");
 
-            if (path == "/v2/checkout/orders")
-            {
-                return Json("""
-                    {
-                      "id": "ORDER-123",
-                      "status": "CREATED",
-                      "links": [
-                        { "href": "https://api-m.sandbox.paypal.com/v2/checkout/orders/ORDER-123", "rel": "self", "method": "GET" },
-                        { "href": "https://www.sandbox.paypal.com/checkoutnow?token=ORDER-123", "rel": "approve", "method": "GET" }
-                      ]
-                    }
-                    """);
-            }
-
-            if (path.EndsWith("/capture", StringComparison.Ordinal))
-            {
-                return Json(CaptureBody);
-            }
-
-            return new HttpResponseMessage(HttpStatusCode.NotFound);
-        }
-
-        private static HttpResponseMessage Json(string json) =>
-            new(HttpStatusCode.OK)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json"),
-            };
+        Assert.False(verified);
+        Assert.Equal(0, handler.VerifyCalls);
+        Assert.Equal(0, handler.TokenCalls);
     }
 }

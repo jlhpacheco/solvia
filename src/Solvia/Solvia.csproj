@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
+    <!-- R5's sanctioned package change (REDO-PLAN §3 R5): the permit
+         receipt PDF, same library + version the first build shipped.
+         QuestPDF is used under its Community License — NOT MIT; see
+         NOTICES.md for the terms and why this project qualifies. -->
     <PackageReference Include="QuestPDF" Version="2026.2.4" />
   </ItemGroup>
 

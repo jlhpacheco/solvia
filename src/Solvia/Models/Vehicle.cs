@@ -3,9 +3,9 @@ using Solvia.Models.Enums;
 namespace Solvia.Models;
 
 /// <summary>
-/// A student's car (docs/SCHEMA.md). Owner-scoped: <see cref="StudentId"/>
-/// is set on the server, and every lookup must filter by it — a student
-/// only ever sees their own vehicles.
+/// A person's car. Owner-scoped: <see cref="StudentId"/> is set on
+/// the server, and every lookup must filter by it — a person only
+/// ever sees their own vehicles.
 /// </summary>
 public sealed class Vehicle
 {

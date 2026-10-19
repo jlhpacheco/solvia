@@ -1,61 +1,60 @@
 @model Solvia.Models.ViewModels.QuestionsViewModel
 @{
-    ViewData["Title"] = "3 quick questions";
+    ViewData["Title"] = "Three quick questions";
 }
 
-<h1 class="display-5 fw-bold">3 quick questions</h1>
-<p class="fs-4">That is all we ask. No long form.</p>
+<h1 class="mt-4">Three quick questions</h1>
+<p class="fs-5">That is all Solvia ever asks. No long form.</p>
 
-@if (Model.Notice is not null)
+@if (!string.IsNullOrWhiteSpace(Model.Notice))
 {
-    <div class="alert alert-warning fs-4" role="alert">@Model.Notice</div>
+    <div class="alert alert-info fs-5" role="status">@Model.Notice</div>
 }
 
-<form method="post" action="/Permits/Understand" class="sv-card">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="applicationId" value="@Model.ApplicationId" />
-    <input type="hidden" name="college" value="@Model.College" />
+<div class="sv-card mt-3">
+    <p class="fs-4 mb-1"><strong>1 · Your college</strong></p>
+    <p class="fs-4 mb-0">
+        @Model.College
+        <a class="fs-5 ms-2" href="/Permits/Ask">change</a>
+    </p>
+</div>
 
-    <div class="mb-4">
-        <p class="fs-3 fw-bold mb-1">1. Your college</p>
-        <p class="fs-3 mb-0">@Model.College</p>
-        <a class="fs-5" href="/Permits/Apply">Change college</a>
-    </div>
+<div class="sv-card mt-3">
+    <form asp-action="Understand" method="post">
+        <input type="hidden" name="college" value="@Model.College" />
+        @if (Model.ApplicationId is { } draftId)
+        {
+            <input type="hidden" name="applicationId" value="@draftId" />
+        }
 
-    <div class="mb-4">
-        <label class="form-label fs-3 fw-bold" for="carText">2. Tell me about your car</label>
-        <textarea id="carText" name="carText" rows="3" class="form-control fs-4"
-                  placeholder="Blue 2019 Honda Civic, plate 8XYZ123">@Model.CarText</textarea>
-        <p class="fs-5 text-muted mt-1">Color, make, model, and plate — in your own words.</p>
-    </div>
+        <label class="form-label fs-4" for="carText"><strong>2 · Your car</strong> — say it in one sentence</label>
+        <textarea class="form-control fs-4" id="carText" name="carText" rows="2"
+                  placeholder="Example: blue 2019 Honda Civic, plate 8XYZ123">@Model.CarText</textarea>
+        <p class="fs-6 text-muted mt-2 mb-0">
+            Read on this computer by the local AI (Phi-4-mini) — your words never
+            leave this machine and never train any model. If the AI is off, plain
+            rules read them instead, and the next screen says which one answered.
+        </p>
 
-    <div class="mb-4">
-        <p class="fs-3 fw-bold mb-2">3. Your term</p>
-
-        <div class="d-flex flex-wrap gap-2 mb-3 choice-cards" role="group" aria-label="Permit type">
-            <input type="radio" class="btn-check" name="permitType" id="ptTerm" value="Term"
-                   @(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Term ? "checked" : "") />
-            <label class="btn btn-outline-primary btn-lg fs-4 px-4 py-3" for="ptTerm">Term permit</label>
-
-            <input type="radio" class="btn-check" name="permitType" id="ptDaily" value="Daily"
-                   @(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Daily ? "checked" : "") />
-            <label class="btn btn-outline-primary btn-lg fs-4 px-4 py-3" for="ptDaily">Day pass</label>
+        <p class="fs-4 mt-4 mb-2"><strong>3 · Your permit</strong></p>
+        <div class="d-flex flex-wrap gap-2" role="radiogroup" aria-label="Permit type">
+            <input type="radio" class="btn-check" name="permitType" id="typeTerm" value="Term"
+                   checked="@(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Term)" />
+            <label class="btn btn-outline-primary btn-lg fs-4" for="typeTerm">Term permit — a whole semester</label>
+            <input type="radio" class="btn-check" name="permitType" id="typeDaily" value="Daily"
+                   checked="@(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Daily)" />
+            <label class="btn btn-outline-primary btn-lg fs-4" for="typeDaily">Day pass — one day</label>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 choice-cards" role="group" aria-label="Term">
-            <input type="radio" class="btn-check" name="term" id="termFall" value="Fall"
-                   @(Model.Term == Solvia.Models.Enums.TermKind.Fall ? "checked" : "") />
-            <label class="btn btn-outline-primary btn-lg fs-4 px-4 py-3" for="termFall">Fall</label>
-
-            <input type="radio" class="btn-check" name="term" id="termSpring" value="Spring"
-                   @(Model.Term == Solvia.Models.Enums.TermKind.Spring ? "checked" : "") />
-            <label class="btn btn-outline-primary btn-lg fs-4 px-4 py-3" for="termSpring">Spring</label>
-
-            <input type="radio" class="btn-check" name="term" id="termSummer" value="Summer"
-                   @(Model.Term == Solvia.Models.Enums.TermKind.Summer ? "checked" : "") />
-            <label class="btn btn-outline-primary btn-lg fs-4 px-4 py-3" for="termSummer">Summer</label>
+        <div class="d-flex flex-wrap gap-2 mt-3" role="radiogroup" aria-label="Term">
+            @foreach (var term in Enum.GetNames<Solvia.Models.Enums.TermKind>())
+            {
+                <input type="radio" class="btn-check" name="term" id="term@(term)" value="@term"
+                       checked="@(Model.Term.ToString() == term)" />
+                <label class="btn btn-outline-secondary btn-lg fs-4" for="term@(term)">@term</label>
+            }
         </div>
-    </div>
 
-    <button type="submit" class="btn btn-success btn-lg w-100 py-4 fs-3">Next</button>
-</form>
+        <button type="submit" class="btn btn-primary sv-cta w-100 mt-4">Read my answers</button>
+    </form>
+</div>

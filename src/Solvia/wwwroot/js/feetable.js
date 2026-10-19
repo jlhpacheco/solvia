@@ -1,4 +1,4 @@
-// Native fee-table renderer (T6 fallback) — plain HTML table, no
+// Native fee-table renderer (the fallback) — plain HTML table, no
 // libraries. renderFeeTable(el, rows) draws the same rows the AG Grid
 // adapter draws, from the same JSON payload (see _FeeTable.cshtml).
 // Also used by feetable.aggrid.js when the AG Grid CDN is unreachable.

@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Solvia.Services;
 
 /// <summary>
-/// The built-in college search (BUILD-PLAN T8): a deterministic
+/// The built-in college search (REDO-PLAN R8): a deterministic
 /// in-memory match over <see cref="IFeeCatalog"/>'s 10 rows. This is
 /// the shipped default — 10 rows do not need a search cluster, and
 /// this provider can never be down. It is also the fallback the

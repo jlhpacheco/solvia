@@ -1,0 +1,18 @@
+@* Status banners (R0 shell plumbing). Doors set TempData["StatusMessage"]
+   for good news and TempData["ErrorMessage"] for problems; the layout
+   renders this partial above every page so a message is never stranded
+   on a screen the flow has already left (REDO-PLAN item 59: redirects
+   carry status banners only). Big text, honest words — views own the
+   wording at the call site, this partial owns only the shape. *@
+@{
+    var status = TempData["StatusMessage"] as string;
+    var error = TempData["ErrorMessage"] as string;
+}
+@if (!string.IsNullOrWhiteSpace(status))
+{
+    <div class="alert alert-success fs-5 mt-3" role="status">@status</div>
+}
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger fs-5 mt-3" role="alert">@error</div>
+}

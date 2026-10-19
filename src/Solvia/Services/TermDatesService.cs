@@ -9,10 +9,10 @@ namespace Solvia.Services;
 /// Term windows below are the DEMO windows for this seam. The fee
 /// catalog's contract (IFeeCatalog / CampusFee) does not carry
 /// per-campus term dates — the CSV's free-text "Terms/dates listed"
-/// column was research notes, not structured data — so the windows are
-/// defined here in one place, ready to be replaced by real per-campus
-/// dates when T5/integration lands. (Fall ends Dec 11, matching the
-/// SJECCD Fall 2026 calendar.)
+/// column was research notes, not structured data — so the windows
+/// are defined here in one place, ready to be replaced by real
+/// per-campus dates. (Fall ends Dec 11, matching the SJECCD Fall
+/// 2026 calendar.)
 ///
 /// PermitEndDate = TermStart + DurationDays of the Term permit type
 /// (read from the seeded PermitType catalog; 120 days).
@@ -75,8 +75,8 @@ public sealed class TermDatesService : ITermDatesService
         }
         catch (Exception)
         {
-            // The seam page must still render before the demo database
-            // is created/migrated; the seeded Term duration is 120.
+            // The dates surface must still render before the demo
+            // database exists; the seeded Term duration is 120.
             return FallbackTermDurationDays;
         }
     }

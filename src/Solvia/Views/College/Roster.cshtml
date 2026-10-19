@@ -4,14 +4,48 @@
     ViewData["Title"] = "Who paid";
     string LongDate(System.DateOnly d) => d.ToString("MMMM d, yyyy",
         System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+    string Money(long cents) => (cents / 100m).ToString("C",
+        System.Globalization.CultureInfo.GetCultureInfo("en-US"));
 }
 
 <h1 class="display-5">@Model.Campus</h1>
 <p class="lead fs-3">Who has a parking permit — and who does not.</p>
-<p class="fs-4">
-    <strong>@Model.WithPermitCount</strong> with a permit ·
-    <strong>@Model.WithoutPermitCount</strong> not yet
-</p>
+
+@* Duvara's three admin tiles (item 53): issued permits, permit
+   revenue, expired permits — computed for THIS campus only. *@
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="sv-card text-center">
+            <div class="display-6 fw-bold">@Model.IssuedCount</div>
+            <div class="fs-5">Permits issued</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="sv-card text-center">
+            <div class="display-6 fw-bold">@Money(Model.RevenueCents)</div>
+            <div class="fs-5">Permit revenue (paid)</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="sv-card text-center">
+            <div class="display-6 fw-bold">@Model.ExpiredCount</div>
+            <div class="fs-5">Expired permits</div>
+        </div>
+    </div>
+</div>
+
+@if (Model.RepairReport is not null)
+{
+    <div class="alert alert-info fs-5" role="status">
+        <strong>Price repair result</strong>
+        <ul class="mb-0">
+            @foreach (var line in Model.RepairReport)
+            {
+                <li>@line</li>
+            }
+        </ul>
+    </div>
+}
 
 <form method="get" asp-controller="College" asp-action="Roster" class="row g-2 align-items-end mb-4">
     <div class="col-auto">
@@ -77,8 +111,56 @@
     }
 </ul>
 
+@* "By student" (item 54): issued permits per student at this
+   campus, most first, with their permit (receipt) numbers. *@
+<h2 class="display-6">By student</h2>
+<div class="sv-card mb-4">
+    <table class="table table-striped mb-0">
+        <thead>
+            <tr>
+                <th scope="col">Student</th>
+                <th scope="col">Permits at this college</th>
+                <th scope="col">Permit numbers</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var student in Model.ByStudent)
+            {
+                <tr>
+                    <td class="fs-5">@student.StudentName</td>
+                    <td class="fs-5">@student.PermitCount</td>
+                    <td class="fs-5">
+                        @if (student.ReceiptNumbers.Count > 0)
+                        {
+                            @string.Join(", ", student.ReceiptNumbers)
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@* Price repair (item 55): put this campus's Pending prices back
+   to the published fee. Paid prices are history and never move. *@
+<form method="post" asp-controller="College" asp-action="RepairPrices" class="mb-4">
+    <input type="hidden" name="campus" value="@Model.Campus" />
+    <button type="submit" class="btn btn-outline-primary btn-lg">
+        Repair pending prices for @Model.Campus
+    </button>
+    <span class="fs-5 text-muted ms-2">
+        Re-checks every unpaid application against the published fee.
+        Paid permits are never changed.
+    </span>
+</form>
+
 <p class="fs-5">
     See also:
     <a asp-controller="College" asp-action="Fees">parking fees for all 10 colleges</a> ·
-    <a asp-controller="College" asp-action="Dates" asp-route-campus="@Model.Campus">term dates for @Model.Campus</a>
+    <a asp-controller="College" asp-action="Dates" asp-route-campus="@Model.Campus">term dates for @Model.Campus</a> ·
+    <a asp-controller="College" asp-action="Search">find a college</a>
 </p>

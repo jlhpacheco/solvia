@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Solvia.Data;
@@ -11,95 +10,266 @@ using Solvia.Services;
 namespace Solvia.Controllers;
 
 /// <summary>
-/// The Maria student flow (BUILD-PLAN T2), screen by screen:
+/// The two doors (REDO-PLAN §2c/§3 R4). One application model, one
+/// creation brain (ApplicationService.CreateAsync), two ways in:
 ///
-///   Apply     — pick your college (the 10 campuses from IFeeCatalog,
-///               each with its real published price — or the honest
-///               "Price not published — ask your college").
-///   Questions — 3 questions ONLY: your college (prefilled), your car
-///               (one free-text box, read by IAiExtractor), your term
-///               (big tap choices).
-///   Understand— what the AI understood, in plain words, EDITABLE:
-///               the extraction only pre-fills the car fields (plate
-///               included); she can type or fix any of them right
-///               there, with a "Fix it" path back to Questions. This
-///               screen is THE GATE: the flow does not advance until
-///               the plate is non-blank (client nicety + server check).
-///   Review    — submitting Understood SAVES the draft application
-///               (vehicle + application rows, payment still Pending)
-///               and Review/Confirm then carry ONLY its id — no more
-///               hidden-field relay of the car facts. College, car,
-///               term, dates, and the EXACT total from the fee
-///               catalog. A price the catalog does not publish BLOCKS
-///               here: no invented price, no way to pay. A blocked
-///               day pass says so plainly and offers the term permit
-///               as a one-tap alternative.
-///   Confirm   — takes the draft id, recomputes the price on the
-///               server from the catalog (never a posted price), and
-///               hands off to T4's /Checkout. It NEVER bounces back to
-///               Questions: a residual problem (e.g. a blank plate on
-///               an old draft) returns the Review screen with a big
-///               error banner.
-///   My        — her permits.   Receipt — the big live-permit screen.
+/// FORM DOOR (the reference app's shape) — GET/POST /Permits/Apply:
+/// Campus, Vehicle, Permit Type, Term, and Start Date on one form;
+/// one "Submit Application" POST. Every failure re-renders the SAME
+/// form with the lists repopulated and the problem on-screen.
+/// Free → issued at the POST and on to My Permits; paid → straight
+/// to /Checkout/{id}. There is NO Review step on this door.
 ///
-/// The signed-in student is the seeded fictional Maria (server-set
-/// StudentId via the demo cookie; see DemoControllerBase).
+/// AI DOOR (Solvia's) — /Permits/Ask → Questions → Understood →
+/// Review → Confirm: pick a college, answer 3 questions only
+/// (school / car / term), and the local AI (Phi-4-mini via Ollama,
+/// deterministic fallback when it is off) reads the car sentence.
+/// The Understood screen is THE GATE — editable fields, the flow
+/// does not advance without a plate — and submitting it persists
+/// the draft through the same CreateAsync. Review is the trust
+/// moment (exact total, from the catalog, before money moves);
+/// Confirm posts the draft's id only and hands off to Checkout.
+///
+/// The demo person is the seeded fictional person from the demo
+/// switcher (DemoControllerBase) — the owner is server-resolved on
+/// every action, never trusted from a form.
 /// </summary>
 public sealed class PermitsController : DemoControllerBase
 {
-    private static readonly Regex DayPassMoney = new(
-        @"\$(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)",
-        RegexOptions.Compiled);
+    /// <summary>Duvara's general invalid-selection error (item 16), in plain words.</summary>
+    private const string InvalidSelection =
+        "That selection is not valid — please pick again from the lists.";
 
     private readonly SolviaDbContext _db;
     private readonly IFeeCatalog _catalog;
     private readonly IAiExtractor _extractor;
     private readonly ITermDatesService _termDates;
-    private readonly ICollegeSearch _search;
-    private readonly PermitPdfService _permitPdf;
+    private readonly PricingService _pricing;
+    private readonly UserCategoryResolver _categories;
+    private readonly ApplicationService _applications;
 
     public PermitsController(
         SolviaDbContext db,
         IFeeCatalog catalog,
         IAiExtractor extractor,
         ITermDatesService termDates,
-        ICollegeSearch search,
-        PermitPdfService permitPdf)
+        PricingService pricing,
+        UserCategoryResolver categories,
+        ApplicationService applications)
     {
         _db = db;
         _catalog = catalog;
         _extractor = extractor;
         _termDates = termDates;
-        _search = search;
-        _permitPdf = permitPdf;
+        _pricing = pricing;
+        _categories = categories;
+        _applications = applications;
     }
 
-    // ------------------------------------------------------------------
-    // 1. Pick your college
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // FORM DOOR — Duvara's Apply
+    // ==================================================================
 
     [HttpGet]
-    public async Task<IActionResult> Apply(string? q, CancellationToken cancellationToken)
+    public async Task<IActionResult> Apply(CancellationToken cancellationToken)
     {
-        // With a query, the T8 search seam (ICollegeSearch — built-in
-        // match by default, local Elastic index when configured)
-        // ranks the campuses; without one, the full catalog list
-        // shows in catalog order, exactly as before. Prices and
-        // labels always come from the catalog rows either way.
-        IReadOnlyList<CampusFee> fees;
-        string? servedBy = null;
-        if (string.IsNullOrWhiteSpace(q))
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        var model = await BuildApplyModelAsync(student, cancellationToken);
+        model.StartDate = Today();
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Apply(
+        ApplyViewModel form, CancellationToken cancellationToken)
+    {
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        var model = await BuildApplyModelAsync(student, cancellationToken);
+        // Keep the applicant's picks; only the lists/identity refresh.
+        model.Campus = form.Campus;
+        model.VehicleId = form.VehicleId;
+        model.PermitTypeId = form.PermitTypeId;
+        model.Term = form.Term;
+        model.StartDate = form.StartDate;
+
+        var errors = model.Errors;
+
+        // Campus (item 16: a bad pick is the general error).
+        CampusFee? fee = null;
+        if (string.IsNullOrWhiteSpace(form.Campus))
         {
-            fees = _catalog.All();
+            errors.Add("Please pick your college.");
         }
         else
         {
-            var result = await _search.SearchAsync(q, cancellationToken);
-            fees = result.Campuses;
-            servedBy = result.ServedBy;
+            fee = _catalog.Find(form.Campus);
+            if (fee is null)
+            {
+                errors.Add(InvalidSelection);
+            }
+            else
+            {
+                model.Campus = fee.Campus;
+            }
         }
 
-        var campuses = fees.Select(fee =>
+        // Vehicle (items 2/16): no pick → "select a vehicle"; a pick
+        // that is not this person's own → the general error — the
+        // POST re-loads the vehicle, ids are never trusted.
+        Vehicle? vehicle = null;
+        if (form.VehicleId == Guid.Empty)
+        {
+            errors.Add("Please select a vehicle.");
+        }
+        else
+        {
+            vehicle = await _db.Vehicles.SingleOrDefaultAsync(
+                v => v.Id == form.VehicleId && v.StudentId == student.Id,
+                cancellationToken);
+            if (vehicle is null)
+            {
+                errors.Add(InvalidSelection);
+            }
+        }
+
+        // Permit type (items 3/16): no pick → "select a permit
+        // type"; an inactive/unknown pick → the general error.
+        PermitType? type = null;
+        if (form.PermitTypeId == 0)
+        {
+            errors.Add("Please select a permit type.");
+        }
+        else
+        {
+            type = await _db.PermitTypes.SingleOrDefaultAsync(
+                t => t.Id == form.PermitTypeId && t.Active, cancellationToken);
+            if (type is null)
+            {
+                errors.Add(InvalidSelection);
+            }
+        }
+
+        if (form.StartDate == default)
+        {
+            errors.Add("Please pick a start date.");
+        }
+
+        // Term window (§2c): a Term start must sit inside the chosen
+        // term's window, and the error NAMES the window.
+        if (fee is not null && type is not null &&
+            type.Code == PermitTypeCode.Term && form.StartDate != default)
+        {
+            var dates = _termDates.GetTermDates(
+                fee.Campus, form.Term, form.StartDate.Year);
+            if (dates is not null &&
+                (form.StartDate < dates.TermStart || form.StartDate > dates.TermEnd))
+            {
+                errors.Add(
+                    $"{form.Term} runs {ShortDate(dates.TermStart)} – " +
+                    $"{ShortDate(dates.TermEnd)} — pick a date inside it " +
+                    "or change the term.");
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            return View(model);
+        }
+
+        var result = await _applications.CreateAsync(new ApplicationInput(
+            StudentId: student.Id,
+            VehicleId: vehicle!.Id,
+            Campus: fee!.Campus,
+            TypeCode: type!.Code,
+            Term: form.Term,
+            StartDate: form.StartDate,
+            Source: "form",
+            PersistWhenPriceBlocked: false), cancellationToken);
+
+        switch (result.Status)
+        {
+            case CreateApplicationStatus.Created:
+            {
+                var application = result.Application!;
+                if (application.PriceCents > 0)
+                {
+                    // Paid outcome (item 18): straight to Checkout.
+                    return Redirect($"/Checkout/{application.Id}");
+                }
+
+                // Free outcome (item 17): issued inside CreateAsync;
+                // the Checkout page is never rendered for it.
+                TempData["StatusMessage"] =
+                    $"Permit {application.ReceiptNumber} is live — no payment " +
+                    "was needed. It is under My permits now.";
+                return Redirect("/Permits/My");
+            }
+            case CreateApplicationStatus.Duplicate:
+                errors.Add(ApplicationService.DuplicateMessage);
+                return View(model);
+            case CreateApplicationStatus.PriceNotPublished:
+                errors.Add(result.ErrorMessage!);
+                return View(model);
+            default:
+                errors.Add(InvalidSelection);
+                return View(model);
+        }
+    }
+
+    /// <summary>The Apply form's identity + lists, fresh from the server.</summary>
+    private async Task<ApplyViewModel> BuildApplyModelAsync(
+        Student student, CancellationToken cancellationToken)
+    {
+        var vehicles = await _db.Vehicles
+            .Where(v => v.StudentId == student.Id)
+            .OrderBy(v => v.Plate)
+            .ToListAsync(cancellationToken);
+        var types = await _db.PermitTypes
+            .Where(t => t.Active)
+            .OrderBy(t => t.Name)
+            .ToListAsync(cancellationToken);
+
+        return new ApplyViewModel
+        {
+            StudentName = student.DisplayName,
+            CategoryLabel = _categories.Resolve(student).ToString(),
+            Campuses = _catalog.All().Select(c => c.Campus).ToList(),
+            Vehicles = vehicles.Select(v => new ApplyVehicleOption
+            {
+                Id = v.Id,
+                Label = VehicleLabel(v),
+            }).ToList(),
+            Types = types.Select(t => new ApplyTypeOption
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Code = t.Code,
+            }).ToList(),
+            NoVehicles = vehicles.Count == 0,
+            NoTypes = types.Count == 0,
+        };
+    }
+
+    /// <summary>"Plate · State · Make Model" (item 2's option label).</summary>
+    private static string VehicleLabel(Vehicle vehicle) =>
+        string.Join(" · ", new[]
+        {
+            vehicle.Plate,
+            vehicle.State.ToString(),
+            string.Join(" ", new[] { vehicle.Make, vehicle.Model }
+                .Where(s => !string.IsNullOrWhiteSpace(s))),
+        }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    // ==================================================================
+    // AI DOOR — pick a college
+    // ==================================================================
+
+    [HttpGet]
+    public async Task<IActionResult> Ask(CancellationToken cancellationToken)
+    {
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        var campuses = _catalog.All().Select(fee =>
         {
             var cents = _catalog.SemesterPriceCents(fee, TermKind.Fall);
             var label = fee.IsFree
@@ -107,20 +277,24 @@ public sealed class PermitsController : DemoControllerBase
                 : cents is not null
                     ? $"{Money(cents.Value)} per term"
                     : "Price not published — ask your college";
-            return new CampusPickItem(fee.Campus, label, fee.HasPublishedSemesterPrice);
+            return new CampusPickItem
+            {
+                Name = fee.Campus,
+                PriceLabel = label,
+                HasPrice = fee.HasPublishedSemesterPrice,
+            };
         }).ToList();
 
-        return View(new CollegePickViewModel
+        return View(new AskViewModel
         {
+            StudentName = student.DisplayName,
             Campuses = campuses,
-            Query = q,
-            SearchServedBy = servedBy,
         });
     }
 
-    // ------------------------------------------------------------------
-    // 2. Three questions only
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // AI DOOR — 3 questions only
+    // ==================================================================
 
     [HttpGet]
     public IActionResult Questions(string? college)
@@ -128,7 +302,7 @@ public sealed class PermitsController : DemoControllerBase
         var fee = college is null ? null : _catalog.Find(college);
         if (fee is null)
         {
-            return RedirectToAction(nameof(Apply));
+            return RedirectToAction(nameof(Ask));
         }
 
         return View(new QuestionsViewModel
@@ -139,7 +313,7 @@ public sealed class PermitsController : DemoControllerBase
         });
     }
 
-    /// <summary>The "Fix it" path back: re-render the questions, answers kept.</summary>
+    /// <summary>The Fix-it path back: re-render the questions, answers kept.</summary>
     [HttpPost]
     [ActionName("Questions")]
     [ValidateAntiForgeryToken]
@@ -148,10 +322,10 @@ public sealed class PermitsController : DemoControllerBase
         var fee = _catalog.Find(draft.College);
         if (fee is null)
         {
-            return RedirectToAction(nameof(Apply));
+            return RedirectToAction(nameof(Ask));
         }
 
-        return View(new QuestionsViewModel
+        return View("Questions", new QuestionsViewModel
         {
             ApplicationId = draft.ApplicationId,
             College = fee.Campus,
@@ -161,9 +335,9 @@ public sealed class PermitsController : DemoControllerBase
         });
     }
 
-    // ------------------------------------------------------------------
-    // 3. What the AI understood
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // AI DOOR — what the AI understood (the gate screen)
+    // ==================================================================
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -176,16 +350,16 @@ public sealed class PermitsController : DemoControllerBase
         var fee = _catalog.Find(college);
         if (fee is null)
         {
-            return RedirectToAction(nameof(Apply));
+            return RedirectToAction(nameof(Ask));
         }
 
-        // Her car, in her own words, through the AI extractor. The
-        // extractor can only return catalog colleges and car facts —
-        // never a price. Her tap choices (type + term) and the college
-        // she picked stay exactly as she set them. The extraction is
-        // a PRE-FILL only: the Understood screen's fields are editable
-        // and are what actually gets saved — a value the reader missed
-        // (the plate above all) is typed there, not lost.
+        // The car, in the student's own words, through the AI
+        // extractor. The extraction is a PRE-FILL only: the
+        // Understood screen's fields are editable, and what is
+        // submitted there is what gets saved — a value the reader
+        // missed (the plate above all) is typed there, not lost.
+        // The college stays the one picked on Ask; the taps stay
+        // exactly as set. The extractor can never produce a price.
         var result = await _extractor.ExtractAsync(carText ?? "", cancellationToken);
 
         var draft = new PermitDraftViewModel
@@ -202,21 +376,22 @@ public sealed class PermitsController : DemoControllerBase
             Term = term,
             Source = result.Source == ExtractionSource.Ollama ? "ollama" : "fallback",
         };
+        draft.SourceNote = SourceNote(draft.Source);
 
         return View("Understood", draft);
     }
 
-    // ------------------------------------------------------------------
-    // 4. Review — the exact total, before any payment
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // AI DOOR — Review: the draft persists here, the trust moment
+    // ==================================================================
 
     /// <summary>
     /// The Understood screen's continue button lands here with the
     /// (possibly hand-corrected) draft. THE GATE: a blank plate goes
     /// straight back to the Understood screen with its big prompt —
-    /// the flow never advances past Understood without a plate, and
-    /// it never silently restarts at Questions. With a plate, the
-    /// draft is SAVED (vehicle + application, payment Pending) and
+    /// the flow never advances without a plate, and it never
+    /// restarts silently at Questions. With a plate, the draft is
+    /// persisted through ApplicationService (create or revise) and
     /// Review is reached by id alone.
     /// </summary>
     [HttpPost]
@@ -227,10 +402,11 @@ public sealed class PermitsController : DemoControllerBase
         var fee = _catalog.Find(draft.College);
         if (fee is null)
         {
-            return RedirectToAction(nameof(Apply));
+            return RedirectToAction(nameof(Ask));
         }
 
         draft.College = fee.Campus;
+        draft.SourceNote = SourceNote(draft.Source);
 
         if (string.IsNullOrWhiteSpace(draft.Plate))
         {
@@ -239,50 +415,79 @@ public sealed class PermitsController : DemoControllerBase
         }
 
         var student = await CurrentStudentAsync(_db, cancellationToken);
-        var application = await SaveDraftAsync(draft, fee, student, cancellationToken);
 
-        return application.ReceiptNumber is not null
-            ? RedirectToAction(nameof(Receipt), new { id = application.Id })
-            : RedirectToAction(nameof(Review), new { id = application.Id });
+        PermitApplication? existing = null;
+        if (draft.ApplicationId is { } draftId)
+        {
+            existing = await _db.PermitApplications.SingleOrDefaultAsync(
+                a => a.Id == draftId && a.StudentId == student.Id, cancellationToken);
+            if (existing?.ReceiptNumber is not null)
+            {
+                // Already a live permit — never revised, never re-sold.
+                return Redirect($"/Permits/Receipt/{existing.Id}");
+            }
+        }
+
+        var vehicle = await _applications.ResolveVehicleForDraftAsync(
+            student.Id, draft.Plate, draft.CarMake, draft.CarModel,
+            draft.CarColor, draft.CarState, cancellationToken);
+
+        var input = new ApplicationInput(
+            StudentId: student.Id,
+            VehicleId: vehicle.Id,
+            Campus: fee.Campus,
+            TypeCode: draft.PermitType,
+            Term: draft.Term,
+            StartDate: ComputeAiStart(fee.Campus, draft.PermitType, draft.Term),
+            Source: draft.Source,
+            PersistWhenPriceBlocked: true);
+
+        var result = existing is not null
+            ? await _applications.ReviseDraftAsync(existing.Id, input, cancellationToken)
+            : await _applications.CreateAsync(input, cancellationToken);
+
+        return result.Status switch
+        {
+            CreateApplicationStatus.Created or
+            CreateApplicationStatus.Duplicate or
+            CreateApplicationStatus.AlreadyLive => result.Application!.ReceiptNumber is not null
+                ? Redirect($"/Permits/Receipt/{result.Application.Id}")
+                : RedirectToAction(nameof(Review), new { id = result.Application!.Id }),
+            // Defensive only (the draft persists even when blocked):
+            // back to the gate screen rather than a dead end.
+            _ => BackToUnderstoodWithError(draft),
+        };
     }
 
     /// <summary>The Review screen itself, rendered from the saved draft.</summary>
     [HttpGet]
     public async Task<IActionResult> Review(Guid id, CancellationToken cancellationToken)
     {
-        var application = await _db.PermitApplications
-            .Include(a => a.Vehicle)
-            .Include(a => a.PermitType)
-            .SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
+        var application = await LoadOwnApplicationAsync(id, cancellationToken);
         if (application is null)
         {
             return NotFound();
         }
 
-        var fee = _catalog.Find(application.Campus);
-        if (fee is null)
+        if (application.ReceiptNumber is not null)
         {
-            return NotFound();
+            return Redirect($"/Permits/Receipt/{application.Id}");
         }
 
-        var draft = DraftFromApplication(application);
-        return View(BuildReview(draft, fee, application.Id));
+        return View(BuildReview(application));
     }
 
     /// <summary>
     /// The blocked day-pass screen's one-tap alternative: switch the
-    /// saved draft to another permit type (the term permit) and land
-    /// back on its Review — same draft, same car, no re-typing.
+    /// saved draft to the term permit and land back on its Review —
+    /// same draft, same car, no re-typing.
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SwitchType(
         Guid id, PermitTypeCode permitType, CancellationToken cancellationToken)
     {
-        var application = await _db.PermitApplications
-            .Include(a => a.Vehicle)
-            .Include(a => a.PermitType)
-            .SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
+        var application = await LoadOwnApplicationAsync(id, cancellationToken);
         if (application is null)
         {
             return NotFound();
@@ -290,77 +495,49 @@ public sealed class PermitsController : DemoControllerBase
 
         if (application.ReceiptNumber is not null)
         {
-            return RedirectToAction(nameof(Receipt), new { id = application.Id });
+            return Redirect($"/Permits/Receipt/{application.Id}");
         }
 
-        var fee = _catalog.Find(application.Campus);
-        if (fee is null)
+        var input = new ApplicationInput(
+            StudentId: application.StudentId,
+            VehicleId: application.VehicleId,
+            Campus: application.Campus,
+            TypeCode: permitType,
+            Term: application.Term,
+            StartDate: ComputeAiStart(application.Campus, permitType, application.Term),
+            Source: application.Source,
+            PersistWhenPriceBlocked: true);
+
+        var result = await _applications.ReviseDraftAsync(
+            application.Id, input, cancellationToken);
+        return result.Status switch
         {
-            return NotFound();
-        }
-
-        var type = await _db.PermitTypes
-            .SingleAsync(t => t.Code == permitType && t.Active, cancellationToken);
-        application.PermitTypeId = type.Id;
-
-        var draft = DraftFromApplication(application);
-        draft.PermitType = permitType;
-        var review = BuildReview(draft, fee, application.Id);
-        application.StartDate = review.StartDate;
-        application.EndDate = review.EndDate;
-        // Placeholder 0 only while the new type is ALSO blocked;
-        // Confirm recomputes from the catalog before any money moves.
-        application.PriceCents = review.PriceCents ?? 0;
-
-        try
-        {
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            // The same permit in the new type already exists for her —
-            // send her to that one's Review instead of duplicating it.
-            var other = await _db.PermitApplications
-                .Include(a => a.Vehicle)
-                .Where(a => a.StudentId == application.StudentId &&
-                            a.PermitTypeId == type.Id &&
-                            a.StartDate == review.StartDate &&
-                            a.EndDate == review.EndDate)
-                .FirstOrDefaultAsync(
-                    a => a.Vehicle!.Plate == application.Vehicle!.Plate,
-                    cancellationToken);
-            if (other is not null && other.Id != application.Id)
-            {
-                return other.ReceiptNumber is not null
-                    ? RedirectToAction(nameof(Receipt), new { id = other.Id })
-                    : RedirectToAction(nameof(Review), new { id = other.Id });
-            }
-
-            throw;
-        }
-
-        return RedirectToAction(nameof(Review), new { id = application.Id });
+            CreateApplicationStatus.Duplicate or
+            CreateApplicationStatus.AlreadyLive =>
+                result.Application!.ReceiptNumber is not null
+                    ? Redirect($"/Permits/Receipt/{result.Application.Id}")
+                    : RedirectToAction(nameof(Review), new { id = result.Application!.Id }),
+            _ => RedirectToAction(nameof(Review), new { id = application.Id }),
+        };
     }
 
-    // ------------------------------------------------------------------
-    // 5. Confirm — re-price the saved draft, hand off to T4's Checkout
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // AI DOOR — Confirm: id only, hand off to Checkout
+    // ==================================================================
 
     /// <summary>
-    /// Takes ONLY the draft id. The price is recomputed HERE, on the
-    /// server, from the fee catalog — never taken from anything the
-    /// browser sent. Problems NEVER bounce back to Questions: a blocked
-    /// price or a still-blank plate returns THIS Review screen with
-    /// the honest block / a big error banner.
+    /// Takes ONLY the draft id. The price is re-read HERE from the
+    /// fee catalog — never from anything the browser sent — and a
+    /// problem NEVER bounces back to Questions: a blocked price or a
+    /// still-blank plate returns THIS Review screen with the honest
+    /// block / a big error banner (the plate case is residual only —
+    /// the Understood gate stops new drafts long before here).
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Confirm(Guid id, CancellationToken cancellationToken)
     {
-        var application = await _db.PermitApplications
-            .Include(a => a.Vehicle)
-            .Include(a => a.PermitType)
-            .SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
+        var application = await LoadOwnApplicationAsync(id, cancellationToken);
         if (application is null)
         {
             return NotFound();
@@ -368,176 +545,130 @@ public sealed class PermitsController : DemoControllerBase
 
         if (application.ReceiptNumber is not null)
         {
-            return RedirectToAction(nameof(Receipt), new { id = application.Id });
+            return Redirect($"/Permits/Receipt/{application.Id}");
         }
 
-        var fee = _catalog.Find(application.Campus);
-        if (fee is null)
-        {
-            return NotFound();
-        }
-
-        var draft = DraftFromApplication(application);
-        var review = BuildReview(draft, fee, application.Id);
+        var review = BuildReview(application);
         if (review.Blocked)
         {
-            // No readable price: the honest block screen, no checkout.
             return View("Review", review);
         }
 
         if (string.IsNullOrWhiteSpace(application.Vehicle?.Plate))
         {
-            // Residual path only (the Understand gate stops new flow
-            // drafts long before here) — Review + banner, never a
-            // silent bounce back to Questions.
-            return View("Review", BuildReview(draft, fee, application.Id,
+            return View("Review", BuildReview(application,
                 error: "We still need your car's plate number before you " +
-                       "can pay. Start over and type it on the " +
-                       "\"Did I get this right?\" screen."));
+                       "can pay. Use “Check my answers” below and type it " +
+                       "on the “Did I get this right?” screen."));
         }
 
-        // Persist the freshly recomputed snapshot, then hand off.
-        application.PriceCents = review.PriceCents!.Value;
-        application.StartDate = review.StartDate;
-        application.EndDate = review.EndDate;
-        await _db.SaveChangesAsync(cancellationToken);
+        // Persist the freshly recomputed snapshot if it moved (the
+        // catalog is a static file, so this is a guard, not a path).
+        if (review.PriceCents is { } price && price != application.PriceCents)
+        {
+            application.PriceCents = price;
+            application.ConcurrencyToken = Guid.NewGuid();
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Item 51: a stale write loses loudly, on this same
+                // screen — never a silent overwrite.
+                return View("Review", BuildReview(application,
+                    error: "This application changed while you were " +
+                           "looking at it. Check the details, then try again."));
+            }
+        }
 
-        // Hand off to T4: paid path goes to PayPal sandbox checkout;
-        // a $0 permit confirms free on that same page. T2 never calls
-        // PayPal itself.
+        if (application.PaymentStatus == PaymentStatus.NotRequired)
+        {
+            // Defensive: a $0 draft is issued at save time, so this
+            // is unreachable in the normal flow.
+            return Redirect($"/Permits/Receipt/{application.Id}");
+        }
+
         return Redirect($"/Checkout/{application.Id}");
     }
 
-    // ------------------------------------------------------------------
-    // Draft persistence — the Understand step saves; ids travel after
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // AI-door helpers
+    // ==================================================================
+
+    private IActionResult BackToUnderstoodWithError(PermitDraftViewModel draft)
+    {
+        draft.PlateMissing = string.IsNullOrWhiteSpace(draft.Plate);
+        return View("Understood", draft);
+    }
+
+    /// <summary>Loads one of the current person's applications (vehicle + type joined).</summary>
+    private async Task<PermitApplication?> LoadOwnApplicationAsync(
+        Guid id, CancellationToken cancellationToken)
+    {
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        return await _db.PermitApplications
+            .Include(a => a.Vehicle)
+            .Include(a => a.PermitType)
+            .SingleOrDefaultAsync(
+                a => a.Id == id && a.StudentId == student.Id, cancellationToken);
+    }
 
     /// <summary>
-    /// Saves (or updates) the draft application for the Understood
-    /// screen's values: her vehicle row plus a PermitApplication with
-    /// PaymentStatus Pending. The stored PriceCents is the server's own
-    /// catalog computation at save time (0 placeholder only while the
-    /// price is blocked/unreadable) — Confirm recomputes it from the
-    /// catalog before any money moves, so a stored value is never
-    /// trusted for charging.
+    /// Builds the trust-moment model from the SAVED draft: stored
+    /// dates (the snapshot), a FRESH catalog price (never the stored
+    /// placeholder), and — for a blocked day pass — the same
+    /// college's term price as the one-tap alternative.
     /// </summary>
-    private async Task<PermitApplication> SaveDraftAsync(
-        PermitDraftViewModel draft, CampusFee fee, Student student,
-        CancellationToken cancellationToken)
+    private ReviewViewModel BuildReview(PermitApplication application, string? error = null)
     {
-        var permitType = await _db.PermitTypes
-            .SingleAsync(t => t.Code == draft.PermitType && t.Active, cancellationToken);
-        var pricing = BuildReview(draft, fee, draft.ApplicationId ?? Guid.Empty);
-        var plate = draft.Plate!.Trim().ToUpperInvariant();
+        var fee = _catalog.Find(application.Campus);
+        var type = application.PermitType;
+        var price = fee is null || type is null
+            ? null
+            : _pricing.ResolvePriceCents(fee, type.Code, application.Term, application.Category);
 
-        PermitApplication? application = null;
-        if (draft.ApplicationId is { } draftId)
+        var isDayPassBlock = price is null && type?.Code == PermitTypeCode.Daily;
+        int? termAlternative = null;
+        if (isDayPassBlock && fee is not null)
         {
-            application = await _db.PermitApplications
-                .Include(a => a.Vehicle)
-                .SingleOrDefaultAsync(
-                    a => a.Id == draftId && a.StudentId == student.Id,
-                    cancellationToken);
-            if (application is not null && application.ReceiptNumber is not null)
-            {
-                // Already a live permit — never mutate it; a fresh
-                // draft is created below (or the twin lookup finds it).
-                application = null;
-            }
+            termAlternative = _pricing.ResolvePriceCents(
+                fee, PermitTypeCode.Term, application.Term, application.Category);
         }
 
-        if (application is null)
+        var vehicle = application.Vehicle;
+        var carLine = string.Join(" ", new[]
         {
-            // The same permit already started under another draft?
-            // Reuse it — never sell (or draft) it twice.
-            var twin = await _db.PermitApplications
-                .Include(a => a.Vehicle)
-                .Where(a => a.StudentId == student.Id &&
-                            a.PermitTypeId == permitType.Id &&
-                            a.StartDate == pricing.StartDate &&
-                            a.EndDate == pricing.EndDate)
-                .FirstOrDefaultAsync(a => a.Vehicle!.Plate == plate, cancellationToken);
-            if (twin is not null)
-            {
-                return twin;
-            }
-        }
+            vehicle?.Color.ToString(), vehicle?.Make, vehicle?.Model,
+        }.Where(p => !string.IsNullOrWhiteSpace(p)));
 
-        // Her car: the draft's own vehicle when updating, else reuse
-        // the row if this plate is already hers, else a new row.
-        var vehicle = application?.Vehicle;
-        if (vehicle is null)
+        return new ReviewViewModel
         {
-            vehicle = await _db.Vehicles.FirstOrDefaultAsync(
-                v => v.StudentId == student.Id && v.Plate == plate, cancellationToken);
-        }
-
-        if (vehicle is null)
-        {
-            vehicle = new Vehicle
-            {
-                Id = Guid.NewGuid(),
-                StudentId = student.Id,
-            };
-            _db.Vehicles.Add(vehicle);
-        }
-
-        vehicle.Plate = plate;
-        vehicle.State = ParseState(draft.CarState);
-        vehicle.Color = ParseColor(draft.CarColor);
-        vehicle.Make = NullIfBlank(draft.CarMake);
-        vehicle.Model = NullIfBlank(draft.CarModel);
-
-        if (application is null)
-        {
-            application = new PermitApplication
-            {
-                Id = Guid.NewGuid(),
-                StudentId = student.Id,
-                SubmittedAtUtc = DateTime.UtcNow,
-            };
-            _db.PermitApplications.Add(application);
-        }
-
-        application.Campus = fee.Campus;
-        application.VehicleId = vehicle.Id;
-        application.PermitTypeId = permitType.Id;
-        application.Term = draft.Term;
-        application.Source = draft.Source;
-        application.StartDate = pricing.StartDate;
-        application.EndDate = pricing.EndDate;
-        application.Status = ApplicationStatus.Pending;
-        application.PriceCents = pricing.PriceCents ?? 0;
-        if (application.PaymentStatus is not (PaymentStatus.Paid or PaymentStatus.NotRequired))
-        {
-            application.PaymentStatus = PaymentStatus.Pending;
-        }
-
-        try
-        {
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            // The composite unique index caught a race with a twin
-            // draft — detach our attempt and return the one that won.
-            _db.Entry(application).State = EntityState.Detached;
-            if (vehicle.Id != Guid.Empty && _db.Entry(vehicle).State == EntityState.Added)
-            {
-                _db.Entry(vehicle).State = EntityState.Detached;
-            }
-
-            var winner = await _db.PermitApplications
-                .Include(a => a.Vehicle)
-                .Where(a => a.StudentId == student.Id &&
-                            a.PermitTypeId == permitType.Id &&
-                            a.StartDate == pricing.StartDate &&
-                            a.EndDate == pricing.EndDate)
-                .FirstAsync(a => a.Vehicle!.Plate == plate, cancellationToken);
-            return winner;
-        }
-
-        return application;
+            ApplicationId = application.Id,
+            Draft = DraftFromApplication(application),
+            College = application.Campus,
+            CategoryLabel = application.Category.ToString(),
+            TypeName = type?.Name ?? "Parking permit",
+            Term = application.Term,
+            CarLine = carLine.Length > 0 ? carLine : "Your car",
+            PlateLine = vehicle is null ? "" : $"{vehicle.Plate} ({vehicle.State})",
+            StartDate = application.StartDate,
+            EndDate = application.EndDate,
+            PriceCents = price,
+            IsDayPassBlock = isDayPassBlock,
+            TotalDisplay = price is null
+                ? "Price not published"
+                : price == 0
+                    ? "$0 — FREE"
+                    : Money(price.Value),
+            TermAlternativePriceCents = termAlternative,
+            TermAlternativeDisplay = termAlternative is null
+                ? null
+                : termAlternative == 0
+                    ? "$0 — FREE"
+                    : Money(termAlternative.Value),
+            Error = error,
+        };
     }
 
     /// <summary>Rebuilds the flow draft from a saved application + its vehicle.</summary>
@@ -559,218 +690,20 @@ public sealed class PermitsController : DemoControllerBase
         };
     }
 
-    // ------------------------------------------------------------------
-    // 6. My permits + the big receipt
-    // ------------------------------------------------------------------
-
-    [HttpGet]
-    public async Task<IActionResult> My(CancellationToken cancellationToken)
-    {
-        var student = await CurrentStudentAsync(_db, cancellationToken);
-        var applications = await _db.PermitApplications
-            .Include(a => a.PermitType)
-            .Where(a => a.StudentId == student.Id)
-            .OrderByDescending(a => a.SubmittedAtUtc)
-            .ToListAsync(cancellationToken);
-
-        var items = applications.Select(a => new MyPermitItem(
-            a.Id,
-            a.Campus,
-            a.PermitType?.Name ?? "Parking permit",
-            a.StartDate,
-            a.EndDate,
-            a.PriceCents == 0 ? "$0 — FREE" : Money(a.PriceCents),
-            a.PaymentStatus,
-            a.ReceiptNumber)).ToList();
-
-        return View(new MyPermitsViewModel
-        {
-            StudentName = student.DisplayName,
-            Permits = items,
-        });
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> Receipt(Guid id, CancellationToken cancellationToken)
-    {
-        var application = await _db.PermitApplications
-            .Include(a => a.Vehicle)
-            .Include(a => a.PermitType)
-            .SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
-        if (application is null)
-        {
-            return NotFound();
-        }
-
-        var vehicle = application.Vehicle;
-        var carParts = new[]
-        {
-            vehicle?.Color.ToString(),
-            vehicle?.Make,
-            vehicle?.Model,
-        }.Where(p => !string.IsNullOrWhiteSpace(p));
-        var carLine = string.Join(" ", carParts);
-        if (vehicle is not null)
-        {
-            carLine = $"{carLine} — plate {vehicle.Plate}".Trim(' ', '—');
-        }
-
-        var isFree = application.PaymentStatus == PaymentStatus.NotRequired;
-        var isLive = application.PaymentStatus is
-            PaymentStatus.Paid or PaymentStatus.NotRequired;
-
-        return View(new ReceiptViewModel
-        {
-            Id = application.Id,
-            ReceiptNumber = application.ReceiptNumber,
-            College = application.Campus,
-            CarLine = carLine.Length > 0 ? carLine : "Your car",
-            TypeName = application.PermitType?.Name ?? "Parking permit",
-            StartDate = application.StartDate,
-            EndDate = application.EndDate,
-            TotalDisplay = application.PriceCents == 0
-                ? "$0 — FREE"
-                : Money(application.PriceCents),
-            IsLive = isLive,
-            IsFree = isFree,
-            PayPalOrderId = application.PayPalOrderId,
-            PayPalCaptureId = application.PayPalCaptureId,
-            VerifyUrl = application.VerifyToken is null
-                ? null
-                : $"/verify?t={application.VerifyToken}",
-        });
-    }
-
     /// <summary>
-    /// The printable permit PDF (PermitPdfService). Served ONLY for
-    /// a live permit — Paid, or NotRequired for a free permit — the
-    /// same gate as the reference app's Receipt(id): any other state
-    /// goes back to the receipt screen (which says plainly that the
-    /// permit is not live and offers the finish-paying path), never
-    /// a PDF. Unknown id → 404.
+    /// The AI door never asks for a start date (§2c): a Term permit
+    /// starts on its term window's first day; a day pass is for
+    /// today.
     /// </summary>
-    [HttpGet]
-    public async Task<IActionResult> PermitPdf(Guid id, CancellationToken cancellationToken)
+    private DateOnly ComputeAiStart(string campus, PermitTypeCode type, TermKind term)
     {
-        var application = await _db.PermitApplications
-            .Include(a => a.Student)
-            .Include(a => a.Vehicle)
-            .Include(a => a.PermitType)
-            .SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
-        if (application is null)
+        if (type == PermitTypeCode.Daily)
         {
-            return NotFound();
+            return Today();
         }
 
-        if (application.PaymentStatus is not (PaymentStatus.Paid or PaymentStatus.NotRequired))
-        {
-            return RedirectToAction(nameof(Receipt), new { id = application.Id });
-        }
-
-        var pdf = _permitPdf.BuildPermitPdf(application);
-        var fileName = $"Solvia-Permit-{application.ReceiptNumber ?? application.Id.ToString()}.pdf";
-        return File(pdf, "application/pdf", fileName);
-    }
-
-    // ------------------------------------------------------------------
-    // Pricing + dates — the server's single source of truth
-    // ------------------------------------------------------------------
-
-    private ReviewViewModel BuildReview(
-        PermitDraftViewModel draft, CampusFee fee, Guid applicationId,
-        string? error = null)
-    {
-        int? price;
-        DateOnly start;
-        DateOnly end;
-
-        if (draft.PermitType == PermitTypeCode.Daily)
-        {
-            price = DayPassPriceCents(fee);
-            var today = DateOnly.FromDateTime(DateTime.Now);
-            start = today;
-            end = today;
-        }
-        else
-        {
-            price = _catalog.SemesterPriceCents(fee, draft.Term);
-            var dates = _termDates.GetTermDates(fee.Campus, draft.Term, YearFor(draft.Term));
-            if (dates is not null)
-            {
-                start = dates.TermStart;
-                end = dates.PermitEndDate;
-            }
-            else
-            {
-                // The catalog knows this campus, so the seam should too;
-                // fall back to a plain 120-day window from today.
-                start = DateOnly.FromDateTime(DateTime.Now);
-                end = start.AddDays(120);
-            }
-        }
-
-        // A blocked DAY PASS offers the same college's term permit as
-        // the one-tap way forward — priced from the same catalog row,
-        // never invented.
-        int? termAlternative = null;
-        if (price is null && draft.PermitType == PermitTypeCode.Daily)
-        {
-            termAlternative = _catalog.SemesterPriceCents(fee, draft.Term);
-        }
-
-        return new ReviewViewModel
-        {
-            ApplicationId = applicationId,
-            Draft = draft,
-            PriceCents = price,
-            TotalDisplay = price is null
-                ? "Price not published"
-                : price == 0
-                    ? "$0 — FREE"
-                    : Money(price.Value),
-            StartDate = start,
-            EndDate = end,
-            Error = error,
-            TermAlternativePriceCents = termAlternative,
-            TermAlternativeDisplay = termAlternative is null
-                ? null
-                : termAlternative == 0
-                    ? "$0 — FREE"
-                    : Money(termAlternative.Value),
-        };
-    }
-
-    /// <summary>
-    /// The campus's published day-pass price, in cents — the first
-    /// dollar amount in its own published day-pass text ("$1.00
-    /// (online)", "$5/day General; …"). Null when the campus does not
-    /// publish one; 0 when it publishes FREE. Never invented.
-    /// </summary>
-    private static int? DayPassPriceCents(CampusFee fee)
-    {
-        var text = fee.DayPassText.Trim();
-        if (text.Length == 0 ||
-            text.StartsWith("not listed", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        if (text.StartsWith("FREE", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0;
-        }
-
-        var match = DayPassMoney.Match(text);
-        if (!match.Success)
-        {
-            return null;
-        }
-
-        var value = decimal.Parse(
-            match.Groups[1].Value.Replace(",", ""),
-            NumberStyles.Number,
-            CultureInfo.InvariantCulture);
-        return (int)Math.Round(value * 100m, MidpointRounding.AwayFromZero);
+        var dates = _termDates.GetTermDates(campus, term, YearFor(term));
+        return dates?.TermStart ?? Today();
     }
 
     /// <summary>The academic year a term belongs to, from today's date.</summary>
@@ -785,18 +718,16 @@ public sealed class PermitsController : DemoControllerBase
         };
     }
 
-    private static VehicleColor ParseColor(string? color) =>
-        Enum.TryParse<VehicleColor>(color, ignoreCase: true, out var parsed)
-            ? parsed
-            : VehicleColor.Other;
+    private static string SourceNote(string source) =>
+        source == "ollama"
+            ? "Read by the local AI (Phi-4-mini) on this computer."
+            : "Read by the built-in reader — the AI model is off right " +
+              "now, so plain rules read your words.";
 
-    private static UsState ParseState(string? state) =>
-        Enum.TryParse<UsState>(state, ignoreCase: true, out var parsed)
-            ? parsed
-            : UsState.CA;
+    private static DateOnly Today() => DateOnly.FromDateTime(DateTime.Now);
 
-    private static string? NullIfBlank(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string ShortDate(DateOnly date) =>
+        date.ToString("MMM d", CultureInfo.InvariantCulture);
 
     private static string Money(int cents) =>
         "$" + (cents / 100m).ToString("0.00", CultureInfo.InvariantCulture);

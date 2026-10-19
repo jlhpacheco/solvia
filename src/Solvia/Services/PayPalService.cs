@@ -10,16 +10,18 @@ using Solvia.Config;
 namespace Solvia.Services;
 
 /// <summary>
-/// The PayPal sandbox REST client (BUILD-PLAN T4; method names mirror the
-/// reference app). Talks ONLY to the configured sandbox base URL
-/// (https://api-m.sandbox.paypal.com) with OAuth client credentials.
+/// The PayPal sandbox REST client (REDO-PLAN R6) — the ONLY code in
+/// Solvia that talks to PayPal: OAuth token, order create/capture,
+/// and webhook-signature verification (for R7). Talks ONLY to the
+/// configured sandbox base URL (https://api-m.sandbox.paypal.com)
+/// with OAuth client credentials.
 ///
 /// Secrecy rules, enforced here:
-/// - The client secret comes from <see cref="PayPalOptions"/> (env vars /
-///   user-secrets) and is used in exactly one place — the token call's
-///   Basic authorization header.
-/// - Nothing about a credential is ever logged: log lines carry order
-///   ids, statuses, and PayPal's own error names only.
+/// - The client secret comes from <see cref="PayPalOptions"/> (env
+///   vars / user-secrets) and is used in exactly one place — the
+///   token call's Basic authorization header.
+/// - Nothing about a credential is ever logged: log lines carry
+///   order ids, statuses, and PayPal's own error names only.
 /// </summary>
 public sealed class PayPalService : IPayPalService
 {
@@ -36,8 +38,9 @@ public sealed class PayPalService : IPayPalService
         _options = options.Value;
         _logger = logger;
 
-        // DI sets the base address from PayPalOptions (Program.cs); when
-        // the client was built by hand (tests), fall back to the options.
+        // DI sets the base address from PayPalOptions (Program.cs);
+        // when the client was built by hand (tests), fall back to
+        // the options.
         if (_http.BaseAddress is null && !string.IsNullOrWhiteSpace(_options.BaseUrl))
         {
             _http.BaseAddress = new Uri(_options.BaseUrl.TrimEnd('/') + "/");
@@ -95,8 +98,11 @@ public sealed class PayPalService : IPayPalService
 
         ArgumentException.ThrowIfNullOrWhiteSpace(reference);
 
-        // Exact money: cents -> a fixed two-decimal USD string (3000 -> "30.00").
+        // Exact money: cents -> a fixed two-decimal string (3000 -> "30.00").
         var value = (amountCents / 100m).ToString("0.00", CultureInfo.InvariantCulture);
+        var currency = string.IsNullOrWhiteSpace(_options.Currency)
+            ? "USD"
+            : _options.Currency;
 
         var payload = new JsonObject
         {
@@ -110,7 +116,7 @@ public sealed class PayPalService : IPayPalService
                     ["description"] = "Solvia parking permit",
                     ["amount"] = new JsonObject
                     {
-                        ["currency_code"] = "USD",
+                        ["currency_code"] = currency,
                         ["value"] = value,
                     },
                 },
@@ -141,6 +147,10 @@ public sealed class PayPalService : IPayPalService
         var token = await GetAccessTokenAsync(cancellationToken);
         using var request = new HttpRequestMessage(HttpMethod.Post, "v2/checkout/orders");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        // One create call per checkout start is a promise the money
+        // brain keeps (item 30 idempotency); the reference doubles
+        // as PayPal's own deduplication key.
+        request.Headers.Add("PayPal-Request-Id", $"solvia-{reference}");
         request.Content = new StringContent(
             payload.ToJsonString(), Encoding.UTF8, "application/json");
 
@@ -205,10 +215,74 @@ public sealed class PayPalService : IPayPalService
         return new PayPalCaptureResult(status, captureId);
     }
 
+    public async Task<bool> VerifyWebhookSignatureAsync(
+        string transmissionId,
+        string transmissionTime,
+        string transmissionSig,
+        string certUrl,
+        string authAlgo,
+        string webhookEventJson,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(transmissionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(webhookEventJson);
+
+        // No webhook id configured -> nothing to verify against.
+        // R7 treats false as a failed verification (401), which is
+        // the honest answer until a webhook is registered.
+        if (string.IsNullOrWhiteSpace(_options.WebhookId))
+        {
+            _logger.LogWarning(
+                "Webhook signature check skipped: PayPal:WebhookId is not configured.");
+            return false;
+        }
+
+        JsonNode? eventNode;
+        try
+        {
+            eventNode = JsonNode.Parse(webhookEventJson);
+        }
+        catch (JsonException)
+        {
+            // A body that is not JSON cannot be a verified event.
+            return false;
+        }
+
+        var payload = new JsonObject
+        {
+            ["auth_algo"] = authAlgo,
+            ["cert_url"] = certUrl,
+            ["transmission_id"] = transmissionId,
+            ["transmission_sig"] = transmissionSig,
+            ["transmission_time"] = transmissionTime,
+            ["webhook_id"] = _options.WebhookId,
+            ["webhook_event"] = eventNode,
+        };
+
+        var token = await GetAccessTokenAsync(cancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post, "v1/notifications/verify-webhook-signature");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = new StringContent(
+            payload.ToJsonString(), Encoding.UTF8, "application/json");
+
+        using var response = await _http.SendAsync(request, cancellationToken);
+        var body = await ReadBodyOrThrowAsync(
+            response, "verify webhook signature", cancellationToken);
+
+        using var doc = JsonDocument.Parse(body);
+        var verified = doc.RootElement.TryGetProperty("verification_status", out var statusEl) &&
+            string.Equals(statusEl.GetString(), "SUCCESS", StringComparison.OrdinalIgnoreCase);
+        _logger.LogInformation(
+            "PayPal webhook signature verification for transmission {TransmissionId}: {Verified}.",
+            transmissionId, verified ? "SUCCESS" : "FAILURE");
+        return verified;
+    }
+
     /// <summary>
-    /// Fails fast — before any HTTP call — when the sandbox credentials
-    /// are missing, naming the settings to supply. The message never
-    /// contains a credential value.
+    /// Fails fast — before any HTTP call — when the sandbox
+    /// credentials are missing, naming the settings to supply. The
+    /// message never contains a credential value.
     /// </summary>
     private void EnsureConfigured()
     {

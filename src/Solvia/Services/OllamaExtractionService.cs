@@ -8,24 +8,24 @@ using Solvia.Models.Enums;
 namespace Solvia.Services;
 
 /// <summary>
-/// The AI extractor (BUILD-PLAN T3): asks the local model — Microsoft
-/// Phi-4-mini, served by Ollama on the SAME computer — to turn a
-/// student's plain answers into an <see cref="ExtractionResult"/>.
+/// The AI extractor: asks the local model — Microsoft Phi-4-mini,
+/// served by Ollama on the SAME computer — to read a permit draft
+/// out of the student's plain words (REDO-PLAN §3 R3).
 ///
 /// Privacy by design: the only thing that leaves this process is an
 /// HTTP call to Ollama on localhost. Student data never reaches a
 /// vendor cloud and can never be used to train any model.
 ///
 /// Trust rules:
-/// - The prompt demands ONLY a JSON object in our schema, and lists the
-///   10 real campus names from the fee catalog — the model may not
-///   invent a college.
+/// - The prompt demands ONLY a JSON object in our schema, lists the
+///   10 real campus names from the fee catalog, and forbids prices —
+///   the model may not invent a college or a fee.
 /// - The answer is validated before it is believed: the college must
-///   resolve against <see cref="IFeeCatalog"/> (a name the catalog does
-///   not know rejects the whole answer), term/permit values must be in
-///   vocabulary, and there is no code path that reads a price — even
-///   if the model emits one, it is ignored, because the result type
-///   has no price member.
+///   resolve against <see cref="IFeeCatalog"/> (a name the catalog
+///   does not know rejects the WHOLE answer), term and permit type
+///   must be in vocabulary, and no code path here reads a price —
+///   even if the model emits one it is ignored, because
+///   <see cref="ExtractionResult"/> has no price member to land on.
 /// - ANY failure — Ollama down, timeout (10 s cap), HTTP error, bad
 ///   JSON, schema violation — lands in <see cref="FallbackExtractor"/>
 ///   with Source=Fallback. No exception escapes this service.
@@ -57,8 +57,9 @@ public sealed class OllamaExtractionService : IAiExtractor
         _logger = logger;
         _timeout = timeout ?? DefaultTimeout;
 
-        // DI sets the base address from OllamaOptions (Program.cs); when
-        // the client was built by hand (tests), fall back to the options.
+        // DI sets the base address from OllamaOptions when the client
+        // is registered; when the client was built by hand (tests),
+        // fall back to the options value.
         if (_http.BaseAddress is null && !string.IsNullOrWhiteSpace(_options.BaseUrl))
         {
             _http.BaseAddress = new Uri(_options.BaseUrl.TrimEnd('/') + "/");
@@ -94,10 +95,10 @@ public sealed class OllamaExtractionService : IAiExtractor
     }
 
     /// <summary>
-    /// One Ollama round trip. Returns the validated result, or null when
-    /// the model's answer failed validation (the caller then falls
-    /// back). Throws only for transport-level failures, which the
-    /// caller also turns into the fallback.
+    /// One Ollama round trip. Returns the validated result, or null
+    /// when the model's answer failed validation (the caller then
+    /// falls back). Throws only for transport-level failures, which
+    /// the caller also turns into the fallback.
     /// </summary>
     private async Task<ExtractionResult?> TryModelAsync(
         string studentText,
@@ -155,8 +156,8 @@ public sealed class OllamaExtractionService : IAiExtractor
     /// reject the whole answer — when the JSON is unparseable, the
     /// college cannot be resolved against the fee catalog, or a
     /// vocabulary field (term / permit type) is out of vocabulary.
-    /// Unknown extra fields (including any price the model might
-    /// invent) are ignored: nothing here reads them.
+    /// Unknown extra fields — including any price the model might
+    /// invent — are ignored: nothing here reads them.
     /// </summary>
     private ExtractionResult? ValidateModelJson(string content)
     {
@@ -185,8 +186,8 @@ public sealed class OllamaExtractionService : IAiExtractor
                     ? value.Trim()
                     : null;
 
-            // College: must resolve against the catalog — exact name or
-            // the deterministic matcher. Unresolvable ⇒ reject all.
+            // College: must resolve against the catalog — exact name
+            // or the deterministic matcher. Unresolvable ⇒ reject all.
             string? college = null;
             if (Field("college") is { } collegeClaim)
             {
@@ -207,13 +208,15 @@ public sealed class OllamaExtractionService : IAiExtractor
             TermKind? term = null;
             if (Field("term") is { } termClaim)
             {
-                term = termClaim.ToLowerInvariant() switch
-                {
-                    var t when t.Contains("fall") || t.Contains("autumn") => TermKind.Fall,
-                    var t when t.Contains("spring") => TermKind.Spring,
-                    var t when t.Contains("summer") => TermKind.Summer,
-                    _ => null,
-                };
+                var lowerTerm = termClaim.ToLowerInvariant();
+                term =
+                    lowerTerm.Contains("fall") || lowerTerm.Contains("autumn")
+                        ? TermKind.Fall
+                        : lowerTerm.Contains("spring")
+                            ? TermKind.Spring
+                            : lowerTerm.Contains("summer")
+                                ? TermKind.Summer
+                                : null;
                 if (term is null)
                 {
                     return null; // out-of-vocabulary term = schema violation
@@ -256,7 +259,7 @@ public sealed class OllamaExtractionService : IAiExtractor
                 CarMake = Field("carMake"),
                 CarModel = Field("carModel"),
                 CarColor = CanonicalColor(Field("carColor")),
-                Plate = NormalizePlate(Field("plate")),
+                Plate = FallbackExtractor.NormalizePlate(Field("plate")),
                 CarState = carState,
                 Source = ExtractionSource.Ollama,
             };
@@ -280,20 +283,6 @@ public sealed class OllamaExtractionService : IAiExtractor
         return Enum.TryParse<VehicleColor>(trimmed, ignoreCase: true, out var parsed)
             ? parsed.ToString()
             : trimmed;
-    }
-
-    /// <summary>Upper-cases and strips separators; sane plates are 4–10 alphanumerics.</summary>
-    private static string? NormalizePlate(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return null;
-        }
-
-        var plate = new string(raw.ToUpperInvariant()
-            .Where(c => c is (>= 'A' and <= 'Z') or (>= '0' and <= '9'))
-            .ToArray());
-        return plate.Length is >= 4 and <= 10 ? plate : null;
     }
 
     /// <summary>Models sometimes wrap JSON in ``` fences despite format:"json".</summary>

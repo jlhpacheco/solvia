@@ -1,13 +1,18 @@
 @model Solvia.Models.ViewModels.VehicleEditViewModel
 @{
-    ViewData["Title"] = "Add a car";
+    ViewData["Title"] = "Add a vehicle";
 }
 
-<h1 class="display-5 fw-bold">Add a car</h1>
+<h1 class="mt-4">Add a vehicle</h1>
+<p class="fs-5">
+    The permit points at a saved car, so the car comes first.
+    Five short fields — the plate is the only one you must fill.
+</p>
 
-<form method="post" action="/Vehicles/Create">
-    @Html.AntiForgeryToken()
-    <partial name="_VehicleFields" model="Model" />
-
-    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3">Add my car</button>
-</form>
+<div class="sv-card">
+    <form asp-action="Create" method="post">
+        <partial name="_VehicleFields" model="Model" />
+        <button type="submit" class="btn btn-primary sv-cta w-100 mt-3">Save vehicle</button>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-lg w-100 mt-2 py-3">Cancel</a>
+    </form>
+</div>

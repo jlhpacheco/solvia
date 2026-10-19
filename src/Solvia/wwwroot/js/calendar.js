@@ -1,11 +1,11 @@
-// Native term-dates list (T6 calendar seam; the SHIPPED renderer as of
-// the T5 decision) — renders the TermDates JSON island on the dates
-// page as a plain list. Bryntum Calendar is NOT embedded: it has no
-// free community edition (paid license or 45-day trial only, and a
-// trial would expire during judging Dec 1–15, 2026). A licensed
-// Bryntum build would consume this exact same JSON shape via a
-// drop-in calendar.bryntum.js + config Calendar:Renderer=bryntum —
-// see docs/SPONSORS.md. (/College/DatesJson serves the JSON directly.)
+// Native term-dates list (the calendar seam's SHIPPED renderer) —
+// renders the TermDates JSON island on the dates page as a plain
+// list. Bryntum Calendar is NOT embedded: it has no free community
+// edition (paid license or 45-day trial only, and a trial would
+// expire during judging Dec 1–15, 2026). A licensed Bryntum build
+// would consume this exact same JSON shape via a drop-in
+// calendar.bryntum.js + config Calendar:Renderer=bryntum — see
+// docs/SPONSORS.md. (/College/DatesJson serves the JSON directly.)
 (function () {
     var dataEl = document.getElementById('term-dates-data');
     var host = document.getElementById('term-calendar');

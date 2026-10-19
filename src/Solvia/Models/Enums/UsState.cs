@@ -1,6 +1,6 @@
 namespace Solvia.Models.Enums;
 
-/// <summary>US state for a license plate (docs/SCHEMA.md; default CA).</summary>
+/// <summary>US state for a license plate (default CA). Stored as TEXT.</summary>
 public enum UsState
 {
     AL, AK, AZ, AR, CA, CO, CT, DE, DC, FL, GA, HI, ID, IL, IN, IA, KS, KY,

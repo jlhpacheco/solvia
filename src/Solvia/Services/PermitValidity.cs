@@ -5,8 +5,10 @@ using Solvia.Models.Enums;
 namespace Solvia.Services;
 
 /// <summary>
-/// Where one student stands on one campus's roster (BUILD-PLAN T5) —
-/// the "who paid / who hasn't" answer in four plain states.
+/// Where one student stands on one campus's roster — the "who paid /
+/// who hasn't" answer in four plain states. Consumed by the college
+/// roster (R8); the public verify surface reads only
+/// <see cref="PermitValidity.Check"/>.
 /// </summary>
 public enum RosterPermitState
 {
@@ -24,18 +26,22 @@ public enum RosterPermitState
 }
 
 /// <summary>
-/// The outcome of a validity check: whether the permit is live, and the
-/// plain-words reason shown on the public /verify page either way.
+/// The outcome of a validity check: whether the permit is live, and
+/// the plain-words reason shown on the public /verify page either way.
 /// </summary>
 public sealed record PermitValidityResult(bool IsActive, string Reason);
 
 /// <summary>
-/// The one place "is this permit live?" is decided (BUILD-PLAN §2
-/// contract, owned by T5 — mirrors the guard rules in docs/SCHEMA.md).
+/// The one place "is this permit live?" is decided (REDO-PLAN
+/// item 47 — rebuilt identically to the frozen tree's proven rule).
 /// A permit is active when today falls inside its StartDate–EndDate
-/// window, the application is not Denied, and its PaymentStatus is Paid
-/// (or NotRequired for a free permit). The college roster and the
-/// public /verify page both read their truth from here.
+/// window, the application is not Denied, and its PaymentStatus is
+/// Paid (or NotRequired for a free permit). The college roster (R8)
+/// and the public /verify page + JSON twin (R7) all read their truth
+/// from here — the roster's classify split (payment state at a
+/// campus) and the verify verdict (date-window truth) stay different
+/// questions with different answers, exactly as the frozen build
+/// proved them.
 /// </summary>
 public static class PermitValidity
 {
@@ -44,9 +50,9 @@ public static class PermitValidity
         Check(application, today).IsActive;
 
     /// <summary>
-    /// The full check: active or not, plus the plain-words reason. The
-    /// reason order is deliberate — a denied or refunded permit says so
-    /// even when its dates also happen to be off.
+    /// The full check: active or not, plus the plain-words reason.
+    /// The reason order is deliberate — a denied or refunded permit
+    /// says so even when its dates also happen to be off.
     /// </summary>
     public static PermitValidityResult Check(PermitApplication application, DateOnly today)
     {
@@ -87,8 +93,9 @@ public static class PermitValidity
     /// Classifies one student's standing at one campus from the
     /// applications they hold there. Issued beats started beats
     /// nothing; among issued permits the live one wins, then the most
-    /// recently submitted. The returned permit is the one whose number
-    /// and dates the roster shows (null unless a permit was issued).
+    /// recently submitted. The returned permit is the one whose
+    /// number and dates the roster shows (null unless a permit was
+    /// issued).
     /// </summary>
     public static (RosterPermitState State, PermitApplication? Permit) Classify(
         IReadOnlyCollection<PermitApplication> applicationsAtCampus,

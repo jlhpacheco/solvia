@@ -3,6 +3,8 @@
     var amount = ViewData["AmountDisplay"] as string;
     var isPaid = Model.PaymentStatus == Solvia.Models.Enums.PaymentStatus.Paid;
     var isFree = Model.PaymentStatus == Solvia.Models.Enums.PaymentStatus.NotRequired;
+    var isEmployee = Model.Category == Solvia.Models.Enums.UserCategory.Employee;
+    string Date(System.DateOnly d) => d.ToString("MMM d, yyyy");
 }
 
 @if (isPaid)
@@ -15,8 +17,12 @@
         <dl class="fs-4">
             <dt>Permit</dt>
             <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+            <dt>College</dt>
+            <dd>@Model.Campus</dd>
+            <dt>Category</dt>
+            <dd>@Model.Category</dd>
             <dt>Valid</dt>
-            <dd>@Model.StartDate to @Model.EndDate</dd>
+            <dd>@Date(Model.StartDate) → @Date(Model.EndDate)</dd>
             <dt>Amount paid</dt>
             <dd>$@amount (PayPal sandbox)</dd>
             <dt>Paid at (UTC)</dt>
@@ -30,25 +36,38 @@
         {
             <a class="btn btn-primary btn-lg w-100 py-3 fs-4 mt-4" href="/verify?t=@Model.VerifyToken">Check this permit</a>
         }
+        <p class="mt-3 mb-0"><a class="fs-5" href="/Permits/My">See all my permits</a></p>
     </div>
 }
 else if (isFree)
 {
     <div class="receipt-card">
         <h1 class="display-5 fw-bold">Permit live &#10003;</h1>
-        <p class="fs-4">This permit is <strong>free</strong> at your college — no payment was needed.</p>
+        @if (isEmployee)
+        {
+            <p class="fs-4">Employee permits are <strong>exempt</strong> — no payment was needed or taken.</p>
+        }
+        else
+        {
+            <p class="fs-4">This permit is <strong>free</strong> at your college — no payment was needed.</p>
+        }
         <p class="fs-5 text-muted mb-1">Permit number (= receipt number)</p>
         <p class="receipt-number">@Model.ReceiptNumber</p>
         <dl class="fs-4">
             <dt>Permit</dt>
             <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+            <dt>College</dt>
+            <dd>@Model.Campus</dd>
+            <dt>Category</dt>
+            <dd>@Model.Category</dd>
             <dt>Valid</dt>
-            <dd>@Model.StartDate to @Model.EndDate</dd>
+            <dd>@Date(Model.StartDate) → @Date(Model.EndDate)</dd>
         </dl>
         @if (Model.VerifyToken is not null)
         {
             <a class="btn btn-primary btn-lg w-100 py-3 fs-4 mt-4" href="/verify?t=@Model.VerifyToken">Check this permit</a>
         }
+        <p class="mt-3 mb-0"><a class="fs-5" href="/Permits/My">See all my permits</a></p>
     </div>
 }
 else

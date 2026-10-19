@@ -5,15 +5,16 @@ using Solvia.Services;
 namespace Solvia.Controllers;
 
 /// <summary>
-/// The extraction endpoint the student flow calls per message
-/// (BUILD-PLAN T3): one sentence in, one validated permit draft out.
+/// The extraction endpoint (REDO-PLAN §3 R3): one student message in,
+/// one validated permit draft out, as JSON.
 ///
-/// The draft carries NO price — the AI never sets the price; the flow
-/// takes the price from the fee catalog for the resolved campus. The
-/// <c>source</c> field is honest about which path answered: "ollama"
-/// when the local Phi-4-mini model answered and passed validation,
-/// "fallback" when the deterministic extractor answered because the
-/// model was down or its answer failed validation.
+/// The draft carries NO price — the AI never sets the price; the
+/// flow takes the price from the fee catalog for the resolved
+/// campus. The <c>source</c> field is honest about which path
+/// answered: "ollama" when the local Phi-4-mini model answered and
+/// passed validation, "fallback" when the deterministic extractor
+/// answered because the model was down or its answer failed
+/// validation.
 /// </summary>
 [ApiController]
 [Route("api/chat")]

@@ -21,6 +21,8 @@ foreach (var (envName, configKey) in new[]
     ("PAYPAL_CLIENT_SECRET", "PayPal:ClientSecret"),
     ("PAYPAL_ENVIRONMENT", "PayPal:Environment"),
     ("PAYPAL_BASE_URL", "PayPal:BaseUrl"),
+    ("PAYPAL_CURRENCY", "PayPal:Currency"),
+    ("PAYPAL_WEBHOOK_ID", "PayPal:WebhookId"),
     ("OLLAMA_BASE_URL", "Ollama:BaseUrl"),
     ("OLLAMA_MODEL", "Ollama:Model"),
     ("FEES_CSV_PATH", "FeesCsvPath"),
@@ -40,32 +42,51 @@ if (envBridge.Count > 0)
 }
 
 // Options binding (non-secret defaults live in the option classes and
-// in appsettings.json).
+// in appsettings.json). Config/** is R0-owned (REDO-PLAN §3).
 builder.Services.Configure<PayPalOptions>(
     builder.Configuration.GetSection(PayPalOptions.SectionName));
 builder.Services.Configure<OllamaOptions>(
     builder.Configuration.GetSection(OllamaOptions.SectionName));
+builder.Services.Configure<CategoryOptions>(
+    builder.Configuration.GetSection(CategoryOptions.SectionName));
 builder.Services.Configure<FeeTableOptions>(
     builder.Configuration.GetSection(FeeTableOptions.SectionName));
 builder.Services.Configure<CalendarOptions>(
     builder.Configuration.GetSection(CalendarOptions.SectionName));
+builder.Services.Configure<SearchOptions>(
+    builder.Configuration.GetSection(SearchOptions.SectionName));
+builder.Services.Configure<ElasticOptions>(
+    builder.Configuration.GetSection(ElasticOptions.SectionName));
 builder.Services.Configure<WebhookOptions>(
     builder.Configuration.GetSection(WebhookOptions.SectionName));
 builder.Services.Configure<SolviaOptions>(builder.Configuration);
 
 // Data: EF Core + SQLite — a single local file, zero server install.
-// (BUILD-PLAN §1: the reference app's PostgreSQL provider is swapped for
-// SQLite so a judge's clean install can never fail on a database server.
-// Entity shapes, conversions, and indexes are unaffected by the swap.)
+// (The reference app's PostgreSQL provider is swapped for SQLite so a
+// judge's clean install can never fail on a database server. Entity
+// shapes, enum-as-text conversions, and indexes are unaffected.)
 builder.Services.AddDbContext<SolviaDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("SolviaDb")));
 
-// Fee catalog (BUILD-PLAN §2 contract, owned by T1; registration wired
-// under T4's Program.cs allowance): the single source of prices in the
-// app, loaded once from data/fees.csv. The configured FeesCsvPath is
-// repo-relative ("data/fees.csv") and the content root is src/Solvia,
-// so the absolute path resolves two levels up to the repo root; an
-// absolute FeesCsvPath (e.g. from FEES_CSV_PATH) wins as-is.
+// Service registrations for the domain, AI, PayPal, and college
+// layers land with their owning tracks (REDO-PLAN §3: R1–R8) as
+// one-line change requests to R0 — Program.cs is R0-owned and no
+// other track edits it. R0 registers only the shell.
+//
+// R1 change requests, wired by R0: the fee catalog is a singleton
+// parsed once from the configured FeesCsvPath (the ONLY price
+// source); term dates are scoped because they sit on the scoped
+// DbContext; pricing and the category resolver are stateless over
+// singleton/options inputs, so they are singletons too.
+//
+// Path anchoring (R10 checker fix): the configured FeesCsvPath is
+// repo-relative ("data/fees.csv"), but the process working
+// directory is NOT the repo root — `dotnet run --project
+// src/Solvia` executes with src/Solvia as the working directory —
+// so a relative path is anchored against the repo root, two
+// levels up from the app content root (src/Solvia). An absolute
+// path (e.g. from FEES_CSV_PATH) is honored as-is: Path.Combine
+// returns a rooted final segment unchanged.
 builder.Services.AddSingleton<IFeeCatalog>(sp =>
 {
     var solvia = sp.GetRequiredService<IOptions<SolviaOptions>>().Value;
@@ -73,76 +94,38 @@ builder.Services.AddSingleton<IFeeCatalog>(sp =>
         builder.Environment.ContentRootPath, "..", "..", solvia.FeesCsvPath));
     return new FeeCatalogService(feesPath);
 });
-
-// Term-dates service (T6 calendar seam).
 builder.Services.AddScoped<ITermDatesService, TermDatesService>();
+builder.Services.AddSingleton<PricingService>();
+builder.Services.AddSingleton<UserCategoryResolver>();
 
-// PayPal sandbox (T4): a typed HttpClient against the sandbox base URL.
-// The client id/secret ride along in PayPalOptions only (env vars /
-// user-secrets) — PayPalService reads them from there, uses them only
-// for the token call's Basic auth, and never logs them.
-builder.Services.AddHttpClient<IPayPalService, PayPalService>((sp, client) =>
-{
-    var payPal = sp.GetRequiredService<IOptions<PayPalOptions>>().Value;
-    client.BaseAddress = new Uri(payPal.BaseUrl.TrimEnd('/') + "/");
-});
-builder.Services.AddScoped<PermitNumberService>();
-builder.Services.AddScoped<CheckoutService>();
-
-// Printable permit PDF (QuestPDF): the service reads the live
-// request (via IHttpContextAccessor) to build the public verify
-// URL printed on the permit — the same shape as the reference
-// app's receipt-PDF service.
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<PermitPdfService>();
-
-// Payment-complete webhook (T7 — the Zapier seam): a typed HttpClient
-// for PaymentWebhookService. It POSTs one small JSON event when a
-// permit goes live, to the configured Webhook:Url only — empty URL
-// (the default) means disabled and no call is ever made. The service
-// never throws, so a dead endpoint can never block a payment.
-builder.Services.AddHttpClient<PaymentWebhookService>();
-
-// AI extraction (T3): a typed HttpClient against the local Ollama
-// runner. Phi-4-mini runs 100% on this machine — the only call this
-// client ever makes is to Ollama on localhost, so student answers
-// never leave the computer. OllamaExtractionService caps each call at
-// 10 s and lands in FallbackExtractor on ANY failure (down, timeout,
-// invalid answer), so extraction always answers. The fallback is also
-// registered on its own for direct use and tests.
+// R3 change requests, wired by R4 under the coordinator exception:
+// the deterministic fallback extractor (a singleton over the
+// singleton fee catalog) and the typed HttpClient behind
+// IAiExtractor — the AI door's and the chat endpoint's only
+// extraction entry point. Any model failure lands in the fallback,
+// so these registrations can never take the demo down.
 builder.Services.AddSingleton<FallbackExtractor>();
-builder.Services.AddHttpClient<IAiExtractor, OllamaExtractionService>((sp, client) =>
-{
-    var ollama = sp.GetRequiredService<IOptions<OllamaOptions>>().Value;
-    client.BaseAddress = new Uri(ollama.BaseUrl.TrimEnd('/') + "/");
-});
+builder.Services.AddHttpClient<IAiExtractor, OllamaExtractionService>();
 
-// College search (T8 seam): the built-in deterministic match is the
-// shipped default (Search:Provider=builtin) and the Elastic
-// provider's fallback; Search:Provider=elastic routes the
-// pick-your-college screen through a local Elasticsearch `colleges`
-// index instead (scripts/elastic/). The Elastic typed client gets a
-// short timeout — a down node must fail fast into the fallback,
-// never hang the screen.
-builder.Services.Configure<SearchOptions>(
-    builder.Configuration.GetSection(SearchOptions.SectionName));
-builder.Services.Configure<ElasticOptions>(
-    builder.Configuration.GetSection(ElasticOptions.SectionName));
-builder.Services.AddSingleton<BuiltinCollegeSearch>();
-builder.Services.AddHttpClient<ElasticCollegeSearch>((sp, client) =>
-{
-    var elastic = sp.GetRequiredService<IOptions<ElasticOptions>>().Value;
-    client.BaseAddress = new Uri(elastic.Url.TrimEnd('/') + "/");
-    client.Timeout = TimeSpan.FromSeconds(3);
-});
-builder.Services.AddSingleton<ICollegeSearch>(sp =>
-{
-    var search = sp.GetRequiredService<IOptions<SearchOptions>>().Value;
-    return string.Equals(search.Provider, ElasticCollegeSearch.ProviderName,
-               StringComparison.OrdinalIgnoreCase)
-        ? sp.GetRequiredService<ElasticCollegeSearch>()
-        : sp.GetRequiredService<BuiltinCollegeSearch>();
-});
+// R4 registrations: the application core. Number drawing and
+// issuance are scoped over the scoped DbContext; ApplicationService
+// is the one creation brain both doors call.
+builder.Services.AddScoped<PermitNumberService>();
+builder.Services.AddScoped<IIssuanceService, IssuanceService>();
+builder.Services.AddScoped<ApplicationService>();
+
+// R5/R6/R7 change requests, wired by R0 in one pass: the PayPal
+// client and the checkout brain (R6), the permit PDF renderer
+// (R5), and the webhook pair plus the verify rate limiter (R7).
+// The PayPal client and the outbound payment webhook are typed
+// HttpClients; the rate limiter is a singleton because its
+// fixed-window counts must be shared across requests.
+builder.Services.AddHttpClient<IPayPalService, PayPalService>();
+builder.Services.AddScoped<CheckoutService>();
+builder.Services.AddScoped<PermitPdfService>();
+builder.Services.AddHttpClient<PaymentWebhookService>();
+builder.Services.AddScoped<PayPalWebhookHandler>();
+builder.Services.AddSingleton<VerifyRateLimiter>();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -157,15 +140,22 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// First run: create the SQLite file with T1's schema + seed data
-// (permit types + the fictional students). EnsureCreated is a no-op
-// once the tables exist, and this local demo database has no
-// migrations to honor — without this, every data page 500s on a
-// fresh machine with "no such table".
+// First run: create the SQLite file with the schema + seed data
+// (the seeded fictional people; R1 adds permit types and the rest).
+// EnsureCreated is a no-op once the tables exist, and this local
+// demo database has no migrations to honor — without this, every
+// data page 500s on a fresh machine with "no such table".
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SolviaDbContext>();
     db.Database.EnsureCreated();
+
+    // Refuse to boot on a broken catalog (REDO-PLAN item 10): the
+    // seeded permit types and the fee CSV are validated against each
+    // other, and any failure throws naming the check that failed —
+    // a bad catalog stops the app here, never mid-demo.
+    var catalog = scope.ServiceProvider.GetRequiredService<IFeeCatalog>();
+    db.ValidateStartupData(catalog);
 }
 
 app.UseHttpsRedirection();

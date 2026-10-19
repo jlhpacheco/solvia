@@ -3,11 +3,10 @@ using Solvia.Models.Enums;
 namespace Solvia.Services;
 
 /// <summary>
-/// Calendar seam (T6): computes the term / permit dates for a campus.
-/// The dates page renders this shape through the native calendar list —
-/// Bryntum Calendar is NOT embedded (no free edition; a 45-day trial
-/// would expire during judging). See docs/SPONSORS.md for the decision
-/// and the drop-in point for a licensed Bryntum build.
+/// Computes the term / permit dates for a campus — the authority for
+/// Term permit windows (REDO-PLAN §2a/§2c). A Term application's end
+/// date always comes from here; it is computed, never typed. Daily
+/// permits never consult this service: their end is their start.
 /// </summary>
 public interface ITermDatesService
 {

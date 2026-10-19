@@ -10,31 +10,31 @@ using Solvia.Services;
 namespace Solvia.Tests;
 
 /// <summary>
-/// T3 AI-extraction tests — fully OFFLINE. A fake
-/// <see cref="HttpMessageHandler"/> plays Ollama (valid JSON, garbage,
-/// unknown campus, HTTP error, hang), and a throwing handler plays
-/// "Ollama is not running". No real model call ever leaves the test run;
-/// the live Phi-4-mini run is the plan's done-test on Jose Luis's PC.
+/// R3 AI-extraction tests — fully OFFLINE. A fake
+/// <see cref="HttpMessageHandler"/> plays Ollama (valid JSON,
+/// garbage, unknown campus, HTTP error, hang), and a throwing
+/// handler plays "Ollama is not running". No real model call ever
+/// leaves the test run; the live Phi-4-mini run happens on Jose
+/// Luis's PC (REDO-PLAN §3 R3 done-test).
 ///
 /// What is proven here:
-/// - valid model JSON → Source=Ollama with the validated fields, the
-///   college resolved against the REAL fee catalog;
-/// - the request asks phi4-mini for ONLY JSON in our schema, with the
-///   10 catalog campus names embedded and prices explicitly excluded;
-/// - garbage JSON / connection refused / HTTP 500 / timeout → the
-///   deterministic fallback answers, Source=Fallback, nothing throws;
+/// - the plan's pinned sentence, answered by the model, returns
+///   Fresno City College + Fall + plate 8XYZ123 with Source=Ollama;
+/// - the SAME sentence with Ollama absent returns the SAME fields
+///   with Source=Fallback (the honest flag flips, the facts don't);
+/// - a plate typed with a space ("8XYZ 123") normalizes to 8XYZ123;
 /// - a model answer naming a college the catalog does not know is
 ///   rejected wholesale — never guessed, never passed through;
-/// - a messy college name from the model ("fresno city") is re-matched
-///   deterministically to the catalog's canonical campus;
-/// - the deterministic fallback extracts the plan's Maria sentence
-///   exactly, resolves a day pass, and returns null — never a guess —
-///   for unknown and ambiguous colleges;
-/// - the draft type has NO price member: the AI can never set a price.
+/// - garbage / refused / HTTP 500 / timeout all land in the
+///   fallback and nothing throws;
+/// - the result type has NO price member by construction: the AI
+///   can never set a price.
 /// </summary>
 public sealed class ExtractionTests
 {
-    private const string MariaSentence =
+    // The plan's pinned sentence (REDO-PLAN §3 R3): Fresno + a blue
+    // 2019 Honda Civic + plate 8XYZ123 + the fall term.
+    private const string PinnedSentence =
         "I study at Fresno City College, my car is a blue 2019 Honda Civic, " +
         "plate 8XYZ123, I need the fall term";
 
@@ -51,46 +51,19 @@ public sealed class ExtractionTests
         }
         """;
 
-    private static readonly FeeCatalogService Catalog = new(FindFeesCsv());
-
-    private static string FindFeesCsv()
-    {
-        var starts = new[]
-        {
-            Path.GetDirectoryName(typeof(ExtractionTests).Assembly.Location),
-            AppContext.BaseDirectory,
-        };
-
-        foreach (var start in starts)
-        {
-            var dir = start is null ? null : new DirectoryInfo(start);
-            while (dir is not null)
-            {
-                var candidate = Path.Combine(dir.FullName, "data", "fees.csv");
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-
-                dir = dir.Parent;
-            }
-        }
-
-        throw new FileNotFoundException(
-            "Could not locate data/fees.csv above the test assembly.");
-    }
+    private static readonly FeeCatalogService Catalog = new(RedoTestDb.FindFeesCsv());
 
     // ------------------------------------------------------------------
     // The AI path, when Ollama answers well
     // ------------------------------------------------------------------
 
     [Fact]
-    public async Task ValidModelJson_ReturnsOllamaSourceWithValidatedFields()
+    public async Task PinnedSentence_ViaModel_ReturnsFresnoFallAndPlate_SourceOllama()
     {
         var handler = new FakeOllamaHandler { ResponseBody = ChatEnvelope(ValidModelJson) };
         var service = NewService(handler);
 
-        var result = await service.ExtractAsync(MariaSentence);
+        var result = await service.ExtractAsync(PinnedSentence);
 
         Assert.Equal(ExtractionSource.Ollama, result.Source);
         Assert.Equal("Fresno City College", result.College);
@@ -109,7 +82,7 @@ public sealed class ExtractionTests
         var handler = new FakeOllamaHandler { ResponseBody = ChatEnvelope(ValidModelJson) };
         var service = NewService(handler);
 
-        await service.ExtractAsync(MariaSentence);
+        await service.ExtractAsync(PinnedSentence);
 
         Assert.Equal("/api/chat", Assert.Single(handler.RequestPaths));
         using var body = JsonDocument.Parse(Assert.Single(handler.RequestBodies));
@@ -126,7 +99,7 @@ public sealed class ExtractionTests
         Assert.Contains("CSU Monterey Bay", system);
         Assert.Contains("Never output a price", system);  // prices excluded
         Assert.Equal("user", messages[1].GetProperty("role").GetString());
-        Assert.Equal(MariaSentence, messages[1].GetProperty("content").GetString());
+        Assert.Equal(PinnedSentence, messages[1].GetProperty("content").GetString());
     }
 
     [Fact]
@@ -140,10 +113,27 @@ public sealed class ExtractionTests
         var handler = new FakeOllamaHandler { ResponseBody = ChatEnvelope(content) };
         var service = NewService(handler);
 
-        var result = await service.ExtractAsync(MariaSentence);
+        var result = await service.ExtractAsync(PinnedSentence);
 
         Assert.Equal(ExtractionSource.Ollama, result.Source);
         Assert.Equal("Fresno City College", result.College); // canonical name
+    }
+
+    [Fact]
+    public async Task SpacedPlateFromModel_Normalizes()
+    {
+        var content = """
+            { "college": "Fresno City College", "permitType": "Term", "term": "Fall",
+              "carMake": "Honda", "carModel": "Civic", "carColor": "Blue",
+              "plate": "8XYZ 123", "carState": "CA" }
+            """;
+        var handler = new FakeOllamaHandler { ResponseBody = ChatEnvelope(content) };
+        var service = NewService(handler);
+
+        var result = await service.ExtractAsync(PinnedSentence);
+
+        Assert.Equal(ExtractionSource.Ollama, result.Source);
+        Assert.Equal("8XYZ123", result.Plate);
     }
 
     [Fact]
@@ -164,8 +154,30 @@ public sealed class ExtractionTests
     }
 
     // ------------------------------------------------------------------
-    // Every failure lands in the fallback — the demo never dies
+    // Ollama absent or wrong — the fallback answers, honestly labeled
     // ------------------------------------------------------------------
+
+    [Fact]
+    public async Task PinnedSentence_OllamaAbsent_ReturnsSameFields_SourceFallback()
+    {
+        var handler = new FakeOllamaHandler
+        {
+            ExceptionToThrow = new HttpRequestException(
+                "Connection refused (localhost:11434)"),
+        };
+        var service = NewService(handler);
+
+        var result = await service.ExtractAsync(PinnedSentence); // must not throw
+
+        Assert.Equal(ExtractionSource.Fallback, result.Source);
+        Assert.Equal("Fresno City College", result.College);
+        Assert.Equal(PermitTypeCode.Term, result.PermitType);
+        Assert.Equal(TermKind.Fall, result.Term);
+        Assert.Equal("Honda", result.CarMake);
+        Assert.Equal("Civic", result.CarModel);
+        Assert.Equal("Blue", result.CarColor);
+        Assert.Equal("8XYZ123", result.Plate);
+    }
 
     [Fact]
     public async Task GarbageModelOutput_FallsBack()
@@ -177,29 +189,11 @@ public sealed class ExtractionTests
         };
         var service = NewService(handler);
 
-        var result = await service.ExtractAsync(MariaSentence);
+        var result = await service.ExtractAsync(PinnedSentence);
 
         Assert.Equal(ExtractionSource.Fallback, result.Source);
         Assert.Equal("Fresno City College", result.College);
         Assert.Equal(TermKind.Fall, result.Term);
-    }
-
-    [Fact]
-    public async Task OllamaConnectionRefused_FallsBackWithoutThrowing()
-    {
-        var handler = new FakeOllamaHandler
-        {
-            ExceptionToThrow = new HttpRequestException(
-                "Connection refused (localhost:11434)"),
-        };
-        var service = NewService(handler);
-
-        var result = await service.ExtractAsync(MariaSentence); // must not throw
-
-        Assert.Equal(ExtractionSource.Fallback, result.Source);
-        Assert.Equal("Fresno City College", result.College);
-        Assert.Equal(TermKind.Fall, result.Term);
-        Assert.Equal("8XYZ123", result.Plate);
     }
 
     [Fact]
@@ -212,7 +206,7 @@ public sealed class ExtractionTests
         };
         var service = NewService(handler);
 
-        var result = await service.ExtractAsync(MariaSentence);
+        var result = await service.ExtractAsync(PinnedSentence);
 
         Assert.Equal(ExtractionSource.Fallback, result.Source);
         Assert.Equal("Fresno City College", result.College);
@@ -224,7 +218,7 @@ public sealed class ExtractionTests
         var handler = new FakeOllamaHandler { Delay = TimeSpan.FromSeconds(30) };
         var service = NewService(handler, timeout: TimeSpan.FromMilliseconds(300));
 
-        var result = await service.ExtractAsync(MariaSentence);
+        var result = await service.ExtractAsync(PinnedSentence);
 
         Assert.Equal(ExtractionSource.Fallback, result.Source);
         Assert.Equal("Fresno City College", result.College);
@@ -241,7 +235,7 @@ public sealed class ExtractionTests
         var handler = new FakeOllamaHandler { ResponseBody = ChatEnvelope(content) };
         var service = NewService(handler);
 
-        var result = await service.ExtractAsync(MariaSentence);
+        var result = await service.ExtractAsync(PinnedSentence);
 
         // The whole AI answer is rejected — Harvard is NOT passed
         // through, and the fallback's read of the student's own words
@@ -266,7 +260,7 @@ public sealed class ExtractionTests
         var handler = new FakeOllamaHandler { ResponseBody = ChatEnvelope(content) };
         var service = NewService(handler);
 
-        var result = await service.ExtractAsync(MariaSentence);
+        var result = await service.ExtractAsync(PinnedSentence);
 
         Assert.Equal(ExtractionSource.Ollama, result.Source);
         Assert.Equal("Fresno City College", result.College);
@@ -300,11 +294,11 @@ public sealed class ExtractionTests
     // ------------------------------------------------------------------
 
     [Fact]
-    public void Fallback_ExtractsTheMariaSentence()
+    public void Fallback_ExtractsThePinnedSentence()
     {
         var fallback = new FallbackExtractor(Catalog);
 
-        var result = fallback.Extract(MariaSentence);
+        var result = fallback.Extract(PinnedSentence);
 
         Assert.Equal(ExtractionSource.Fallback, result.Source);
         Assert.Equal("Fresno City College", result.College);
@@ -314,7 +308,18 @@ public sealed class ExtractionTests
         Assert.Equal("Civic", result.CarModel);
         Assert.Equal("Blue", result.CarColor);
         Assert.Equal("8XYZ123", result.Plate);
-        Assert.Null(result.CarState); // not stated — SCHEMA defaults CA later
+        Assert.Null(result.CarState); // not stated — the schema defaults CA later
+    }
+
+    [Fact]
+    public void Fallback_SpacedPlate_Normalizes()
+    {
+        var fallback = new FallbackExtractor(Catalog);
+
+        var result = fallback.Extract(
+            "I study at Fresno City College, my plate 8XYZ 123, I need the fall term");
+
+        Assert.Equal("8XYZ123", result.Plate);
     }
 
     [Fact]
@@ -419,8 +424,8 @@ public sealed class ExtractionTests
 
     /// <summary>
     /// An offline stand-in for Ollama: records every request and then
-    /// answers with the configured body/status — or throws / hangs, to
-    /// play a model that is down or stuck.
+    /// answers with the configured body/status — or throws / hangs,
+    /// to play a model that is down or stuck.
     /// </summary>
     private sealed class FakeOllamaHandler : HttpMessageHandler
     {

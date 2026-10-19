@@ -1,208 +1,216 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
 using Solvia.Controllers;
 using Solvia.Data;
+using Solvia.Models;
 using Solvia.Models.Enums;
 using Solvia.Models.ViewModels;
-using Solvia.Services;
 
 namespace Solvia.Tests;
 
 /// <summary>
-/// The garage tests (Duvara-exact vehicle set). Duvara has a vehicle
-/// Create screen outside the permit flow; Solvia had only Index +
-/// Edit, and Edit free-typed Make/Model. Now: Create (GET+POST)
-/// exists, Make/Model are catalog dropdowns (the server still
-/// accepts any text — the dropdowns' "Other — type it" contract),
-/// and the plate state (Vehicle.State, default CA) persists end to
-/// end. The Maria flow's vehicle is covered too: no state named in
-/// her sentence → the saved car carries CA.
+/// R2 vehicle-garage tests (REDO-PLAN §3): the reference app's CRUD
+/// shape on the demo-person model — the owner is stamped on the
+/// server, the plate is required and normalized, off-catalog
+/// values survive, and another person's car is invisible (404).
+/// Controller tests: no view renders; the TempData stub below is
+/// what lets the success paths run outside the real pipeline.
 /// </summary>
-public sealed class VehicleGarageTests : IDisposable
+public sealed class VehicleGarageTests
 {
-    private readonly SqliteConnection _connection;
-    private readonly DbContextOptions<SolviaDbContext> _options;
-    private readonly FeeCatalogService _catalog = new(FindFeesCsv());
+    // ------------------------------------------------------- harness
 
-    public VehicleGarageTests()
+    /// <summary>TempData writes need a provider; this one holds nothing.</summary>
+    private sealed class StubTempDataProvider : ITempDataProvider
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
-        _options = new DbContextOptionsBuilder<SolviaDbContext>()
-            .UseSqlite(_connection)
-            .Options;
+        public IDictionary<string, object> LoadTempData(HttpContext context) =>
+            new Dictionary<string, object>();
 
-        using var db = new SolviaDbContext(_options);
-        db.Database.EnsureCreated();
+        public void SaveTempData(HttpContext context, IDictionary<string, object> values)
+        {
+        }
     }
 
-    public void Dispose() => _connection.Dispose();
-
-    private SolviaDbContext NewDb() => new(_options);
-
-    private VehiclesController NewVehiclesController(SolviaDbContext db)
+    /// <summary>
+    /// A garage controller wired for one demo person. The demo base
+    /// reads the person from the solvia_student cookie, so the "as"
+    /// argument chooses who the test acts as (maria when omitted).
+    /// </summary>
+    private static VehiclesController NewController(
+        SolviaDbContext db, string asStudent = "maria")
     {
-        var controller = new VehiclesController(db);
-        controller.ControllerContext = new ControllerContext
+        var http = new DefaultHttpContext();
+        http.Request.Headers.Cookie = $"solvia_student={asStudent}";
+
+        var controller = new VehiclesController(db)
         {
-            HttpContext = new DefaultHttpContext(),
+            ControllerContext = new ControllerContext { HttpContext = http },
         };
+        controller.TempData = new TempDataDictionary(http, new StubTempDataProvider());
         return controller;
     }
 
-    private PermitsController NewPermitsController(SolviaDbContext db)
+    private static (VehiclesController Controller, SolviaDbContext Db, Microsoft.Data.Sqlite.SqliteConnection Connection)
+        CreateController(string asStudent = "maria")
     {
-        var controller = new PermitsController(
-            db,
-            _catalog,
-            new FallbackAiExtractor(new FallbackExtractor(_catalog)),
-            new StubTermDatesService(),
-            new BuiltinCollegeSearch(_catalog),
-            new PermitPdfService(new HttpContextAccessor()));
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext(),
-        };
-        return controller;
+        var (db, connection) = RedoTestDb.Create();
+        return (NewController(db, asStudent), db, connection);
     }
 
-    // ------------------------------------------------------------------
-    // Create: the screen Duvara had and Solvia was missing
-    // ------------------------------------------------------------------
+    private static VehicleEditViewModel Form(
+        string plate = "8XYZ123",
+        UsState state = UsState.CA,
+        string? make = "Honda",
+        string? model = "Civic",
+        VehicleColor color = VehicleColor.Blue) => new()
+    {
+        Plate = plate,
+        State = state,
+        Make = make,
+        Model = model,
+        Color = color,
+    };
+
+    private static string? ReadMessage(ITempDataDictionary tempData) =>
+        tempData.TryGetValue("StatusMessage", out var message)
+            ? message?.ToString()
+            : null;
+
+    // ---------------------------------------------------------- create
 
     [Fact]
-    public async Task Create_PersistsVehicle_StateAndOwnerStampedByServer()
+    public async Task Create_Persists_WithServerStampedOwner_AndNormalizedPlate()
     {
-        using var db = NewDb();
-        var controller = NewVehiclesController(db);
+        var (controller, db, connection) = CreateController("diego");
+        using var _ = connection;
+        using var __ = db;
 
-        var result = Assert.IsType<RedirectToActionResult>(await controller.Create(
-            new VehicleEditViewModel
-            {
-                Plate = "8xyz 123",
-                State = UsState.OR,
-                Make = "Honda",
-                Model = "Civic",
-                Color = VehicleColor.Blue,
-            }, default));
-        Assert.Equal("Index", result.ActionName);
-
-        var saved = await db.Vehicles.SingleAsync();
-        Assert.Equal("maria", saved.StudentId);   // owner stamped server-side
-        Assert.Equal("8XYZ123", saved.Plate);     // normalized, as in Edit
-        Assert.Equal(UsState.OR, saved.State);     // the plate state persists
-        Assert.Equal("Honda", saved.Make);
-        Assert.Equal("Civic", saved.Model);
-        Assert.Equal(VehicleColor.Blue, saved.Color);
-    }
-
-    [Fact]
-    public async Task Create_BlankPlate_SavesNothing()
-    {
-        using var db = NewDb();
-        var controller = NewVehiclesController(db);
-
+        // The form carries no owner at all — there is no StudentId
+        // property on the view model to trust or abuse.
         var result = await controller.Create(
-            new VehicleEditViewModel { Plate = "   ", State = UsState.CA },
+            Form(plate: " 7abc 123 ", state: UsState.OR, make: "Toyota", model: "Camry"),
             default);
 
-        Assert.IsType<ViewResult>(result);
-        Assert.Equal(0, await db.Vehicles.CountAsync());
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(VehiclesController.Index), redirect.ActionName);
+        Assert.Contains("7ABC123", ReadMessage(controller.TempData) ?? "");
+
+        var vehicle = db.Vehicles.Single();
+        Assert.Equal("diego", vehicle.StudentId);       // server-stamped owner
+        Assert.Equal("7ABC123", vehicle.Plate);        // trimmed, de-spaced, uppercased
+        Assert.Equal(UsState.OR, vehicle.State);
+        Assert.Equal("Toyota", vehicle.Make);
+        Assert.Equal("Camry", vehicle.Model);
+        Assert.Equal(VehicleColor.Blue, vehicle.Color);
     }
 
     [Fact]
-    public async Task Create_OffCatalogMakeAndModel_AreKeptAsTyped()
+    public async Task Create_BlankPlate_SavesNothing_AndSaysSo()
     {
-        using var db = NewDb();
-        var controller = NewVehiclesController(db);
+        var (controller, db, connection) = CreateController();
+        using var _ = connection;
+        using var __ = db;
 
-        // The dropdowns' "Other — type it" fallback posts plain text;
-        // the server must not reject what the catalog doesn't know.
+        var result = await controller.Create(Form(plate: "   "), default);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var returned = Assert.IsType<VehicleEditViewModel>(view.Model);
+        Assert.False(string.IsNullOrWhiteSpace(returned.Error));
+        Assert.Contains("plate", returned.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(db.Vehicles);
+    }
+
+    [Fact]
+    public async Task Create_OffCatalogMakeModel_PersistExactlyAsTyped()
+    {
+        var (controller, db, connection) = CreateController();
+        using var _ = connection;
+        using var __ = db;
+
+        // "GMC" is in no dropdown — the catalog is a helper, never a
+        // gate, so the test can POST it the way a browser never could.
         var result = await controller.Create(
-            new VehicleEditViewModel
-            {
-                Plate = "7GMC777",
-                State = UsState.CA,
-                Make = "GMC",
-                Model = "Sierra 1500",
-                Color = VehicleColor.Black,
-            }, default);
+            Form(make: "GMC", model: "Sierra 1500"), default);
 
         Assert.IsType<RedirectToActionResult>(result);
-        var saved = await db.Vehicles.SingleAsync();
-        Assert.Equal("GMC", saved.Make);
-        Assert.Equal("Sierra 1500", saved.Model);
+        var vehicle = db.Vehicles.Single();
+        Assert.Equal("GMC", vehicle.Make);
+        Assert.Equal("Sierra 1500", vehicle.Model);
     }
-
-    // ------------------------------------------------------------------
-    // The Maria flow: no state in her words → CA on the saved vehicle
-    // ------------------------------------------------------------------
 
     [Fact]
-    public async Task Flow_VehicleCreated_StateDefaultsToCA()
+    public async Task Create_OtherSentinel_UsesTheTypedText()
     {
-        using var db = NewDb();
-        var controller = NewPermitsController(db);
+        var (controller, db, connection) = CreateController();
+        using var _ = connection;
+        using var __ = db;
 
-        var understood = Assert.IsType<ViewResult>(await controller.Understand(
-            "Fresno City College", "blue 2019 Honda Civic, plate 8XYZ123",
-            PermitTypeCode.Term, TermKind.Fall, null, default));
-        var draft = Assert.IsType<PermitDraftViewModel>(understood.Model);
-        Assert.Equal("8XYZ123", draft.Plate);
+        var form = Form(make: VehicleCatalog.OtherMakeValue, model: VehicleCatalog.OtherModelValue);
+        form.MakeOther = "Rivian";
+        form.ModelOther = "R1T";
+        var result = await controller.Create(form, default);
 
-        var saved = Assert.IsType<RedirectToActionResult>(
-            await controller.Review(draft, default));
-        var id = Assert.IsType<Guid>(saved.RouteValues!["id"]);
-
-        var stored = await db.PermitApplications
-            .Include(a => a.Vehicle)
-            .SingleAsync(a => a.Id == id);
-        Assert.Equal("8XYZ123", stored.Vehicle!.Plate);
-        Assert.Equal(UsState.CA, stored.Vehicle.State);
+        Assert.IsType<RedirectToActionResult>(result);
+        var vehicle = db.Vehicles.Single();
+        Assert.Equal("Rivian", vehicle.Make);
+        Assert.Equal("R1T", vehicle.Model);
     }
 
-    // ------------------------------------------------------------------
-    // Test doubles (same shapes as FlowFixTests)
-    // ------------------------------------------------------------------
+    // ------------------------------------------------------------ edit
 
-    private sealed class FallbackAiExtractor(FallbackExtractor inner) : IAiExtractor
+    [Fact]
+    public async Task Edit_AnotherPersonsVehicle_Is404_ForGetAndPost()
     {
-        public Task<ExtractionResult> ExtractAsync(
-            string studentText, CancellationToken cancellationToken = default) =>
-            Task.FromResult(inner.Extract(studentText));
+        var (mariaController, db, connection) = CreateController("maria");
+        using var _ = connection;
+        using var __ = db;
+        var created = await mariaController.Create(Form(plate: "8XYZ123"), default);
+        Assert.IsType<RedirectToActionResult>(created);
+        var vehicle = db.Vehicles.Single();
+
+        // Diego acts against Maria's car: it must not even look found.
+        var diego = NewController(db, "diego");
+        Assert.IsType<NotFoundResult>(await diego.Edit(vehicle.Id, default));
+
+        var post = await diego.Edit(vehicle.Id, Form(plate: "STOLEN1"), default);
+        Assert.IsType<NotFoundResult>(post);
+        Assert.Equal("8XYZ123", db.Vehicles.Single().Plate);   // untouched
+        Assert.Equal(1, db.Vehicles.Count());
     }
 
-    private sealed class StubTermDatesService : ITermDatesService
+    [Fact]
+    public async Task Edit_OwnVehicle_ReoffersStoredValues_AndSavesEdits()
     {
-        public TermDates? GetTermDates(string campusName, TermKind term, int year) => null;
-    }
+        var (controller, db, connection) = CreateController();
+        using var _ = connection;
+        using var __ = db;
+        var created = await controller.Create(
+            Form(plate: "8XYZ123", make: "Honda", model: "Civic", color: VehicleColor.Blue),
+            default);
+        Assert.IsType<RedirectToActionResult>(created);
+        var vehicle = db.Vehicles.Single();
 
-    private static string FindFeesCsv()
-    {
-        var starts = new[]
-        {
-            Path.GetDirectoryName(typeof(VehicleGarageTests).Assembly.Location),
-            AppContext.BaseDirectory,
-        };
+        // The GET pre-fills the form with what is stored — nothing lost.
+        var get = Assert.IsType<ViewResult>(await controller.Edit(vehicle.Id, default));
+        var shown = Assert.IsType<VehicleEditViewModel>(get.Model);
+        Assert.Equal("8XYZ123", shown.Plate);
+        Assert.Equal(UsState.CA, shown.State);
+        Assert.Equal("Honda", shown.Make);
+        Assert.Equal("Civic", shown.Model);
+        Assert.Equal(VehicleColor.Blue, shown.Color);
 
-        foreach (var start in starts)
-        {
-            var dir = start is null ? null : new DirectoryInfo(start);
-            while (dir is not null)
-            {
-                var candidate = Path.Combine(dir.FullName, "data", "fees.csv");
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
+        // And an edit lands on the same row.
+        var editForm = Form(plate: " 9new 999 ", make: "Honda", model: "Accord", color: VehicleColor.Red);
+        var post = await controller.Edit(vehicle.Id, editForm, default);
+        var redirect = Assert.IsType<RedirectToActionResult>(post);
+        Assert.Equal(nameof(VehiclesController.Index), redirect.ActionName);
 
-                dir = dir.Parent;
-            }
-        }
-
-        throw new FileNotFoundException(
-            "Could not locate data/fees.csv above the test assembly.");
+        var row = db.Vehicles.Single(v => v.Id == vehicle.Id);
+        Assert.Equal("9NEW999", row.Plate);
+        Assert.Equal("Accord", row.Model);
+        Assert.Equal(VehicleColor.Red, row.Color);
+        Assert.Equal("maria", row.StudentId);   // the owner never moves
     }
 }

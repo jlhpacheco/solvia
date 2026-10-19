@@ -1,91 +1,99 @@
 @model Solvia.Models.ViewModels.ReviewViewModel
 @{
-    ViewData["Title"] = "Check your permit";
-    var draft = Model.Draft;
+    ViewData["Title"] = "Check your total";
+    string Date(System.DateOnly d) => d.ToString("MMM d, yyyy");
 }
 
-@if (Model.Error is not null)
+<h1 class="mt-4">Check your total</h1>
+
+@if (!string.IsNullOrWhiteSpace(Model.Error))
 {
-    <div class="alert alert-danger fs-3 fw-bold" role="alert">@Model.Error</div>
+    <div class="alert alert-danger fs-4 mt-3" role="alert">@Model.Error</div>
 }
 
 @if (Model.Blocked)
 {
-    @if (Model.IsDayPassBlock)
-    {
-        <h1 class="display-5 fw-bold">Day-pass price</h1>
-        <div class="sv-card">
-            <p class="fs-3">We could not read <strong>@draft.College</strong>'s day-pass price.</p>
-            <p class="fs-5">Solvia never invents a price. There is no day-pass total to pay here.</p>
-            @if (Model.HasTermAlternative)
+    <div class="sv-card mt-3">
+        @if (Model.IsDayPassBlock)
+        {
+            <h2 class="fs-3">We could not read @Model.College's day-pass price</h2>
+            <p class="fs-5">
+                The college does not publish a day-pass price we can read, so there
+                is no honest total to charge — and Solvia never invents a price.
+            </p>
+            @if (Model.TermAlternativeDisplay is not null)
             {
-                <form method="post" action="/Permits/SwitchType">
-                    @Html.AntiForgeryToken()
+                <form asp-action="SwitchType" method="post">
                     <input type="hidden" name="id" value="@Model.ApplicationId" />
                     <input type="hidden" name="permitType" value="Term" />
-                    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3">Use a term permit instead — @Model.TermAlternativeDisplay</button>
+                    <button type="submit" class="btn btn-primary sv-cta w-100">
+                        Use a term permit instead — @Model.TermAlternativeDisplay
+                    </button>
                 </form>
             }
-            <a class="btn btn-primary btn-lg w-100 py-3 fs-3" href="/Permits/Apply">Pick another college</a>
-        </div>
-    }
-    else
-    {
-        <h1 class="display-5 fw-bold">Price not published</h1>
-        <div class="sv-card">
-            <p class="fs-3"><strong>@draft.College</strong> does not publish this price.</p>
-            <p class="fs-3">Price not published — ask your college.</p>
-            <p class="fs-5">Solvia never invents a price. There is no total to pay here.</p>
-            <a class="btn btn-primary btn-lg w-100 py-3 fs-3" href="/Permits/Apply">Pick another college</a>
-        </div>
-    }
-}
-else
-{
-    <h1 class="display-5 fw-bold">Check your permit</h1>
-
-    <div class="sv-card mb-4">
-    <dl class="fs-3">
-        <dt>College</dt>
-        <dd>@draft.College</dd>
-
-        <dt>Car</dt>
-        <dd>@draft.CarSummary</dd>
-
-        <dt>Plate</dt>
-        <dd>@draft.Plate</dd>
-
-        <dt>Permit</dt>
-        <dd>@draft.PermitSummary</dd>
-
-        <dt>Good for</dt>
-        <dd>@Model.StartDate.ToString("MMM d, yyyy") to @Model.EndDate.ToString("MMM d, yyyy")</dd>
-    </dl>
-    </div>
-
-    <div class="price-panel mb-4">
-        <p class="price-total mb-1">Total: @Model.TotalDisplay</p>
-        <p class="fs-5 price-note mb-0">The exact fee from your college's published fee row.</p>
-    </div>
-
-    @if (draft.Source == "fallback")
-    {
-        <p class="fs-5 text-muted">answered by our backup reader</p>
-    }
-
-    <form method="post" action="/Permits/Confirm">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="id" value="@Model.ApplicationId" />
-        @if (Model.IsFree)
-        {
-            <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3">Get my free permit</button>
         }
         else
         {
-            <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3">Pay with PayPal</button>
-            <p class="fs-5 text-muted mt-2">PayPal sandbox — test money only, never real money.</p>
+            <h2 class="fs-3">@Model.College does not publish a @Model.Term price</h2>
+            <p class="fs-5">
+                There is no published @Model.Term semester price for this college,
+                so there is no honest total to charge — and Solvia never invents
+                a price. Pick another term on the questions screen, or another college.
+            </p>
         }
-    </form>
-
-    <a class="btn btn-outline-secondary btn-lg w-100 py-3 fs-4 mt-2" href="/Permits/Apply">Start over</a>
+        <a class="btn btn-outline-secondary btn-lg w-100 mt-3 py-3" href="/Permits/Ask">Pick another college</a>
+    </div>
 }
+else
+{
+    <div class="sv-card mt-3">
+        <dl class="fs-4 mb-0">
+            <dt>College</dt>
+            <dd>@Model.College</dd>
+            <dt>Category</dt>
+            <dd>@Model.CategoryLabel</dd>
+            <dt>Car</dt>
+            <dd>@Model.CarLine — plate @Model.PlateLine</dd>
+            <dt>Permit</dt>
+            <dd>@Model.TypeName · @Model.Term</dd>
+            <dt>Dates</dt>
+            <dd>@Date(Model.StartDate) → @Date(Model.EndDate)</dd>
+        </dl>
+    </div>
+
+    <div class="sv-card mt-3 text-center">
+        <p class="fs-4 mb-1">Total, from @Model.College's published fee</p>
+        <p class="display-4 mb-0"><strong>@Model.TotalDisplay</strong></p>
+    </div>
+
+    <p class="fs-5 mt-3">
+        You approve on PayPal's own page. Solvia marks this permit Paid only
+        when PayPal's capture confirms the money — never just because a page loaded.
+    </p>
+
+    <form asp-action="Confirm" method="post">
+        <input type="hidden" name="id" value="@Model.ApplicationId" />
+        <button type="submit" class="btn btn-primary sv-cta w-100">Pay with PayPal</button>
+    </form>
+}
+
+@* The way back to fix an answer: the draft rides along, nothing is lost. *@
+<form asp-action="Questions" method="post" class="mt-3">
+    @if (Model.Draft.ApplicationId is { } draftId)
+    {
+        <input type="hidden" name="ApplicationId" value="@draftId" />
+    }
+    <input type="hidden" name="College" value="@Model.Draft.College" />
+    <input type="hidden" name="CarText" value="@Model.Draft.CarText" />
+    <input type="hidden" name="Plate" value="@Model.Draft.Plate" />
+    <input type="hidden" name="CarMake" value="@Model.Draft.CarMake" />
+    <input type="hidden" name="CarModel" value="@Model.Draft.CarModel" />
+    <input type="hidden" name="CarColor" value="@Model.Draft.CarColor" />
+    <input type="hidden" name="CarState" value="@Model.Draft.CarState" />
+    <input type="hidden" name="PermitType" value="@Model.Draft.PermitType" />
+    <input type="hidden" name="Term" value="@Model.Draft.Term" />
+    <input type="hidden" name="Source" value="@Model.Draft.Source" />
+    <button type="submit" class="btn btn-outline-secondary btn-lg w-100 py-3" formnovalidate>
+        Check my answers
+    </button>
+</form>

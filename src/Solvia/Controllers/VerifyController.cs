@@ -7,77 +7,68 @@ using Solvia.Services;
 namespace Solvia.Controllers;
 
 /// <summary>
-/// Public permit verification (BUILD-PLAN T5): GET /verify?t={token}.
+/// Public permit verification (REDO-PLAN items 46/47):
+/// GET /verify?t={token}.
 ///
-/// Anonymous ON PURPOSE — a campus officer (or anyone a student shows
-/// their permit to) has no Solvia login; the unguessable VerifyToken
-/// issued at payment time is the credential. The page only ever
-/// describes the one permit the token names. Every outcome is a calm
-/// HTTP 200 page: VALID with the permit number, campus, and dates, or
-/// NOT VALID with a plain-words reason. An unknown token gets the same
-/// neutral "could not find" page as a missing one — never an error
-/// stack, never a hint about other permits.
+/// Anonymous ON PURPOSE — a campus officer (or anyone a student
+/// shows their permit to) has no Solvia login; the unguessable
+/// VerifyToken issued at the live transition is the credential. The
+/// page only ever describes the one permit the token names, in the
+/// item-46 field set: type, plate STATE (never the plate), the
+/// snapshotted category, the privilege line, the payment status
+/// word, the last-updated stamp, and the
+/// <see cref="PermitValidity"/> verdict with its plain-words
+/// reason. Every outcome is a calm HTTP 200 page — VALID, NOT VALID
+/// with the reason, "(not issued)" for the defensive token-without-
+/// a-number state, or the same neutral "could not find" page for an
+/// unknown token as for a missing one.
+///
+/// A lightweight per-IP rate limiter (60/minute, shared with the
+/// JSON twin) guards the door; a tripped limit answers 429.
 /// </summary>
+[Route("verify")]
 public sealed class VerifyController : Controller
 {
     private readonly SolviaDbContext _db;
+    private readonly VerifyRateLimiter _rateLimiter;
 
-    public VerifyController(SolviaDbContext db)
+    public VerifyController(SolviaDbContext db, VerifyRateLimiter rateLimiter)
     {
         _db = db;
+        _rateLimiter = rateLimiter;
     }
 
-    // GET /verify?t=<unguessable token issued at payment time>
+    // GET /verify?t=<unguessable token issued at the live transition>
+    [HttpGet]
     public async Task<IActionResult> Index(
         string? t, CancellationToken cancellationToken = default)
     {
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!_rateLimiter.TryAcquire(clientKey))
+        {
+            return StatusCode(
+                StatusCodes.Status429TooManyRequests,
+                "Too many permit checks from this connection — " +
+                "please wait a minute and try again.");
+        }
+
         if (string.IsNullOrWhiteSpace(t))
         {
-            return View("Invalid", NotFoundModel());
+            return View("Invalid", VerifyResultBuilder.NotFound());
         }
 
         var application = await _db.PermitApplications
-            .Include(a => a.Student)
+            .Include(a => a.PermitType)
+            .Include(a => a.Vehicle)
             .SingleOrDefaultAsync(a => a.VerifyToken == t.Trim(), cancellationToken);
 
         if (application is null)
         {
-            return View("Invalid", NotFoundModel());
+            return View("Invalid", VerifyResultBuilder.NotFound());
         }
 
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var check = PermitValidity.Check(application, today);
-
-        if (!check.IsActive)
-        {
-            // The token is real, so the holder may be told their own
-            // permit number and campus alongside the reason.
-            return View("Invalid", new VerifyViewModel
-            {
-                IsValid = false,
-                Reason = check.Reason,
-                PermitNumber = application.ReceiptNumber,
-                Campus = application.Campus,
-            });
-        }
-
-        return View("Verify", new VerifyViewModel
-        {
-            IsValid = true,
-            Reason = check.Reason,
-            PermitNumber = application.ReceiptNumber,
-            Campus = application.Campus,
-            StudentName = application.Student?.DisplayName,
-            StartDate = application.StartDate,
-            EndDate = application.EndDate,
-        });
+        var model = VerifyResultBuilder.FromApplication(application, today);
+        return View(model.IsValid ? "Verify" : "Invalid", model);
     }
-
-    /// <summary>The neutral answer for unknown or missing tokens — identical either way.</summary>
-    private static VerifyViewModel NotFoundModel() => new()
-    {
-        IsValid = false,
-        Reason = "We could not find a permit with that code. " +
-                 "Check the code and try again.",
-    };
 }

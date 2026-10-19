@@ -15,7 +15,8 @@ re-walk. `fee-refresh.sh` is the same job written in portable
 **bash + curl**, so it runs anywhere with no account: same sources,
 same diff, same report. Running it here does not require KERNEL; the
 repo claims the script and its output, and names KERNEL as the
-job's production runner — nothing more.
+job's production runner — nothing more. Honestly framed: this is a
+portable offline ops script, not a KERNEL integration.
 
 ## The one rule: it PROPOSES, never edits
 
@@ -28,7 +29,16 @@ change on the college's own page, and edits `fees.csv` by hand.
 | File | What it is |
 |---|---|
 | `fee-refresh.sh` | The refresh job (bash + curl). Read-only against the repo |
-| `sources.csv` | The 10 campus pages the fee table was built from (campus,url) — generated from the Source notes in `data/fees.csv` |
+| `sources.csv` | The 10 campus pages the fee table was built from (campus,url) — taken from the Source notes in `data/fees.csv`, one row per campus in the redo table |
+
+The 10 campuses in `sources.csv` are exactly the 10 rows of the redo
+`data/fees.csv`: CSU Monterey Bay, CSU East Bay, CSU Bakersfield,
+Modesto Junior College / Columbia College / YCCD, Contra Costa
+College, Diablo Valley College, Los Medanos College, Antelope Valley
+College, State Center Community College District, and Fresno City
+College. Campus names match the `fees.csv` first field exactly (the
+script anchors its baseline lookup to the start of each row), and
+every URL is the page named in that row's Source note.
 
 ## Run it
 
@@ -50,17 +60,19 @@ the amounts found on the live page, and one verdict:
 
 Fetching note: the PMB host's CDN answers a bare first request with
 a 307 challenge redirect plus a cookie, so the script keeps a
-per-campus cookie jar — the same thing a browser does. The pages are
-public, nothing is logged into, and the tool's user agent names it
-(`SolviaFeeRefresh/1.0`).
+per-campus cookie jar — the same thing a browser does. The 307 is
+occasionally returned as the final answer anyway; that shows up as
+`UNREACHABLE … HTTP 307` and a retry usually fetches the page. The
+pages are public, nothing is logged into, and the tool's user agent
+names it (`SolviaFeeRefresh/1.0`).
 
 ## Sample run (real output, Oct 19, 2026)
 
-`fee-refresh.sh --limit 3`, run from this repo:
+`fee-refresh.sh --limit 3`, run from this repo (the solvia-redo tree):
 
 ```text
 ==============================================================
- Solvia fee refresh — 2026-10-19 01:54 UTC
+ Solvia fee refresh — 2026-10-19 04:16 UTC
  Sources : tools/fee-refresh/sources.csv
  Baseline: data/fees.csv (read-only — this tool never edits it)
 ==============================================================
@@ -93,8 +105,15 @@ public, nothing is logged into, and the tool's user agent names it
 ```
 
 (Absolute paths in the header lines are trimmed above; the verdicts,
-amounts, and summary are verbatim. `data/fees.csv`'s SHA-256 before
-and after the run: `327aca14c33f99a1ffd412ccdbb8ec434b02c1cb440c17d2e5ce5edfabe5771c`
+amounts, and summary are verbatim. An earlier attempt the same
+morning at 04:15 UTC returned `UNREACHABLE — HTTP 307` for CSU
+Monterey Bay — the CDN challenge described above; the retry at
+04:16 UTC fetched it and reported UNCHANGED. Spot checks the same
+morning also returned UNCHANGED for Diablo Valley College, Los
+Medanos College, Modesto Junior College / Columbia College / YCCD,
+State Center Community College District, and Fresno City College.
+`data/fees.csv`'s SHA-256 before and after the run:
+`327aca14c33f99a1ffd412ccdbb8ec434b02c1cb440c17d2e5ce5edfabe5771c`
 — identical, as the read-only rule requires. That hash is the
 10-campus table; the earlier 25-campus scan file lives in the
 research record, not in this repo's data.)

@@ -1,1 +1,426 @@
-{"info":{"_postman_id":"5o1v1a00-7pay-4pa1-9b0x-501v1a000007","description":"Tests Solvia's OWN API surface — the exact calls the Solvia checkout page makes. The app itself talks to the PayPal sandbox server-side (create order -> buyer approves on sandbox.paypal.com -> capture); this collection drives and asserts the app's side of that flow: POST /api/paypal/create-order, POST /api/paypal/capture, GET /verify, POST /api/chat/extract. Honest shapes only: without sandbox keys configured, create-order and capture answer the app's real 503 'not configured' body, and the test scripts assert that shape too. See postman/README.md for import + run steps.","name":"Solvia — PayPal sandbox flow (the app's own API)","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},"item":[{"event":[{"listen":"test","script":{"exec":["// Solvia create-order contract.","// 200: an order id came back (or the $0 free-permit flag).","// 503: the honest 'sandbox keys not configured' answer — also a","// valid shape, asserted here instead of failing the run.","const json = pm.response.json();","","pm.test('answers 200, or the honest 503 when sandbox keys are not configured', function () {","    pm.expect([200, 503]).to.include(pm.response.code);","});","","if (pm.response.code === 200) {","    pm.test('200 shape: carries an order id, or the free-permit flag', function () {","        pm.expect(json).to.have.any.keys('id', 'free');","        if (json.free !== true) {","            pm.expect(json.id).to.be.a('string').and.not.empty;","        }","    });","    if (json.id) {","        pm.environment.set('paypalOrderId', json.id);","    }","} else {","    pm.test('503 shape: names the missing setting, never a secret value', function () {","        pm.expect(json).to.have.property('error');","        pm.expect(json.error).to.include('PAYPAL_CLIENT_ID');","    });","}"],"type":"text/javascript"}}],"name":"1 · Create order — POST /api/paypal/create-order","request":{"body":{"mode":"raw","options":{"raw":{"language":"json"}},"raw":"{\n  \"permitApplicationId\": \"{{permitApplicationId}}\"\n}"},"description":"Creates the PayPal sandbox order for one permit application. The amount is NEVER in this request — the server takes it from the application's snapshotted PriceCents (the college's real fees.csv fee). Set the permitApplicationId variable first (see README). A $0 FREE permit answers { \"id\": null, \"free\": true } with no PayPal call at all.","header":[{"key":"Content-Type","value":"application/json"}],"method":"POST","url":{"host":["{{baseUrl}}"],"path":["api","paypal","create-order"],"raw":"{{baseUrl}}/api/paypal/create-order"}}},{"event":[{"listen":"test","script":{"exec":["// Solvia capture contract: the response reports the standing","// truth. 'completed' may be true ONLY when PayPal's capture","// answered COMPLETED — and then a capture id and a receipt","// (permit) number must both be present.","const json = pm.response.json();","","pm.test('answers 200, or the honest 503 when sandbox keys are not configured', function () {","    pm.expect([200, 503]).to.include(pm.response.code);","});","","if (pm.response.code === 200) {","    pm.test('200 shape: status, completed, captureId, receiptNumber', function () {","        pm.expect(json).to.have.all.keys('status', 'completed', 'captureId', 'receiptNumber');","        pm.expect(json.completed).to.be.a('boolean');","    });","","    pm.test('completed is true ONLY when PayPal said COMPLETED', function () {","        if (json.completed) {","            pm.expect(json.status).to.eql('COMPLETED');","            pm.expect(json.captureId).to.be.a('string').and.not.empty;","            pm.expect(json.receiptNumber).to.be.a('string').and.not.empty;","        } else {","            pm.expect(json.status).to.not.eql('COMPLETED');","        }","    });","} else {","    pm.test('503 shape: names the missing setting, never a secret value', function () {","        pm.expect(json).to.have.property('error');","        pm.expect(json.error).to.include('PAYPAL_CLIENT_ID');","    });","}"],"type":"text/javascript"}}],"name":"2 · Capture — POST /api/paypal/capture","request":{"body":{"mode":"raw","options":{"raw":{"language":"json"}},"raw":"{\n  \"orderId\": \"{{paypalOrderId}}\"\n}"},"description":"Captures an approved sandbox order. Run request 1 first — it stores the new order id in the paypalOrderId environment variable. Between create and capture, the buyer approval happens on sandbox.paypal.com in the browser checkout flow (a human click with a sandbox buyer account); capture against an unapproved order honestly answers completed: false.","header":[{"key":"Content-Type","value":"application/json"}],"method":"POST","url":{"host":["{{baseUrl}}"],"path":["api","paypal","capture"],"raw":"{{baseUrl}}/api/paypal/capture"}}},{"event":[{"listen":"test","script":{"exec":["// /verify always answers a calm HTTP 200 page: VALID with the","// permit facts, or NOT VALID with a plain-words reason.","// An unknown token gets the same neutral page — never a 500.","pm.test('verify answers HTTP 200', function () {","    pm.response.to.have.status(200);","});","","pm.test('page states a verdict (VALID or NOT VALID)', function () {","    pm.expect(pm.response.text()).to.match(/VALID/);","});"],"type":"text/javascript"}}],"name":"3 · Verify a permit — GET /verify?t=","request":{"description":"Public permit verification. Anonymous on purpose: the unguessable token issued at payment time is the credential. Set the verifyToken variable from the verify link printed on the receipt page after a payment or free issue.","header":[],"method":"GET","url":{"host":["{{baseUrl}}"],"path":["verify"],"query":[{"key":"t","value":"{{verifyToken}}"}],"raw":"{{baseUrl}}/verify?t={{verifyToken}}"}}},{"event":[{"listen":"test","script":{"exec":["// Extraction contract: one student sentence in, one validated","// draft out — and NEVER a price (prices come only from the","// fee catalog server-side). 'source' is honest about which","// path answered: 'ollama' (local Phi-4-mini) or 'fallback'","// (deterministic extractor, model down or answer invalid).","const json = pm.response.json();","","pm.test('extraction answers 200 with a draft', function () {","    pm.response.to.have.status(200);","    pm.expect(json).to.have.property('college');","    pm.expect(json).to.have.property('permitType');","    pm.expect(json).to.have.property('term');","});","","pm.test('source is honestly ollama or fallback', function () {","    pm.expect(json.source).to.be.oneOf(['ollama', 'fallback']);","});","","pm.test('the draft never carries a price', function () {","    pm.expect(json).to.not.have.property('price');","    pm.expect(json).to.not.have.property('priceCents');","    pm.expect(json).to.not.have.property('amount');","});"],"type":"text/javascript"}}],"name":"4 · AI extraction — POST /api/chat/extract","request":{"body":{"mode":"raw","options":{"raw":{"language":"json"}},"raw":"{\n  \"text\": \"I study at Fresno City College, I drive a blue Honda Civic, and I need a fall semester permit.\"\n}"},"description":"The endpoint the student flow calls per message. The local model (Microsoft Phi-4-mini via Ollama) answers when it is up; the deterministic fallback answers otherwise — the demo never dies either way, and 'source' says which one answered.","header":[{"key":"Content-Type","value":"application/json"}],"method":"POST","url":{"host":["{{baseUrl}}"],"path":["api","chat","extract"],"raw":"{{baseUrl}}/api/chat/extract"}}}],"variable":[{"key":"baseUrl","type":"string","value":"http://localhost:5156"},{"key":"permitApplicationId","type":"string","value":""},{"key":"verifyToken","type":"string","value":""}]}
+{
+  "info": {
+    "_postman_id": "7d218e6a-0ebb-4d03-9e95-262850b8d23c",
+    "name": "Solvia \u2014 PayPal sandbox flow (the app's own API) \u2014 REDO",
+    "description": "Tests Solvia's OWN API surface \u2014 the exact calls the Solvia checkout page makes. The app itself talks to the PayPal sandbox server-side (create order -> buyer approves on sandbox.paypal.com -> capture); this collection drives and asserts the app's side of that flow, against the REDO endpoints: POST /api/paypal/orders, POST /api/paypal/capture, GET /api/verify, POST /api/chat/extract, in that order, preceded by one setup request that fetches the antiforgery token the two PayPal endpoints require (they are [ValidateAntiForgeryToken] in the redo; the token is scraped from the checkout page the same way the page's own script reads it). Honest shapes only: without sandbox keys configured, create-order answers the app's real 503 'not configured' body, capture stops at 400/404 before PayPal is ever called, and the test scripts assert those shapes too. See postman/README.md for import + run steps.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0 \u00b7 Setup \u2014 get the antiforgery token \u2014 GET /Checkout/{{permitApplicationId}}",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Setup contract: the checkout page is the token source, exactly",
+              "// as it is for the page's own PayPal buttons. The page renders a",
+              "// hidden __RequestVerificationToken input inside #plain-pay-form,",
+              "// and ASP.NET pairs that value with an antiforgery cookie the",
+              "// response sets. Postman's cookie jar stores the cookie; this",
+              "// script stores the matching request token. BOTH halves are",
+              "// needed, from the SAME page load, or requests 1-2 answer 400.",
+              "const html = pm.response.text();",
+              "const match = html.match(/name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"/);",
+              "",
+              "pm.test('checkout page answers 200 (an unpaid, priced application renders it)', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('page carries the antiforgery token the PayPal calls need', function () {",
+              "    pm.expect(match, 'hidden __RequestVerificationToken input').to.not.be.null;",
+              "});",
+              "",
+              "if (match) {",
+              "    pm.environment.set('antiforgeryToken', match[1]);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "description": "SETUP, not a flow step. The redo's two PayPal endpoints are antiforgery-protected: the request must carry the header 'RequestVerificationToken: <token>' AND the antiforgery cookie from the SAME page load. This is exactly how the app's own checkout page does it \u2014 its script reads the hidden __RequestVerificationToken input inside its #plain-pay-form and sends it as that header, while the browser sends the cookie automatically. Here, this request loads that same checkout page: Postman's cookie jar keeps the cookie, and this request's test script saves the token into the antiforgeryToken environment variable for requests 1 and 2. Leave Postman's cookie jar ON and run the requests in order. The page only renders for an unpaid application with a price above $0 \u2014 a paid or $0 permit redirects to My Permits and there is no token to take (use a fresh, unpaid permitApplicationId).",
+        "url": {
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Checkout",
+            "{{permitApplicationId}}"
+          ],
+          "raw": "{{baseUrl}}/Checkout/{{permitApplicationId}}"
+        }
+      }
+    },
+    {
+      "name": "1 \u00b7 Create order \u2014 POST /api/paypal/orders",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Solvia create-order contract (REDO shape).",
+              "// 200: { id, status } \u2014 status is 'created' (id is the new",
+              "// sandbox order id), 'not-required' ($0 / Employee permit, id is",
+              "// null, NO PayPal call was made), or 'already-paid' (id is the",
+              "// stored order id). Create is idempotent: a repeat call returns",
+              "// the stored order, never a second one.",
+              "// 503: the honest 'sandbox keys not configured' answer \u2014 also a",
+              "// valid shape, asserted here instead of failing the run.",
+              "const json = pm.response.json();",
+              "",
+              "pm.test('answers 200, or the honest 503 when sandbox keys are not configured', function () {",
+              "    pm.expect([200, 503]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test('200 shape: id + status, status in created / not-required / already-paid', function () {",
+              "        pm.expect(json).to.have.all.keys('id', 'status');",
+              "        pm.expect(json.status).to.be.oneOf(['created', 'not-required', 'already-paid']);",
+              "        if (json.status === 'created') {",
+              "            pm.expect(json.id).to.be.a('string').and.not.empty;",
+              "        }",
+              "        if (json.status === 'not-required') {",
+              "            pm.expect(json.id).to.be.null;",
+              "        }",
+              "    });",
+              "    if (json.id) {",
+              "        pm.environment.set('paypalOrderId', json.id);",
+              "    }",
+              "} else {",
+              "    pm.test('503 shape: names the missing settings, never a secret value', function () {",
+              "        pm.expect(json).to.have.property('error');",
+              "        pm.expect(json.error).to.include('not configured');",
+              "        pm.expect(json.error).to.include('PAYPAL_CLIENT_ID');",
+              "        pm.expect(json.error).to.include('PAYPAL_CLIENT_SECRET');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "RequestVerificationToken",
+            "value": "{{antiforgeryToken}}",
+            "description": "Scraped by request 0 from the checkout page's plain-pay form \u2014 the same header the page's own script sends. Its cookie pair rides in Postman's cookie jar."
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"permitApplicationId\": \"{{permitApplicationId}}\"\n}"
+        },
+        "description": "Creates the PayPal sandbox order for one permit application (REDO route: /api/paypal/orders \u2014 the frozen v1 route was /api/paypal/create-order). The amount is NEVER in this request \u2014 the server takes it from the application's snapshotted PriceCents (the college's real fees.csv fee). Run request 0 first: this call needs its antiforgery token header + cookie. Set the permitApplicationId variable first (see README). Success is { \"id\": \"<order id>\", \"status\": \"created\" } and the test script saves the order id into the paypalOrderId environment variable for request 2. An application that needs no payment answers { \"id\": null, \"status\": \"not-required\" } with no PayPal call at all (Employee exemption, a genuinely $0 permit, is settled this way); an already-Paid one answers status \"already-paid\". An unknown id answers 404 { \"error\": \"That permit application was not found.\" } and another demo person's answers 403 \u2014 both before PayPal is consulted.",
+        "url": {
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "paypal",
+            "orders"
+          ],
+          "raw": "{{baseUrl}}/api/paypal/orders"
+        }
+      }
+    },
+    {
+      "name": "2 \u00b7 Capture \u2014 POST /api/paypal/capture",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Solvia capture contract: the response reports the standing",
+              "// truth. 'completed' may be true ONLY when PayPal's capture",
+              "// answered COMPLETED \u2014 and then a capture id and a receipt",
+              "// (permit) number must both be present.",
+              "//",
+              "// The honest stopping shapes are asserted too, each in its own",
+              "// branch, instead of failing the run:",
+              "// 400 \u2014 no order id was sent (create never produced one, e.g.",
+              "//       the no-keys run where request 1 answered 503).",
+              "// 404 \u2014 no permit application owns that order id.",
+              "// 502 \u2014 PayPal itself refused the capture (e.g. the order was",
+              "//       never approved by a human) \u2014 permit is NOT paid.",
+              "// 503 \u2014 sandbox keys not configured on this machine.",
+              "const json = pm.response.json();",
+              "",
+              "pm.test('answers one of the honest shapes: 200, 400, 404, 502, or 503', function () {",
+              "    pm.expect([200, 400, 404, 502, 503]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test('200 shape: status, completed, captureId, receiptNumber', function () {",
+              "        pm.expect(json).to.have.all.keys('status', 'completed', 'captureId', 'receiptNumber');",
+              "        pm.expect(json.completed).to.be.a('boolean');",
+              "    });",
+              "",
+              "    pm.test('completed is true ONLY when PayPal said COMPLETED', function () {",
+              "        if (json.completed) {",
+              "            pm.expect(json.status).to.eql('COMPLETED');",
+              "            pm.expect(json.captureId).to.be.a('string').and.not.empty;",
+              "            pm.expect(json.receiptNumber).to.be.a('string').and.not.empty;",
+              "        } else {",
+              "            pm.expect(json.status).to.not.eql('COMPLETED');",
+              "        }",
+              "    });",
+              "} else if (pm.response.code === 400) {",
+              "    pm.test('400 shape: an order id is required (no order was created to capture)', function () {",
+              "        pm.expect(json).to.have.property('error');",
+              "        pm.expect(json.error).to.include('order id is required');",
+              "    });",
+              "} else if (pm.response.code === 404) {",
+              "    pm.test('404 shape: no application owns that order id', function () {",
+              "        pm.expect(json).to.have.property('error');",
+              "        pm.expect(json.error).to.include('No permit application owns that PayPal order');",
+              "    });",
+              "} else if (pm.response.code === 502) {",
+              "    pm.test('502 shape: PayPal refused the capture and the permit is not paid', function () {",
+              "        pm.expect(json).to.have.property('error');",
+              "        pm.expect(json.error).to.include('could not capture');",
+              "        pm.expect(json.error).to.include('not paid');",
+              "    });",
+              "} else {",
+              "    pm.test('503 shape: names the missing settings, never a secret value', function () {",
+              "        pm.expect(json).to.have.property('error');",
+              "        pm.expect(json.error).to.include('PAYPAL_CLIENT_ID');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "RequestVerificationToken",
+            "value": "{{antiforgeryToken}}",
+            "description": "Scraped by request 0 from the checkout page's plain-pay form \u2014 the same header the page's own script sends. Its cookie pair rides in Postman's cookie jar."
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"orderId\": \"{{paypalOrderId}}\"\n}"
+        },
+        "description": "Captures an approved sandbox order. Run requests 0 and 1 first \u2014 request 1 stores the new order id in the paypalOrderId environment variable, and this call needs request 0's antiforgery token header + cookie.\n\n*** THE HUMAN STEP THIS COLLECTION CANNOT DO FOR YOU ***\nBetween create (request 1) and capture (this request), a person must approve the order on sandbox.paypal.com: in the app that is the browser checkout flow (the PayPal buttons, or the plain redirect), signed in with a sandbox BUYER account (developer.paypal.com -> Sandbox -> Accounts), clicking Approve/Pay. No API call, Postman included, can approve an order \u2014 approval is the buyer's click on PayPal's own page. Capturing an order nobody approved does NOT mark anything paid: PayPal refuses it and Solvia answers 502 { \"error\": \"PayPal sandbox could not capture the order. The permit is not paid.\" } (or, if PayPal returns a non-COMPLETED status, 200 with completed: false). Paid is set only from a COMPLETED capture, server-side.\n\nWithout sandbox keys there is no order to capture at all: request 1 answered 503, paypalOrderId is empty, and this request honestly stops at 400 { \"error\": \"An order id is required.\" }; with an order id no application owns it stops at 404.",
+        "url": {
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "paypal",
+            "capture"
+          ],
+          "raw": "{{baseUrl}}/api/paypal/capture"
+        }
+      }
+    },
+    {
+      "name": "3 \u00b7 Verify a permit \u2014 GET /api/verify?t=",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// /api/verify contract: the JSON twin of the /verify page \u2014 the",
+              "// same view model, serialized. Always a calm HTTP 200 JSON body",
+              "// (an unknown or empty token is NOT an error: found=false with",
+              "// the neutral reason and every permit field null).",
+              "// Privacy shape: permit facts only \u2014 never the plate itself",
+              "// (plateState is the most it shows), never a student name/email.",
+              "const json = pm.response.json();",
+              "",
+              "pm.test('verify answers 200 JSON (or the honest 429 when the 60/minute limit trips)', function () {",
+              "    pm.expect([200, 429]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 429) {",
+              "    pm.test('429 shape: a small error body', function () {",
+              "        pm.expect(json).to.have.property('error');",
+              "    });",
+              "} else {",
+              "    pm.test('shape: the full verify field set, nothing extra', function () {",
+              "        pm.expect(json).to.have.all.keys('found', 'isValid', 'reason', 'permitNumber',",
+              "            'campus', 'permitType', 'plateState', 'category', 'privilege',",
+              "            'paymentStatus', 'startDate', 'endDate', 'lastUpdatedUtc');",
+              "    });",
+              "",
+              "    pm.test('never leaks the plate, a student name, or an email', function () {",
+              "        pm.expect(json).to.not.have.property('plate');",
+              "        pm.expect(json).to.not.have.property('studentName');",
+              "        pm.expect(json).to.not.have.property('email');",
+              "    });",
+              "",
+              "    if (json.found) {",
+              "        pm.test('found: verdict and reason are stated', function () {",
+              "            pm.expect(json.isValid).to.be.a('boolean');",
+              "            pm.expect(json.reason).to.be.a('string').and.not.empty;",
+              "        });",
+              "    } else {",
+              "        pm.test('not found: neutral reason, every permit field null', function () {",
+              "            pm.expect(json.isValid).to.eql(false);",
+              "            pm.expect(json.reason).to.include('could not find');",
+              "            pm.expect(json.permitNumber).to.be.null;",
+              "            pm.expect(json.campus).to.be.null;",
+              "            pm.expect(json.plateState).to.be.null;",
+              "        });",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "description": "Public permit verification, JSON door (the redo's VerifyApiController): the same VerifyViewModel the /verify page renders, serialized \u2014 same fields, same verdict, nothing extra. Anonymous on purpose: the unguessable token issued when the permit went live is the credential. No antiforgery token is needed (it is a GET). Set the verifyToken variable from the verify link printed on the receipt page after a payment or free issue. An unknown or empty token still answers a calm 200 with found: false and every permit field null \u2014 never a 500 and never a hint about other permits. The plate itself is never in the answer (plateState only), and no student name or email ever rides along. A shared 60-requests-per-minute per-IP limit guards this door; past it the answer is 429 { \"error\": ... }.",
+        "url": {
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "verify"
+          ],
+          "raw": "{{baseUrl}}/api/verify?t={{verifyToken}}",
+          "query": [
+            {
+              "key": "t",
+              "value": "{{verifyToken}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "4 \u00b7 AI extraction \u2014 POST /api/chat/extract",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Extraction contract: one student sentence in, one validated",
+              "// draft out \u2014 and NEVER a price (prices come only from the",
+              "// fee catalog server-side). 'source' is honest about which",
+              "// path answered: 'ollama' (local Phi-4-mini) or 'fallback'",
+              "// (deterministic extractor, model down or answer invalid).",
+              "const json = pm.response.json();",
+              "",
+              "pm.test('extraction answers 200 with a draft', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(json).to.have.all.keys('college', 'permitType', 'term', 'carMake',",
+              "        'carModel', 'carColor', 'plate', 'carState', 'source');",
+              "});",
+              "",
+              "pm.test('the sample sentence reads back as Fresno City College, Fall, Term', function () {",
+              "    pm.expect(json.college).to.eql('Fresno City College');",
+              "    pm.expect(json.term).to.eql('Fall');",
+              "    pm.expect(json.permitType).to.eql('Term');",
+              "    pm.expect(json.carMake).to.eql('Honda');",
+              "    pm.expect(json.carModel).to.eql('Civic');",
+              "    pm.expect(json.carColor).to.eql('Blue');",
+              "});",
+              "",
+              "pm.test('source is honestly ollama or fallback', function () {",
+              "    pm.expect(json.source).to.be.oneOf(['ollama', 'fallback']);",
+              "});",
+              "",
+              "pm.test('the draft never carries a price', function () {",
+              "    pm.expect(json).to.not.have.property('price');",
+              "    pm.expect(json).to.not.have.property('priceCents');",
+              "    pm.expect(json).to.not.have.property('amount');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          },
+          "raw": "{\n  \"text\": \"I study at Fresno City College, I drive a blue Honda Civic, and I need a fall semester permit.\"\n}"
+        },
+        "description": "The endpoint the student flow calls per message. No antiforgery token: this JSON endpoint is not antiforgery-protected (only the two PayPal endpoints are). The local model (Microsoft Phi-4-mini via Ollama) answers when it is up; the deterministic fallback answers otherwise \u2014 the demo never dies either way, and 'source' says which one answered. The draft carries no price, ever.",
+        "url": {
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "chat",
+            "extract"
+          ],
+          "raw": "{{baseUrl}}/api/chat/extract"
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "type": "string",
+      "value": "http://localhost:5156"
+    },
+    {
+      "key": "permitApplicationId",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "key": "paypalOrderId",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "key": "verifyToken",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "key": "antiforgeryToken",
+      "type": "string",
+      "value": ""
+    }
+  ]
+}

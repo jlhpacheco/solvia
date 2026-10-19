@@ -2,18 +2,18 @@ namespace Solvia.Services;
 
 /// <summary>
 /// The outcome of one college search: the ranked campuses plus WHO
-/// actually served them — "builtin" or "elastic". The pick screen
-/// shows the provider so a demo never silently pretends Elastic
-/// answered when the built-in match did (docs/SPONSORS.md honesty
-/// rule: claim only what actually ran).
+/// actually served them — "builtin" or "elastic". The search page
+/// prints the provider on-screen, so a demo never silently pretends
+/// Elastic answered when the built-in match did (docs/SPONSORS.md
+/// honesty rule: claim only what actually ran).
 /// </summary>
 public sealed record CollegeSearchResult(
     IReadOnlyList<CampusFee> Campuses,
     string ServedBy);
 
 /// <summary>
-/// College search behind the pick-your-college screen (BUILD-PLAN
-/// T8). Two implementations serve the SAME contract:
+/// College search behind the find-your-college screen (REDO-PLAN
+/// §2e, R8). Two implementations serve the SAME contract:
 /// - <see cref="BuiltinCollegeSearch"/> — deterministic in-memory
 ///   match over <see cref="IFeeCatalog"/>'s 10 rows; the shipped
 ///   default, needs no server, never fails.

@@ -3,6 +3,8 @@
     ViewData["Title"] = "Permit check";
     string LongDate(System.DateOnly d) => d.ToString("MMMM d, yyyy",
         System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+    string Stamp(System.DateTime dt) => dt.ToString("MMMM d, yyyy h:mm tt 'UTC'",
+        System.Globalization.CultureInfo.GetCultureInfo("en-US"));
 }
 
 <div class="verify-card verify-valid mt-4">
@@ -11,13 +13,34 @@
 
     <dl class="row fs-3 mt-4 text-start">
         <dt class="col-sm-4">Permit number</dt>
-        <dd class="col-sm-8"><strong>@Model.PermitNumber</strong></dd>
+        <dd class="col-sm-8">
+            @if (Model.PermitNumber is not null)
+            {
+                <strong>@Model.PermitNumber</strong>
+            }
+            else
+            {
+                <span>(not issued)</span>
+            }
+        </dd>
 
         <dt class="col-sm-4">College</dt>
         <dd class="col-sm-8">@Model.Campus</dd>
 
-        <dt class="col-sm-4">Student</dt>
-        <dd class="col-sm-8">@Model.StudentName</dd>
+        <dt class="col-sm-4">Permit type</dt>
+        <dd class="col-sm-8">@Model.PermitType</dd>
+
+        <dt class="col-sm-4">Plate state</dt>
+        <dd class="col-sm-8">@Model.PlateState</dd>
+
+        <dt class="col-sm-4">Category</dt>
+        <dd class="col-sm-8">@Model.Category</dd>
+
+        <dt class="col-sm-4">Privilege</dt>
+        <dd class="col-sm-8">@Model.Privilege</dd>
+
+        <dt class="col-sm-4">Payment</dt>
+        <dd class="col-sm-8">@Model.PaymentStatus</dd>
 
         @if (Model.StartDate is not null && Model.EndDate is not null)
         {
@@ -25,6 +48,12 @@
             <dd class="col-sm-8">
                 @LongDate(Model.StartDate.Value) to @LongDate(Model.EndDate.Value)
             </dd>
+        }
+
+        @if (Model.LastUpdatedUtc is not null)
+        {
+            <dt class="col-sm-4">Last updated</dt>
+            <dd class="col-sm-8">@Stamp(Model.LastUpdatedUtc.Value)</dd>
         }
     </dl>
 </div>

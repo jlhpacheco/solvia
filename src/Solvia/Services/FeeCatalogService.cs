@@ -6,24 +6,21 @@ using Solvia.Models.Enums;
 namespace Solvia.Services;
 
 /// <summary>
-/// Loads data/fees.csv (path from config FEES_CSV_PATH / FeesCsvPath)
-/// into memory and answers <see cref="IFeeCatalog"/>.
+/// Loads data/fees.csv into memory and answers <see cref="IFeeCatalog"/>.
 ///
 /// The CSV is frozen research data with free-text cells ("$229.50 per
-/// semester…", "$195 Fall; $195 Spring…", "not listed on PMB page"), so
-/// the loader parses each row tolerantly:
-/// - "not listed…" in the semester-fee cell ⇒ every price is null.
+/// semester…", "$195 Fall; $195 Spring…", "not listed on PMB page"),
+/// so the loader parses each row tolerantly:
+/// - "not listed…" in a fee cell ⇒ that price is null.
 /// - "FREE…" in the semester-fee cell ⇒ price 0 with IsFree = true.
 /// - Otherwise the first dollar amount labelled Fall / Spring in the
 ///   semester cell wins for that term; an unlabelled "per semester"
-///   amount applies to both semesters; the "Summer"-labelled amount in
-///   the other-term-fees cell is the summer price.
+///   amount applies to both semesters; the "Summer"-labelled amount
+///   in the other-term-fees cell is the summer price.
+/// - The day-pass cell yields <see cref="CampusFee.DayPassCents"/>:
+///   the student-facing segment's day rate (see ParseDayPassCents).
 /// A price is NEVER defaulted or invented: anything unparseable stays
 /// null, and the app will say "price not published by this campus."
-///
-/// Registration: Program.cs is owned by T0 — T1 files a one-line change
-/// request for the singleton registration (see track report), shaped as:
-/// AddSingleton&lt;IFeeCatalog&gt;(new FeeCatalogService(path)).
 /// </summary>
 public sealed class FeeCatalogService : IFeeCatalog
 {
@@ -125,18 +122,22 @@ public sealed class FeeCatalogService : IFeeCatalog
             var otherText = Cell(row, otherCol);
             var (fall, spring, isFree) = ParseSemesterFees(semesterText);
             var summer = ParseSummerFee(otherText);
+            var dayPassText = Cell(row, dayCol);
 
             campuses.Add(new CampusFee(
                 Campus: campus,
                 StudentSemesterFeeText: semesterText,
                 OtherTermFeesText: otherText,
-                DayPassText: Cell(row, dayCol),
+                DayPassText: dayPassText,
                 MotorcycleText: Cell(row, motoCol),
                 FallSemesterCents: fall,
                 SpringSemesterCents: spring,
                 SummerSemesterCents: summer,
                 IsFree: isFree,
-                SourceNote: Cell(row, sourceCol)));
+                SourceNote: Cell(row, sourceCol))
+            {
+                DayPassCents = ParseDayPassCents(dayPassText),
+            });
         }
 
         return campuses;
@@ -212,14 +213,56 @@ public sealed class FeeCatalogService : IFeeCatalog
         return null;
     }
 
-    private static int? FirstMoneyCents(string text)
+    /// <summary>
+    /// Parses the "Day pass" cell into a per-day price in cents.
+    ///
+    /// The cells mix shapes: "$6/day (…)", a bare "$4.00", "$1.00
+    /// (online)", "$5 Student/Other; $2 Staff…", and the trap
+    /// "$2/hour or $10/day (dispensers)" — an hourly rate sitting in
+    /// front of the day rate. Rule: read the FIRST segment (later
+    /// segments are staff/other-audience rates); inside it, an amount
+    /// explicitly labelled as the day rate ("/day", "per day") beats
+    /// an earlier unlabelled or hourly amount; otherwise the first
+    /// amount wins. "not listed" / no amount ⇒ null.
+    /// </summary>
+    private static int? ParseDayPassCents(string cell)
     {
-        var match = MoneyRegex.Match(text);
-        if (!match.Success)
+        if (cell.Length == 0 ||
+            cell.StartsWith("not listed", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
+        var segment = cell.Split(';')[0];
+        int? first = null;
+        foreach (Match match in MoneyRegex.Matches(segment))
+        {
+            var cents = ToCents(match);
+            first ??= cents;
+
+            // What immediately follows this amount decides whether it
+            // is the day rate ("/day", "per day", "a day").
+            var after = segment.AsSpan(match.Index + match.Length)
+                .TrimStart();
+            if (after.StartsWith("/day", StringComparison.OrdinalIgnoreCase) ||
+                after.StartsWith("per day", StringComparison.OrdinalIgnoreCase) ||
+                after.StartsWith("a day", StringComparison.OrdinalIgnoreCase))
+            {
+                return cents;
+            }
+        }
+
+        return first;
+    }
+
+    private static int? FirstMoneyCents(string text)
+    {
+        var match = MoneyRegex.Match(text);
+        return match.Success ? ToCents(match) : null;
+    }
+
+    private static int ToCents(Match match)
+    {
         var value = decimal.Parse(
             match.Groups[1].Value.Replace(",", ""),
             NumberStyles.Number,
@@ -228,9 +271,9 @@ public sealed class FeeCatalogService : IFeeCatalog
     }
 
     /// <summary>
-    /// Minimal RFC-4180-style CSV reader: quoted fields, embedded commas
-    /// and newlines, and "" as an escaped quote — everything the frozen
-    /// research file uses.
+    /// Minimal RFC-4180-style CSV reader: quoted fields, embedded
+    /// commas and newlines, and "" as an escaped quote — everything
+    /// the frozen research file uses.
     /// </summary>
     private static List<List<string>> ReadCsv(string text)
     {

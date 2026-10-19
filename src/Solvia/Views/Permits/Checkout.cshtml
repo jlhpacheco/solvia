@@ -1,93 +1,163 @@
 @model Solvia.Models.PermitApplication
 @{
     var clientId = ViewData["PayPalClientId"] as string;
-    var amount = ViewData["AmountDisplay"] as string;
+    var currency = (ViewData["PayPalCurrency"] as string) ?? "USD";
     var error = ViewData["CheckoutError"] as string;
     var info = ViewData["CheckoutInfo"] as string;
-    var isFree = Model.PriceCents <= 0;
-    var isLive = Model.PaymentStatus == Solvia.Models.Enums.PaymentStatus.Paid
-        || Model.PaymentStatus == Solvia.Models.Enums.PaymentStatus.NotRequired;
+    var amount = (Model.PriceCents / 100m).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    string Date(System.DateOnly d) => d.ToString("MMM d, yyyy");
+    var vehicleLine = Model.Vehicle is null
+        ? ""
+        : $"{Model.Vehicle.Make} {Model.Vehicle.Model}".Trim();
 }
 
-<h1 class="display-5 fw-bold">Checkout</h1>
-
-<div class="sv-card">
+<h1 class="mt-4">Checkout</h1>
 
 @if (error is not null)
 {
-    <div class="alert alert-danger" role="alert">@error</div>
+    <div class="alert alert-danger fs-5 mt-3" role="alert">@error</div>
 }
 @if (info is not null)
 {
-    <div class="alert alert-info" role="alert">@info</div>
+    <div class="alert alert-info fs-5 mt-3" role="alert">@info</div>
 }
 
-<p class="fs-4">Permit: <strong>@(Model.PermitType?.Name ?? "Parking permit")</strong></p>
-<p class="fs-4">Valid: @Model.StartDate to @Model.EndDate</p>
-<p class="fs-3">
-    Total: <strong class="fs-2">$@amount</strong><br />
-    <span class="text-muted fs-5">(the exact fee from your college's published fee row)</span>
-</p>
-
-@if (isLive)
-{
-    <div class="alert alert-success" role="alert">
-        This permit is already live — permit number <strong>@Model.ReceiptNumber</strong>.
+@* Summary tiles (item 20): the three facts a buyer checks first. *@
+<div class="row g-3 mt-1">
+    <div class="col-md-4">
+        <div class="price-panel h-100 text-center">
+            <p class="mb-1 fs-5">Amount due</p>
+            <p class="price-total mb-0">$@amount</p>
+            <p class="price-note mb-0">@currency · PayPal sandbox</p>
+        </div>
     </div>
-    <p><a class="btn btn-primary btn-lg fs-4" href="/Checkout/Done/@Model.Id">See my permit</a></p>
-}
-else if (isFree)
-{
-    <p>
-        Good news: this permit is <strong>free</strong> at your college —
-        no payment is needed and PayPal is not involved.
+    <div class="col-md-4">
+        <div class="sv-card h-100 text-center">
+            <p class="text-muted mb-1 fs-5">Permit</p>
+            <p class="fs-3 fw-bold mb-0">@(Model.PermitType?.Name ?? "Parking permit")</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="sv-card h-100 text-center">
+            <p class="text-muted mb-1 fs-5">Valid</p>
+            <p class="fs-4 fw-bold mb-0">@Date(Model.StartDate) → @Date(Model.EndDate)</p>
+        </div>
+    </div>
+</div>
+
+@* The full detail list (item 20) — campus and category included. *@
+<div class="sv-card mt-3">
+    <dl class="fs-4 mb-0">
+        <dt>College</dt>
+        <dd>@Model.Campus</dd>
+        <dt>Category</dt>
+        <dd>@Model.Category</dd>
+        <dt>Permit</dt>
+        <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+        <dt>Vehicle</dt>
+        <dd>
+            @if (Model.Vehicle is not null)
+            {
+                <text>@vehicleLine — plate @Model.Vehicle.Plate · @Model.Vehicle.State</text>
+            }
+        </dd>
+        <dt>Dates</dt>
+        <dd>@Date(Model.StartDate) → @Date(Model.EndDate)</dd>
+        <dt>Amount due</dt>
+        <dd>$@amount @currency (the exact fee from @Model.Campus's published fee row)</dd>
+    </dl>
+</div>
+
+@* Explainer (item 21): who pays, who never sees this page. *@
+<div class="sv-card mt-3">
+    <h2 class="fs-3">Who pays what</h2>
+    <p class="fs-5 mb-2">
+        Students and the public pay the college's published fee — the exact
+        amount from @Model.Campus's published fee row, shown above before
+        anything is charged.
     </p>
-    <form method="post" action="/Checkout/Start/@Model.Id">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fs-4">Confirm my free permit</button>
-    </form>
-}
-else if (string.IsNullOrWhiteSpace(clientId))
-{
-    <div class="alert alert-warning" role="alert">
-        PayPal is not configured on this machine yet. Add the sandbox
-        credentials (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET) and restart
-        Solvia — checkout stays unavailable until then, and nothing is charged.
-    </div>
-}
-else
-{
-    @* PayPal JS SDK buttons. The client id comes from config via
-       ViewData — it is never hardcoded in this view. *@
-    <div id="paypal-button-container"></div>
+    <p class="fs-5 mb-0">
+        College employees are exempt: an employee permit costs $0, is issued
+        without PayPal, and never comes to this page.
+    </p>
+</div>
 
-    <p class="mt-3">— or use the plain redirect instead —</p>
-    <form method="post" action="/Checkout/Start/@Model.Id">
+<div class="alert alert-info fs-5 mt-3" role="note">
+    <strong>Verify permit, vehicle, and amount before paying.</strong>
+    Solvia marks this permit Paid only when PayPal's capture confirms
+    COMPLETED — never just because a page loaded.
+</div>
+
+<div class="sv-card mt-3">
+    @if (string.IsNullOrWhiteSpace(clientId))
+    {
+        <div class="alert alert-warning fs-5" role="alert">
+            PayPal is not configured on this machine yet. Add the sandbox
+            credentials (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET) and restart
+            Solvia — checkout stays unavailable until then, and nothing is charged.
+        </div>
+    }
+    else
+    {
+        @* PayPal JS SDK buttons — the buyer path. The client id comes
+           from config via ViewData; it is never hardcoded in this view. *@
+        <div id="paypal-button-container"></div>
+        <p class="text-muted mt-3 mb-2">— or use the plain redirect instead —</p>
+    }
+
+    @* The no-JS path: a plain form into the same CheckoutService
+       endpoints, so both paths share one money brain. *@
+    <form method="post" action="/Checkout/Start/@Model.Id" id="plain-pay-form">
         @Html.AntiForgeryToken()
         <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fs-4">Pay $@amount with PayPal</button>
     </form>
-    <p class="text-muted">Sandbox only — a test account, never real money.</p>
+    <p class="text-muted mt-2 mb-0">Sandbox only — a test account, never real money.</p>
+</div>
 
-    <script src="https://www.paypal.com/sdk/js?client-id=@clientId&currency=USD&intent=capture"></script>
+@if (!string.IsNullOrWhiteSpace(clientId))
+{
+    <script src="https://www.paypal.com/sdk/js?client-id=@clientId&currency=@currency&intent=capture"></script>
     <script>
-        paypal.Buttons({
-            createOrder: function () {
-                return fetch('/api/paypal/create-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ permitApplicationId: '@Model.Id' })
-                }).then(function (res) { return res.json(); })
-                  .then(function (data) { return data.id; });
-            },
-            onApprove: function (data) {
-                return fetch('/api/paypal/capture', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ orderId: data.orderID })
-                }).then(function (res) { return res.json(); })
-                  .then(function () { window.location = '/Checkout/Done/@Model.Id'; });
+        (function () {
+            var tokenInput = document.querySelector(
+                '#plain-pay-form input[name="__RequestVerificationToken"]');
+            var afToken = tokenInput ? tokenInput.value : '';
+            function apiHeaders() {
+                return {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': afToken
+                };
             }
-        }).render('#paypal-button-container');
+            paypal.Buttons({
+                createOrder: function () {
+                    return fetch('/api/paypal/orders', {
+                        method: 'POST',
+                        headers: apiHeaders(),
+                        body: JSON.stringify({ permitApplicationId: '@Model.Id' })
+                    }).then(function (res) { return res.json(); })
+                      .then(function (data) {
+                          if (data.status === 'not-required' || data.status === 'already-paid') {
+                              window.location = '/Checkout/Done/@Model.Id';
+                              return null;
+                          }
+                          return data.id;
+                      });
+                },
+                onApprove: function (data) {
+                    return fetch('/api/paypal/capture', {
+                        method: 'POST',
+                        headers: apiHeaders(),
+                        body: JSON.stringify({ orderId: data.orderID })
+                    }).then(function (res) { return res.json(); })
+                      .then(function () { window.location = '/Checkout/Done/@Model.Id'; });
+                },
+                onCancel: function () {
+                    window.location = '/Checkout/Cancel';
+                },
+                onError: function () {
+                    window.location = '/Checkout/@Model.Id';
+                }
+            }).render('#paypal-button-container');
+        })();
     </script>
 }
-</div>

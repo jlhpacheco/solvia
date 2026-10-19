@@ -1,6 +1,6 @@
 namespace Solvia.Models.Enums;
 
-/// <summary>Vehicle color (docs/SCHEMA.md — stored as text).</summary>
+/// <summary>Vehicle color — stored in the database as TEXT.</summary>
 public enum VehicleColor
 {
     Black,

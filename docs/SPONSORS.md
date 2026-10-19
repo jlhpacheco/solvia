@@ -1,64 +1,127 @@
 # Solvia — sponsor pieces: what actually shipped
 
-Honest record, per the sponsor plan: a sponsor is claimed only where a
-real piece of it runs in the app.
+Honest record for the redo tree: a sponsor is claimed only where a
+real piece of it runs in this app, or a real artifact for it ships in
+this repo. This file is the claims source of truth for the submission.
+Where a thing did **not** run, was **not** deployed, or is an account
+step for a person — not code — this file says so in those words, and
+no other Solvia document claims more than this file does.
+
+Solvia is a .NET 10 ASP.NET Core MVC app (`src/Solvia/Solvia.csproj`,
+`net10.0`). Its core payment flow is PayPal sandbox (see
+`docs/apimatic-context.md` for the API surface).
 
 ## AG Grid — SHIPPED (fee table)
 
 - The college-side fee table (`/College/Fees`, rendered through
-  `Views/Shared/_FeeTable.cshtml`) runs **AG Grid Community edition**,
-  v34.3.1, loaded from its official CDN (`cdn.jsdelivr.net/npm/ag-grid-community@34.3.1`).
+  `src/Solvia/Views/Shared/_FeeTable.cshtml`) runs **AG Grid
+  Community edition, v34.3.1**, loaded from its official CDN:
+  `cdn.jsdelivr.net/npm/ag-grid-community@34.3.1` (the stylesheet,
+  theme, and `ag-grid-community.min.js` URLs in `_FeeTable.cshtml`
+  all carry `@34.3.1`).
 - Community is the **free edition**: no license key, no trial. Solvia
-  deliberately never uses an AG Grid trial license — a 45-day trial
-  started at build time would expire before judging ends (Dec 15, 2026).
+  deliberately never uses an AG Grid trial license — a trial started
+  at build time would expire before judging ends.
 - The only AG Grid integration point in the codebase is
-  `wwwroot/js/feetable.aggrid.js`. All 10 campuses render through it,
-  sortable and filterable, with prices taken exactly from
-  `IFeeCatalog` (null = "Not published", FREE = "$0 FREE").
+  `src/Solvia/wwwroot/js/feetable.aggrid.js`. All 10 campuses in
+  `data/fees.csv` render through it, sortable and filterable, with
+  prices taken exactly from `IFeeCatalog` (null = "Not published",
+  FREE = "$0 FREE"). The shipped default is `FeeTable:Renderer` =
+  `aggrid` (`src/Solvia/appsettings.json`).
 - Fallback behind the same seam: set config `FeeTable:Renderer=native`
-  and the identical rows render as a plain server-rendered table — no
-  other code change. If the CDN is unreachable in AG Grid mode, the
-  adapter also falls back to the native renderer automatically.
+  and the identical rows render as a plain server-rendered table in
+  `_FeeTable.cshtml` (`src/Solvia/wwwroot/js/feetable.js` is the
+  native client renderer) — no other code change, same values. If
+  the CDN is unreachable in AG Grid mode, the adapter in
+  `feetable.aggrid.js` also falls back to that native renderer
+  automatically.
 
-## Bryntum Calendar — NOT SHIPPED (decided in T5, honestly)
+## Bryntum Calendar — OUT (not shipped, no claim anywhere)
 
 - **What ships instead:** the term dates render through Solvia's
-  native calendar list (`wwwroot/js/calendar.js`) on `/College/Dates`,
-  fed by the exact same `TermDates` JSON (campus, term, term
-  start/end, permit end = term start + DurationDays, renewal date)
-  that is also served at `/College/DatesJson`. No Bryntum code, trial
-  or otherwise, is embedded anywhere in this app.
-- **Why — the exact reason:** unlike AG Grid, Bryntum has **no free
-  community edition**. Per Bryntum's own site (checked Oct 18, 2026),
-  Bryntum Calendar is available only as a paid license (from
-  $600/developer) or a **free 45-day trial**. A trial started at build
-  time (mid-October 2026) would expire in early December — **in the
-  middle of judging (Dec 1–15, 2026)** — leaving judges a dead or
-  watermarked calendar. A calendar that dies mid-judging is worse
-  than a clean native one, so the trial was never started and no
-  Bryntum claim is made anywhere in the submission.
-- **The drop-in seam (if a licensed Bryntum build is ever used):**
+  native calendar (`src/Solvia/wwwroot/js/calendar.js`) on
+  `/College/Dates`, fed by the same `TermDates` JSON (campus, term,
+  year, term start/end, permit end = term start + DurationDays,
+  renewal date) that is also served at `/College/DatesJson`. No
+  Bryntum code, trial or otherwise, is embedded anywhere in this app.
+- **Why — the exact reason:** Bryntum has **no free edition**.
+  Verified on Bryntum's own site: Bryntum Calendar is available only
+  as a paid license (from $600/developer) or a **45-day trial**. A
+  trial started at build time (mid-October 2026) would expire in
+  early December — **in the middle of judging (Dec 1–15, 2026)** —
+  leaving judges a dead or watermarked calendar. A calendar that
+  dies mid-judging is worse than a clean native one, so the trial
+  was never started and **no shipped-Bryntum wording appears
+  anywhere in this submission**.
+- **The drop-in seam (only if a licensed Bryntum build is ever
+  used):**
   1. Add `wwwroot/js/calendar.bryntum.js` consuming the `TermDates`
      JSON island (`#term-dates-data` on `/College/Dates`, same shape
      as `/College/DatesJson`).
   2. Set config `Calendar:Renderer` to `bryntum` (bound by
-     `CalendarOptions` in `Config/AppOptions.cs`, wired in
+     `CalendarOptions` in `src/Solvia/Config/AppOptions.cs`, wired in
      `Program.cs`; `CollegeController.Dates` passes the flag to the
      view).
-  3. `Views/College/Dates.cshtml` already switches the script include
-     on that flag — no controller or data changes are needed.
-  Until a real license exists, the flag stays `native` and the seam
-  stays unused.
+  3. `src/Solvia/Views/College/Dates.cshtml` already switches the
+     script include on that flag — no controller or data changes are
+     needed.
+  Until a real license exists, the shipped default stays `native`
+  (`src/Solvia/appsettings.json`: `Calendar:Renderer` = `native`)
+  and the seam stays unused.
 
-## Postman — SHIPPED (workflow: the sandbox flow as our app exposes it)
+## Elastic — SEAM SHIPPED; LIVE NODE NEVER RAN (honestly)
+
+- **What shipped:** college search sits behind one contract,
+  `ICollegeSearch` (`src/Solvia/Services/ICollegeSearch.cs`). The
+  built-in deterministic match (`src/Solvia/Services/BuiltinCollegeSearch.cs`)
+  is the default and always works. `src/Solvia/Services/ElasticCollegeSearch.cs`
+  implements the same contract against a local Elasticsearch
+  `colleges` index (hybrid keyword `multi_match` over `campus^3` +
+  `searchText`), selected only by config `Search:Provider=elastic`
+  (`Elastic:Url` default `http://localhost:9200`, `Elastic:Index`
+  default `colleges` — `ElasticOptions` in
+  `src/Solvia/Config/AppOptions.cs`). The find-your-college screen
+  (`/College/Search?q=…`) runs through the seam and **prints which
+  provider served the results** (`ServedBy`: `builtin` or `elastic`,
+  in `src/Solvia/Views/College/Search.cshtml`); on any Elastic
+  failure it falls back to the built-in match and the screen says
+  so. Elastic only finds and ranks — every hit is resolved back
+  through `IFeeCatalog`, so prices are always the catalog's, never
+  the index's.
+- Index mapping, an optional ELSER mapping, a seed script that loads
+  all 10 campuses from `data/fees.csv`, and run instructions ship as
+  artifacts of this repo in `scripts/elastic/` (mapping, optional
+  ELSER mapping, seed script, README). Tests for both providers,
+  including Elastic hits through a fake handler and fallback modes,
+  live in `tests/Solvia.Tests/CollegeSearchTests.cs`.
+- **What did NOT run, stated plainly:** **no live Elasticsearch node
+  ever ran** for this build. The build sandbox has no Docker; the
+  official Elasticsearch tarball is ~648 MB (≈647,847,324 bytes),
+  which at the sandbox's measured speed (~0.9 MB/s) is ~12 minutes
+  of download alone; and the sandbox fences app-process TCP to
+  localhost, so the app could not have reached a sandbox-local node
+  end-to-end in any case. The submitted demo's search is therefore
+  the **built-in provider**, and **no "powered by Elasticsearch"
+  claim is made**. On a normal machine the steps in
+  `scripts/elastic/README.md` (start node → seed →
+  `Search:Provider=elastic` → search) run the Elastic provider live
+  against the same screen.
+- **ELSER / Rerank: NOT claimed.** ELSER semantic search did **not**
+  run and is not claimed — it needs an ML node / inference endpoint;
+  an optional `semantic_text` mapping is provided in
+  `scripts/elastic/` for a machine that has one. Elastic Rerank was
+  never used and is never claimed.
+
+## Postman — SHIPPED (collection: the sandbox flow as our app exposes it)
 
 - `postman/solvia-paypal-flow.collection.json` — a Postman collection
-  (schema v2.1) covering the flow exactly as Solvia's own API exposes
-  it: `POST /api/paypal/create-order`, `POST /api/paypal/capture`,
-  `GET /verify`, `POST /api/chat/extract`. Every request carries a
-  test script asserting the response shape — including the capture
-  rule (completed ⟺ status COMPLETED, with capture id + receipt
-  number) and the honest 503 "sandbox keys not configured" shape.
+  (schema v2.1) shipped in this repo, covering the flow exactly as
+  Solvia's own redo API exposes it: `POST /api/paypal/orders`,
+  `POST /api/paypal/capture`, `GET /verify`, and
+  `POST /api/chat/extract`. Every request carries a test script
+  asserting the response shape — including the capture rule
+  (completed ⟺ status COMPLETED, with capture id + receipt number)
+  and the honest 503 "sandbox keys not configured" shape.
 - `postman/solvia-local.environment.json` — variables only, no
   secrets; `postman/README.md` — import + run steps, including how to
   create the free PayPal sandbox app whose keys the *app* (never
@@ -66,103 +129,74 @@ real piece of it runs in the app.
 - Honest boundary: the buyer-approval step between create and capture
   happens on sandbox.paypal.com in the browser flow with a sandbox
   buyer account — the collection covers the API calls around that
-  human click, and says so.
+  human click, and says so. The redo PayPal endpoints are
+  antiforgery-protected in the browser flow (see
+  `docs/apimatic-context.md`); the collection describes the app's
+  surface as shipped, not a bypass of it.
 
-## APIMatic — CONTEXT DOCUMENT AUTHORED (plugin run has NOT happened)
+## APIMatic — CONTEXT DOCUMENT AUTHORED (plugin run NOT claimed)
 
 - `docs/apimatic-context.md` — Solvia's own API surface (endpoints,
-  request/response shapes, auth = none/demo, and every error state
+  request/response shapes, auth model, and every error state
   including the 503 not-configured) written in the context form
-  APIMatic's Context Plugin consumes.
+  APIMatic's Context Plugin consumes. It is **authored for the
+  APIMatic plugin; a plugin run is NOT claimed.**
 - Honest boundary: the document is authored and verified against the
-  shipped controllers; **running the Context Plugin itself happens
-  in Jose Luis's editor and has not happened yet** — no run is
+  shipped redo controllers; **running the Context Plugin itself
+  happens in Jose Luis's editor and has not happened** — no run is
   claimed anywhere.
 
-## Zapier — APP SIDE SHIPPED (the live Zap is an account step, not claimed)
+## Zapier — APP SIDE SHIPPED (the live Zap is an account step, NOT done)
 
-- Real and tested in the app: `Services/PaymentWebhookService.cs`
+- Real in the app: `src/Solvia/Services/PaymentWebhookService.cs`
   POSTs one JSON event — `{permitNumber, campus, amountCents,
-  paypalCaptureId, paidAtUtc}`, no student PII — to the configured
-  `Webhook:Url` (or `WEBHOOK_URL`) the moment `CheckoutService`
-  marks a permit Paid or confirms a $0 FREE permit. Empty URL (the
-  default) = disabled. The send is fire-and-forget with logging
-  under a 3-second cap: failures are proven by
-  `tests/Solvia.Tests/WebhookTests.cs` to never block or roll back
-  a payment (6 tests: fires on Paid, fires on free-issue, silent on
-  failed capture, silent when unconfigured, survives endpoint
-  outage and HTTP 500).
-- `docs/zapier-recipe.md` — the exact Zap (Catch Hook → Gmail
-  receipt to the student → Google Sheets ledger row) with the full
-  field mapping. **Creating that Zap is Jose Luis's step in his own
-  Zapier account; no live Zap exists or is claimed** until he
-  builds it.
+  paypalCaptureId, paidAtUtc, receiptIssuedAtUtc, verifyUrl}`, **no
+  student PII** (no name, no email, no plate) — to the configured
+  `Webhook:Url` the moment a permit goes live: a Paid capture or a
+  $0 free-issue through `CheckoutService`, or a verified
+  `PAYMENT.CAPTURE.COMPLETED` PayPal webhook handled by
+  `PayPalWebhookHandler` — in every case only **after** the live
+  transition has been saved. Empty URL (the default) = disabled. The
+  send never throws and never blocks a payment: a 3-second cap,
+  failures caught and logged, the already-saved permit unaffected.
+  The payload and its verify-URL origin rules are covered in
+  `tests/Solvia.Tests/WebhookTests.cs`. Full field list, both config
+  keys, and the recipe: `docs/zapier-recipe.md`.
+- **Creating the live Zap is Jose Luis's step in his own Zapier
+  account; it is NOT done, and no live Zap exists or is claimed**
+  until he builds it from that recipe.
 
-## KERNEL — FEE-REFRESH JOB SHIPPED (script + real run output)
+## KERNEL — FEE-REFRESH JOB SHIPPED (portable script)
 
-- `tools/fee-refresh/` — the fee-table refresh job: `fee-refresh.sh`
-  (bash + curl) re-walks the 10 public campus pages listed in
-  `sources.csv`, extracts the price lines, and diffs the amounts
-  against `data/fees.csv`, printing a human review report
-  (UNCHANGED / CHANGED / UNREACHABLE / NO BASELINE). It **proposes
-  changes only — it never edits fees.csv** (the file's SHA-256 was
-  identical before and after the sample run).
+- `tools/fee-refresh/` — the fee-table refresh job shipped in this
+  repo: `fee-refresh.sh` (bash + curl), its `sources.csv` (the 10
+  public campus pages in `data/fees.csv`), and its README with a
+  real sample run. The job re-walks the 10 public campus pages,
+  extracts the price lines, and diffs the amounts against
+  `data/fees.csv`, printing a human review report (UNCHANGED /
+  CHANGED / UNREACHABLE / NO BASELINE). It **proposes changes only —
+  it never edits fees.csv**.
 - KERNEL's role, stated exactly: KERNEL is this job's production
   runner in the sponsor plan (cloud browser infrastructure for
   re-walking pages); the shipped artifact is the portable script
-  doing the same job, with its real sample output (sample run
-  recorded in `tools/fee-refresh/README.md`). No KERNEL session or
-  replay is claimed.
+  doing the same job, with its real sample output recorded in
+  `tools/fee-refresh/README.md`. No KERNEL session or replay is
+  claimed.
 
-## Render — NOT SHIPPED YET (no claim)
+## Render — NOT DEPLOYED (no claim)
 
-- There is **no `render.yaml` and no deployed hosted copy** in this
-  repo as of Oct 18, 2026. The hosted judges' copy remains planned
-  (the README says "planned", which is the true state) and deploying
-  it needs Jose Luis's Render account. Until the file and the
-  deployment exist, Render is not claimed as used.
+- There is **no deployed hosted copy** of this redo. Deploying one
+  needs Jose Luis's Render account. Until a deployment exists and is
+  verified live, **Render is not claimed as used** — say so plainly
+  wherever hosting comes up.
 
-## Elastic — SEAM SHIPPED; LIVE NODE DID NOT RUN IN THE BUILD SANDBOX (T8, honestly)
+## QuestPDF — SHIPPED (permit PDF; Community License, NOT MIT / NOT Apache)
 
-- **What shipped:** college search sits behind one contract,
-  `ICollegeSearch` (`src/Solvia/Services/`). The built-in
-  deterministic match (`BuiltinCollegeSearch`) is the default and
-  always works. `ElasticCollegeSearch` implements the same contract
-  against a local Elasticsearch `colleges` index (hybrid keyword
-  `multi_match` over `campus^3` + `searchText`), selected only by
-  config `Search:Provider=elastic` (`Elastic:Url` default
-  `http://localhost:9200`). The pick-your-college screen
-  (`/Permits/Apply?q=…`) runs through the seam and **prints which
-  provider served the results**; on any Elastic failure it falls
-  back to the built-in match and the screen says so. Index mapping,
-  an optional ELSER mapping, a seed script that loads all 10
-  campuses from `data/fees.csv`, and run instructions live in
-  `scripts/elastic/`. Ten unit tests cover both providers,
-  including Elastic hits through a fake handler and three fallback
-  modes (node down, 503, garbage reply) — all green.
-- **Verified live over HTTP in the build sandbox:** with the
-  default config, searching "Fresno" returned Fresno City College
-  first, labeled "served by the built-in search". With
-  `Search:Provider=elastic` and no node running, the same search
-  returned the same first result via the fallback, still honestly
-  labeled "the built-in search" — never "Elastic".
-- **What did NOT run, stated plainly:** no live Elasticsearch node
-  ran during the build, so the submitted demo's search is the
-  built-in provider, and no "powered by Elasticsearch" claim is
-  made. Evidence (Oct 18, 2026): the build sandbox has no Docker;
-  the official Elasticsearch 8.18.1 tarball is 647,847,324 bytes
-  and the sandbox link measured ~0.9 MB/s (a 30 MiB probe took
-  ~35 s), so the download alone (~12 min) exceeded the stretch
-  track's attempt budget; the box offers 2 cores and ~2.7 GB free
-  RAM; and the sandbox intercepts app-process TCP to localhost
-  (proven in T3 with Ollama), so the app could not have reached a
-  sandbox-local node end-to-end in any case. On a normal machine
-  the four steps in `scripts/elastic/README.md` (start node →
-  seed → `Search__Provider=elastic` → search) run the Elastic
-  provider live against the same screen.
-- **ELSER / Rerank:** ELSER semantic search did **not** run and is
-  not claimed — it needs an ML node / inference endpoint (Elastic
-  recommends ~8 GB with ELSER); an optional `semantic_text` mapping
-  is provided in `scripts/elastic/` for a machine that has one.
-  Elastic Rerank was never used and is never claimed (technical
-  preview; trial/subscription + ML node required).
+- The printable permit PDF is rendered at runtime by
+  `src/Solvia/Services/PermitPdfService.cs` using **QuestPDF
+  2026.2.4** (`PackageReference` in `src/Solvia/Solvia.csproj`).
+- License, stated exactly: QuestPDF is used under its **Community
+  License v3.0**, which is **free for OSI open-source projects**
+  (Solvia itself is open source), with **public-sector entities
+  excluded** from that free eligibility. **QuestPDF is never called
+  MIT or Apache in this submission** — it is neither.

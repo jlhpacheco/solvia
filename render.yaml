@@ -1,0 +1,102 @@
+# Solvia — Render blueprint (ready-to-use artifact, NOT deployed)
+#
+# This file is a ready-to-use Render blueprint artifact shipped in
+# this repository so a deployment can be created from it later.
+# It has NOT been deployed. No live Render service exists for
+# Solvia, no deployment has been created from this file, and no
+# hosted copy of Solvia is claimed anywhere in this submission.
+# Creating a service from this blueprint is a separate step in
+# Jose Luis's own Render account, and it has not happened.
+#
+# No secret values are in this file. Every credential below is
+# either `sync: false` (Render prompts for the value at service
+# creation and never stores it in this repo) or a non-secret
+# default copied from src/Solvia/appsettings.json.
+#
+# App shape this blueprint matches:
+#   - .NET 10 ASP.NET Core MVC (src/Solvia/Solvia.csproj, net10.0)
+#   - EF Core + SQLite (ConnectionStrings:SolviaDb)
+#   - Config by environment variable: the standard double-underscore
+#     style (PayPal__ClientId, Webhook__Url, FeeTable__Renderer,
+#     ...) is read by the default environment-variables source in
+#     src/Solvia/Program.cs; the bridged names in .env.example
+#     (PAYPAL_CLIENT_ID, WEBHOOK_URL, ...) work the same way locally.
+
+services:
+  - type: web
+    name: solvia
+    runtime: dotnet
+    plan: starter
+    buildCommand: dotnet publish src/Solvia/Solvia.csproj -c Release -o out
+    startCommand: ASPNETCORE_URLS=http://0.0.0.0:$PORT dotnet out/Solvia.dll
+    healthCheckPath: /
+    autoDeployTrigger: off
+    disk:
+      name: solvia-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DOTNET_ENVIRONMENT
+        value: Production
+      # SQLite file on the persistent disk above, so the database
+      # survives a restart of this (not-yet-created) service.
+      - key: ConnectionStrings__SolviaDb
+        value: Data Source=/app/data/solvia.db
+      # College fee table shipped in this repo (exactly 10 campuses).
+      - key: FeesCsvPath
+        value: data/fees.csv
+      - key: FEES_CSV_PATH
+        value: data/fees.csv
+      # PayPal sandbox — placeholders only, no secret values here.
+      - key: PayPal__ClientId
+        sync: false
+      - key: PayPal__ClientSecret
+        sync: false
+      - key: PayPal__Environment
+        value: sandbox
+      - key: PayPal__BaseUrl
+        value: https://api-m.sandbox.paypal.com
+      - key: PayPal__Currency
+        value: USD
+      # Identifier only, not a credential. Empty until a webhook is
+      # registered for the app in the PayPal developer dashboard.
+      - key: PayPal__WebhookId
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      # Local AI model (Phi-4-mini via Ollama). No Ollama server runs
+      # on Render by default; leave unset / as the local default and
+      # the app's deterministic fallback extractor serves requests.
+      - key: Ollama__BaseUrl
+        value: http://localhost:11434
+      - key: Ollama__Model
+        value: phi4-mini
+      # Renderer / provider seams — shipped defaults from
+      # src/Solvia/appsettings.json.
+      - key: FeeTable__Renderer
+        value: aggrid
+      - key: Calendar__Renderer
+        value: native
+      - key: Search__Provider
+        value: builtin
+      - key: Elastic__Url
+        value: http://localhost:9200
+      - key: Elastic__Index
+        value: colleges
+      # Payment-complete webhook. Empty = disabled (the shipped
+      # default): nothing is sent until a URL is supplied here.
+      - key: Webhook__Url
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false
+      # Optional public origin used only to build a verify URL in
+      # the webhook event. Never invented by the app; set it only
+      # after a real deployment exists and its origin is known.
+      - key: Webhook__PublicBaseUrl
+        sync: false

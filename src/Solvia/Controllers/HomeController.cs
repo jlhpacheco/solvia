@@ -8,11 +8,11 @@ using Solvia.Models.ViewModels;
 namespace Solvia.Controllers;
 
 /// <summary>
-/// The home screen (BUILD-PLAN T2): one big door — "Get my parking
-/// permit" — plus My Permits, and the demo-student switcher. Maria is
-/// the signed-in demo student; the switcher just picks which SEEDED
-/// fictional student the demo acts as. There is no login stack and no
-/// real personal data anywhere.
+/// The home screen (R0 shell): one big door — "Get my parking
+/// permit" — plus My Permits, and the demo-person switcher. Maria
+/// is the default demo person; the switcher just picks which SEEDED
+/// fictional person the demo acts as. There is no login stack and
+/// no real personal data anywhere.
 /// </summary>
 public class HomeController : DemoControllerBase
 {
@@ -38,7 +38,7 @@ public class HomeController : DemoControllerBase
         });
     }
 
-    /// <summary>Demo switcher: act as another seeded fictional student.</summary>
+    /// <summary>Demo switcher: act as another seeded fictional person.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SwitchStudent(

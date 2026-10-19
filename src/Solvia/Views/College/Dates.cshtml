@@ -11,13 +11,13 @@
 <h1 class="display-5 fw-bold">@Model.Campus — @Model.Term @Model.Year</h1>
 <p class="lead">The dates that matter for this permit, in one place.</p>
 
-@* The calendar seam in plain big text. DECISION (T5, docs/SPONSORS.md):
-   Bryntum Calendar is NOT embedded — Bryntum has no free community
-   edition, only a paid license or a 45-day trial, and a trial would
-   expire during judging (Dec 1–15, 2026). The native list renders the
-   identical TermDates JSON (island below, and /College/DatesJson). A
-   licensed Bryntum build drops in by adding wwwroot/js/calendar.bryntum.js
-   and setting config Calendar:Renderer=bryntum — no other change. *@
+@* The calendar seam in plain big text (§2e): Bryntum Calendar is
+   NOT embedded — Bryntum has no free community edition, only a paid
+   license or a 45-day trial, and a trial would expire during judging
+   (Dec 1–15, 2026). The native list renders the identical TermDates
+   JSON (island below, and /College/DatesJson). A licensed Bryntum
+   build drops in by adding wwwroot/js/calendar.bryntum.js and
+   setting config Calendar:Renderer=bryntum — no other change. *@
 <div class="sv-card">
 <dl class="row fs-3">
     <dt class="col-sm-4">Term starts</dt>

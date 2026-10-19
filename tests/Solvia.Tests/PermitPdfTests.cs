@@ -1,8 +1,10 @@
-using System.Text;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Solvia.Config;
 using Solvia.Controllers;
 using Solvia.Data;
 using Solvia.Models;
@@ -12,262 +14,293 @@ using Solvia.Services;
 namespace Solvia.Tests;
 
 /// <summary>
-/// The printable permit PDF (the Duvara-mirrored receipt PDF).
-/// Two proofs: PermitPdfService turns a live permit into real PDF
-/// bytes (%PDF magic, non-trivial size), and PermitsController
-/// serves those bytes ONLY for Paid / NotRequired applications —
-/// an unpaid application gets a redirect back to its receipt
-/// screen, never a PDF, and an unknown id is a 404.
+/// R5 Permit PDF tests (REDO-PLAN §3 R5, checklist items 43–45):
+/// the gate over HTTP-shaped calls (unknown 404, non-owner 403,
+/// owned-but-unpaid 400 in plain words, live 200 %PDF), the
+/// document's contents read back out of the real bytes with
+/// pdftotext (permit number, plate + state, PayPal ids, category,
+/// the privilege line, EXEMPT (Employee) on Elena's permit), and
+/// regeneration — two consecutive calls, two fresh PDFs.
 /// </summary>
-public sealed class PermitPdfTests : IDisposable
+public sealed class PermitPdfTests
 {
-    private readonly SqliteConnection _connection;
-    private readonly DbContextOptions<SolviaDbContext> _options;
-    private readonly FeeCatalogService _catalog = new(FindFeesCsv());
+    // ------------------------------------------------------- harness
 
-    public PermitPdfTests()
+    private sealed record World(
+        SolviaDbContext Db,
+        SqliteConnection Connection,
+        IFeeCatalog Catalog,
+        ApplicationService Applications,
+        IIssuanceService Issuance);
+
+    private static World NewWorld()
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
-        _options = new DbContextOptionsBuilder<SolviaDbContext>()
-            .UseSqlite(_connection)
-            .Options;
-
-        using var db = new SolviaDbContext(_options);
-        db.Database.EnsureCreated();
-    }
-
-    public void Dispose() => _connection.Dispose();
-
-    private SolviaDbContext NewDb() => new(_options);
-
-    private static PermitPdfService NewPdfService() =>
-        new(new HttpContextAccessor());
-
-    private PermitsController NewController(SolviaDbContext db)
-    {
-        var controller = new PermitsController(
+        var (db, connection) = RedoTestDb.Create();
+        var fees = new FeeCatalogService(RedoTestDb.FindFeesCsv());
+        var numbers = new PermitNumberService(db);
+        var issuance = new IssuanceService(numbers);
+        var applications = new ApplicationService(
             db,
-            _catalog,
-            new UnusedExtractor(),
-            new NullTermDatesService(),
-            new BuiltinCollegeSearch(_catalog),
-            NewPdfService());
-        controller.ControllerContext = new ControllerContext
+            fees,
+            new PricingService(fees),
+            new UserCategoryResolver(Options.Create(new CategoryOptions())),
+            new TermDatesService(fees, db),
+            issuance);
+        return new World(db, connection, fees, applications, issuance);
+    }
+
+    private static MyPermitsController NewController(World w, string asStudent)
+    {
+        var http = new DefaultHttpContext();
+        http.Request.Scheme = "https";
+        http.Request.Host = new HostString("solvia.test");
+        http.Request.Headers.Cookie = $"solvia_student={asStudent}";
+        return new MyPermitsController(w.Db, new PermitPdfService())
         {
-            HttpContext = new DefaultHttpContext(),
+            ControllerContext = new ControllerContext { HttpContext = http },
         };
-        return controller;
     }
 
-    private static string FindFeesCsv()
-    {
-        // Anchored on THIS assembly's location first (the runner's
-        // own base directory is not inside the repo) — the same
-        // pattern as FlowFixTests.
-        var starts = new[]
-        {
-            Path.GetDirectoryName(typeof(PermitPdfTests).Assembly.Location),
-            AppContext.BaseDirectory,
-        };
-
-        foreach (var start in starts)
-        {
-            var dir = start is null ? null : new DirectoryInfo(start);
-            while (dir is not null)
-            {
-                var candidate = Path.Combine(dir.FullName, "data", "fees.csv");
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-
-                dir = dir.Parent;
-            }
-        }
-
-        throw new FileNotFoundException("data/fees.csv not found above the test assembly.");
-    }
-
-    /// <summary>A complete in-memory permit graph for the PDF service.</summary>
-    private static PermitApplication SampleApplication(PaymentStatus status, int priceCents) => new()
-    {
-        Id = Guid.NewGuid(),
-        StudentId = "priya",
-        Student = new Student { Id = "priya", DisplayName = "Priya", Email = "priya@student.example" },
-        Campus = "Modesto Junior College / Columbia College / YCCD",
-        VehicleId = Guid.NewGuid(),
-        Vehicle = new Vehicle
-        {
-            Id = Guid.NewGuid(),
-            StudentId = "priya",
-            Plate = "9ABC123",
-            State = UsState.CA,
-            Color = VehicleColor.Blue,
-            Make = "Toyota",
-            Model = "Corolla",
-        },
-        PermitTypeId = 1,
-        PermitType = new PermitType { Id = 1, Code = PermitTypeCode.Term, Name = "Term permit", Active = true },
-        Term = TermKind.Fall,
-        StartDate = new DateOnly(2026, 8, 24),
-        EndDate = new DateOnly(2026, 12, 22),
-        PriceCents = priceCents,
-        PaymentStatus = status,
-        ReceiptNumber = "SOL-2026-000101",
-        VerifyToken = "test-verify-token-123",
-        PaidAtUtc = status == PaymentStatus.Paid ? DateTime.UtcNow : null,
-        SubmittedAtUtc = DateTime.UtcNow,
-    };
-
-    private static void AssertRealPdf(byte[] bytes)
-    {
-        Assert.True(bytes.Length > 1000, $"PDF too small: {bytes.Length} bytes");
-        Assert.Equal("%PDF-", Encoding.ASCII.GetString(bytes, 0, 5));
-    }
-
-    // ------------------------------------------------------------------
-    // The service: real PDF bytes for live permits
-    // ------------------------------------------------------------------
-
-    [Fact]
-    public void Service_PaidApplication_ReturnsRealPdfBytes()
-    {
-        var pdf = NewPdfService().BuildPermitPdf(
-            SampleApplication(PaymentStatus.Paid, 3000));
-        AssertRealPdf(pdf);
-    }
-
-    [Fact]
-    public void Service_FreeApplication_ReturnsRealPdfBytes()
-    {
-        var pdf = NewPdfService().BuildPermitPdf(
-            SampleApplication(PaymentStatus.NotRequired, 0));
-        AssertRealPdf(pdf);
-    }
-
-    // ------------------------------------------------------------------
-    // The controller gate: PDF only when Paid / NotRequired
-    // ------------------------------------------------------------------
-
-    private async Task<Guid> SeedApplicationAsync(
-        SolviaDbContext db, PaymentStatus status, int priceCents)
+    private static Vehicle AddVehicle(
+        SolviaDbContext db, string studentId, string plate)
     {
         var vehicle = new Vehicle
         {
             Id = Guid.NewGuid(),
-            StudentId = "priya",
-            Plate = "9ABC123",
+            StudentId = studentId,
+            Plate = plate,
             State = UsState.CA,
             Color = VehicleColor.Blue,
-            Make = "Toyota",
-            Model = "Corolla",
+            Make = "Honda",
+            Model = "Civic",
         };
         db.Vehicles.Add(vehicle);
+        db.SaveChanges();
+        return vehicle;
+    }
 
-        var application = new PermitApplication
+    private static async Task<PermitApplication> ApplyAsync(
+        World w, string studentId, Guid vehicleId, string campus,
+        PermitTypeCode type, DateOnly start)
+    {
+        var result = await w.Applications.CreateAsync(new ApplicationInput(
+            studentId, vehicleId, campus, type, TermKind.Fall, start, "form"));
+        Assert.Equal(CreateApplicationStatus.Created, result.Status);
+        return result.Application!;
+    }
+
+    /// <summary>Same stand-in for R6's capture write as in MyPermitsTests.</summary>
+    private static async Task MarkPaidAsCaptureWouldAsync(
+        World w, PermitApplication app, string orderId, string captureId)
+    {
+        app.PaymentStatus = PaymentStatus.Paid;
+        app.PayPalOrderId = orderId;
+        app.PayPalCaptureId = captureId;
+        app.PaidAtUtc = DateTime.UtcNow;
+        await w.Issuance.IssueIfAbsentAsync(app);
+        app.ConcurrencyToken = Guid.NewGuid();
+        await w.Db.SaveChangesAsync();
+    }
+
+    /// <summary>Maria's PAID Fresno Term permit (the $30 demo scene, paid).</summary>
+    private static async Task<PermitApplication> MariaPaidAsync(World w)
+    {
+        var vehicle = AddVehicle(w.Db, "maria", "8XYZ123");
+        var app = await ApplyAsync(w, "maria", vehicle.Id, "Fresno City College",
+            PermitTypeCode.Term, new DateOnly(2026, 8, 24));
+        await MarkPaidAsCaptureWouldAsync(w, app, "ORDER-R5PDF", "CAPTURE-R5PDF");
+        return app;
+    }
+
+    /// <summary>
+    /// Reads the text layer out of real PDF bytes (poppler's
+    /// pdftotext — the house verification tool for generated PDFs).
+    /// </summary>
+    private static string PdfText(byte[] bytes)
+    {
+        var pdfPath = Path.Combine(
+            Path.GetTempPath(), $"solvia-r5-{Guid.NewGuid():N}.pdf");
+        File.WriteAllBytes(pdfPath, bytes);
+        try
         {
-            Id = Guid.NewGuid(),
-            StudentId = "priya",
-            Campus = "Modesto Junior College / Columbia College / YCCD",
-            VehicleId = vehicle.Id,
-            PermitTypeId = db.PermitTypes.First(t => t.Code == PermitTypeCode.Term).Id,
-            Term = TermKind.Fall,
-            StartDate = new DateOnly(2026, 8, 24),
-            EndDate = new DateOnly(2026, 12, 22),
-            PriceCents = priceCents,
-            PaymentStatus = status,
-            ReceiptNumber = status is PaymentStatus.Paid or PaymentStatus.NotRequired
-                ? "SOL-2026-000101"
-                : null,
-            VerifyToken = "test-verify-token-123",
-            PaidAtUtc = status == PaymentStatus.Paid ? DateTime.UtcNow : null,
-            SubmittedAtUtc = DateTime.UtcNow,
-        };
-        db.PermitApplications.Add(application);
-        await db.SaveChangesAsync();
-        return application.Id;
+            var psi = new ProcessStartInfo("pdftotext", $"\"{pdfPath}\" -")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            };
+            using var process = Process.Start(psi)
+                ?? throw new InvalidOperationException("pdftotext did not start");
+            var text = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            Assert.True(process.ExitCode == 0,
+                "pdftotext failed — PDF text assertions need poppler-utils.");
+            return text;
+        }
+        finally
+        {
+            File.Delete(pdfPath);
+        }
     }
 
-    [Fact]
-    public async Task Controller_PaidApplication_ServesThePdf()
-    {
-        using var db = NewDb();
-        var id = await SeedApplicationAsync(db, PaymentStatus.Paid, 3000);
-        var controller = NewController(db);
+    private static PermitApplication LoadForPdf(World w, Guid id) =>
+        w.Db.PermitApplications
+            .Include(a => a.Vehicle)
+            .Include(a => a.PermitType)
+            .Include(a => a.Student)
+            .Single(a => a.Id == id);
 
-        var result = await controller.PermitPdf(id, default);
-
-        var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal("application/pdf", file.ContentType);
-        Assert.Equal("Solvia-Permit-SOL-2026-000101.pdf", file.FileDownloadName);
-        AssertRealPdf(file.FileContents);
-    }
+    // ----------------------------------------------------- the gates
 
     [Fact]
-    public async Task Controller_FreeApplication_ServesThePdf()
+    public async Task Pdf_UnknownId_Is404()
     {
-        using var db = NewDb();
-        var id = await SeedApplicationAsync(db, PaymentStatus.NotRequired, 0);
-        var controller = NewController(db);
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
 
-        var result = await controller.PermitPdf(id, default);
-
-        var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal("application/pdf", file.ContentType);
-        AssertRealPdf(file.FileContents);
-    }
-
-    [Fact]
-    public async Task Controller_PendingApplication_GetsNoPdf_RedirectsToReceipt()
-    {
-        using var db = NewDb();
-        var id = await SeedApplicationAsync(db, PaymentStatus.Pending, 3000);
-        var controller = NewController(db);
-
-        var result = await controller.PermitPdf(id, default);
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("Receipt", redirect.ActionName);
-    }
-
-    [Fact]
-    public async Task Controller_FailedApplication_GetsNoPdf_RedirectsToReceipt()
-    {
-        using var db = NewDb();
-        var id = await SeedApplicationAsync(db, PaymentStatus.Failed, 3000);
-        var controller = NewController(db);
-
-        var result = await controller.PermitPdf(id, default);
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("Receipt", redirect.ActionName);
-    }
-
-    [Fact]
-    public async Task Controller_UnknownId_Returns404()
-    {
-        using var db = NewDb();
-        var controller = NewController(db);
-
-        var result = await controller.PermitPdf(Guid.NewGuid(), default);
-
+        var result = await NewController(w, "maria")
+            .PermitPdf(Guid.NewGuid(), CancellationToken.None);
         Assert.IsType<NotFoundResult>(result);
     }
 
-    // ------------------------------------------------------------------
-    // Constructor fill-ins the PermitPdf action never calls
-    // ------------------------------------------------------------------
-
-    private sealed class UnusedExtractor : IAiExtractor
+    [Fact]
+    public async Task Pdf_NonOwner_Is403()
     {
-        public Task<ExtractionResult> ExtractAsync(
-            string text, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException("Not used by the PermitPdf action.");
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = await MariaPaidAsync(w);
+
+        var result = await NewController(w, "diego")
+            .PermitPdf(app.Id, CancellationToken.None);
+        var status = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, status.StatusCode);
     }
 
-    private sealed class NullTermDatesService : ITermDatesService
+    [Fact]
+    public async Task Pdf_OwnedButUnpaid_Is400InPlainWords()
     {
-        public TermDates? GetTermDates(string campus, TermKind term, int year) => null;
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var vehicle = AddVehicle(w.Db, "maria", "8XYZ123");
+        var pending = await ApplyAsync(w, "maria", vehicle.Id,
+            "Fresno City College", PermitTypeCode.Term, new DateOnly(2026, 8, 24));
+
+        var result = await NewController(w, "maria")
+            .PermitPdf(pending.Id, CancellationToken.None);
+        var content = Assert.IsType<ContentResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, content.StatusCode);
+        Assert.Contains("only after payment", content.Content);
+    }
+
+    [Fact]
+    public async Task Pdf_LivePermit_ServesPdfNamedFromReceiptNumber()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = await MariaPaidAsync(w);
+
+        var result = await NewController(w, "maria")
+            .PermitPdf(app.Id, CancellationToken.None);
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/pdf", file.ContentType);
+        Assert.Equal($"{app.ReceiptNumber}.pdf", file.FileDownloadName);
+        Assert.True(file.FileContents.Length > 1000);
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(file.FileContents, 0, 4));
+    }
+
+    [Fact]
+    public async Task Pdf_Regenerates_TwoConsecutiveCallsBothServe()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = await MariaPaidAsync(w);
+        var controller = NewController(w, "maria");
+
+        var first = Assert.IsType<FileContentResult>(
+            await controller.PermitPdf(app.Id, CancellationToken.None));
+        var second = Assert.IsType<FileContentResult>(
+            await controller.PermitPdf(app.Id, CancellationToken.None));
+
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(first.FileContents, 0, 4));
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(second.FileContents, 0, 4));
+        Assert.True(second.FileContents.Length > 1000);
+    }
+
+    // -------------------------------------------------- the document
+
+    [Fact]
+    public async Task Pdf_PaidPermit_TextCarriesTheFacts()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var app = await MariaPaidAsync(w);
+
+        var bytes = new PermitPdfService()
+            .BuildPermitPdf(LoadForPdf(w, app.Id), "https://solvia.test");
+        var text = PdfText(bytes);
+
+        Assert.Contains(app.ReceiptNumber!, text);          // permit number
+        Assert.Contains("8XYZ123", text);                   // plate
+        Assert.Contains("(CA)", text);                      // plate state
+        Assert.Contains("ORDER-R5PDF", text);               // PayPal order id
+        Assert.Contains("CAPTURE-R5PDF", text);             // PayPal capture id
+        Assert.Contains("Student", text);                   // category
+        Assert.Contains("Student/Public Parking Eligible", text); // privilege line
+        Assert.Contains("PAID $30.00 USD", text);           // payment line
+        Assert.Contains("Proof of Parking (For Enforcement)", text);
+        Assert.Contains("solvia.test/verify?t=", text);     // verify URL
+    }
+
+    [Fact]
+    public async Task Pdf_ElenaEmployeePermit_SaysExemptAndStaff()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var vehicle = AddVehicle(w.Db, "elena", "7ELN777");
+        // Elena (Employee) at a PAID campus: the category snapshot
+        // resolves the price to $0, so her permit issues free at
+        // creation — NotRequired, never near a checkout.
+        var app = await ApplyAsync(w, "elena", vehicle.Id, "Fresno City College",
+            PermitTypeCode.Term, new DateOnly(2026, 8, 24));
+        Assert.Equal(PaymentStatus.NotRequired, app.PaymentStatus);
+        Assert.Equal(UserCategory.Employee, app.Category);
+        Assert.NotNull(app.ReceiptNumber);
+
+        // …and her own controller call passes the live gate.
+        var served = await NewController(w, "elena")
+            .PermitPdf(app.Id, CancellationToken.None);
+        Assert.IsType<FileContentResult>(served);
+
+        var text = PdfText(new PermitPdfService()
+            .BuildPermitPdf(LoadForPdf(w, app.Id), "https://solvia.test"));
+        Assert.Contains("EXEMPT (Employee)", text);         // item 44 payment line
+        Assert.Contains("Staff Parking Eligible", text);    // privilege line
+        Assert.Contains("Employee", text);                  // category row
+        Assert.Contains("7ELN777", text);
+    }
+
+    [Fact]
+    public async Task Pdf_FreeStudentPermit_SaysFreeIssuedNamingCampus()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var vehicle = AddVehicle(w.Db, "priya", "9PRI999");
+        var freeCampus = w.Catalog.All().First(f => f.IsFree).Campus;
+        var app = await ApplyAsync(w, "priya", vehicle.Id, freeCampus,
+            PermitTypeCode.Term, new DateOnly(2026, 8, 24));
+        Assert.Equal(PaymentStatus.NotRequired, app.PaymentStatus);
+
+        var text = PdfText(new PermitPdfService()
+            .BuildPermitPdf(LoadForPdf(w, app.Id), "https://solvia.test"));
+        Assert.Contains("FREE — ISSUED", text);
+        Assert.Contains(freeCampus, text); // the $0 campus is named
     }
 }

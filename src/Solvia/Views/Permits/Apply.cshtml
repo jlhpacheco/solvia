@@ -1,69 +1,140 @@
-@model Solvia.Models.ViewModels.CollegePickViewModel
+@model Solvia.Models.ViewModels.ApplyViewModel
 @{
-    ViewData["Title"] = "Pick your college";
+    ViewData["Title"] = "Apply for a permit";
 }
 
-<h1 class="display-5 fw-bold">Pick your college</h1>
-<p class="fs-4">Tap your college. The price shown is your college's real published price.</p>
-
-<form method="get" action="/Permits/Apply" class="mb-3">
-    <label class="form-label fs-4" for="collegeSearch">Search</label>
-    <div class="input-group input-group-lg">
-        <input id="collegeSearch" name="q" type="search" class="form-control fs-4"
-               placeholder="Type your college name…" autocomplete="off"
-               value="@Model.Query" />
-        <button class="btn btn-primary fs-4" type="submit">Search</button>
-    </div>
-</form>
-
-@if (Model.SearchServedBy is not null)
-{
-    <p class="fs-5 text-muted">
-        Search results for “@Model.Query” — served by
-        @(Model.SearchServedBy == "elastic"
-            ? "Elastic (local colleges index)"
-            : "the built-in search").
-    </p>
-    @if (Model.Campuses.Count == 0)
-    {
-        <p class="fs-4">No college matched. Try the town or part of the college name —
-            or <a href="/Permits/Apply">see all 10 colleges</a>.</p>
-    }
-}
-
-<div class="list-group" id="collegeList">
-    @foreach (var campus in Model.Campuses)
-    {
-        <a class="list-group-item list-group-item-action py-3 campus-item college-card"
-           href="/Permits/Questions?college=@Uri.EscapeDataString(campus.Name)">
-            <span class="fs-3 fw-semibold d-block">@campus.Name</span>
-            @if (campus.HasPublishedPrice)
-            {
-                <span class="price-chip @(campus.PriceLabel.Contains("FREE") ? "price-chip-free" : "")">@campus.PriceLabel</span>
-            }
-            else
-            {
-                <span class="price-chip price-chip-none">@campus.PriceLabel</span>
-            }
-        </a>
-    }
-</div>
-
-<p class="mt-4">
-    <a class="fs-5" href="/College/Fees">See the full fee table for all 10 colleges</a>
+<h1 class="mt-4">Apply for a permit</h1>
+<p class="fs-5">
+    Demo person: <strong>@Model.StudentName</strong> — @Model.CategoryLabel (fictional).
+    One form, one submit — the permit application the classic way.
 </p>
 
-<script>
-    // Simple client-side search over the server-rendered list.
-    // Without JavaScript the full list still shows — nothing is hidden.
-    (function () {
-        var box = document.getElementById('collegeSearch');
-        var items = document.querySelectorAll('.campus-item');
-        box.addEventListener('input', function () {
-            var q = box.value.trim().toLowerCase();
-            items.forEach(function (item) {
-                item.style.display = item.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
-            });
-        });
-    })();
-</script>
+@if (Model.NoVehicles)
+{
+    @* Item 6: the prerequisite is a full-screen card, not a dead end. *@
+    <div class="sv-card mt-4">
+        <h2 class="fs-3">Add a vehicle first</h2>
+        <p class="fs-5">
+            A permit points at a saved car, and you have no vehicles yet.
+            Add one — it takes five short fields — then come back here.
+        </p>
+        <a class="btn btn-primary sv-cta w-100" href="/Vehicles/Create">Add a vehicle</a>
+    </div>
+}
+else if (Model.NoTypes)
+{
+    @* Item 7: reachable only if the seeded catalog is ever emptied. *@
+    <div class="sv-card mt-4">
+        <h2 class="fs-3">No permit types available</h2>
+        <p class="fs-5">
+            Permit types live in the database, and none are active right now.
+            Please ask the college office to check the permit catalog.
+        </p>
+    </div>
+}
+else
+{
+    <div class="sv-card mt-4">
+        <form asp-action="Apply" method="post">
+            @if (Model.Errors.Count > 0)
+            {
+                <div class="alert alert-danger fs-5" role="alert">
+                    @foreach (var error in Model.Errors)
+                    {
+                        <div>@error</div>
+                    }
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fs-4" for="Campus">College</label>
+                <select class="form-select form-select-lg" id="Campus" name="Campus">
+                    <option value="">— pick your college —</option>
+                    @foreach (var campus in Model.Campuses)
+                    {
+                        <option value="@campus" selected="@(Model.Campus == campus)">@campus</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fs-4" for="VehicleId">Vehicle</label>
+                <select class="form-select form-select-lg" id="VehicleId" name="VehicleId">
+                    <option value="">— pick your car —</option>
+                    @foreach (var vehicle in Model.Vehicles)
+                    {
+                        <option value="@vehicle.Id" selected="@(Model.VehicleId == vehicle.Id)">@vehicle.Label</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fs-4" for="PermitTypeId">Permit type</label>
+                <select class="form-select form-select-lg" id="PermitTypeId" name="PermitTypeId">
+                    <option value="">— pick a permit type —</option>
+                    @foreach (var type in Model.Types)
+                    {
+                        <option value="@type.Id" data-code="@type.Code" selected="@(Model.PermitTypeId == type.Id)">@type.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3" id="termRow">
+                <label class="form-label fs-4" for="Term">Term</label>
+                <select class="form-select form-select-lg" id="Term" name="Term">
+                    @foreach (var term in Enum.GetNames<Solvia.Models.Enums.TermKind>())
+                    {
+                        <option value="@term" selected="@(Model.Term.ToString() == term)">@term</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fs-4" for="StartDate">Start date</label>
+                <input class="form-control form-control-lg" type="date" id="StartDate" name="StartDate"
+                       value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <button type="submit" class="btn btn-primary sv-cta w-100 mt-2">Submit Application</button>
+        </form>
+    </div>
+
+    @* Item 8: what happens next + the trust note, on the form itself. *@
+    <div class="sv-card mt-4">
+        <h2 class="fs-3">What happens next</h2>
+        <ol class="fs-5 mb-0">
+            <li><strong>Apply here</strong> — pick your college, car, permit, and start date.</li>
+            <li><strong>Pay with PayPal</strong> — the exact total comes from your college's published fee. Free permits (and employees) skip payment and are issued at once.</li>
+            <li><strong>Permit is live</strong> — your permit number appears under My permits, with a printable PDF.</li>
+        </ol>
+        <p class="fs-5 mt-3 mb-0">
+            Check your college, car, and total before you pay — Solvia marks a permit
+            Paid only when PayPal's capture confirms it, never from a page you land on.
+        </p>
+    </div>
+
+    <div class="sv-card mt-4">
+        <p class="fs-5 mb-0">
+            Rather say it in your own words?
+            <a href="/Permits/Ask">Let Solvia's AI read your sentence instead →</a>
+        </p>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // The Term pick matters only for term permits; hide it for day passes.
+        (function () {
+            var typeSelect = document.getElementById('PermitTypeId');
+            var termRow = document.getElementById('termRow');
+            if (!typeSelect || !termRow) { return; }
+            function sync() {
+                var opt = typeSelect.options[typeSelect.selectedIndex];
+                var code = opt ? opt.getAttribute('data-code') : null;
+                termRow.style.display = code === 'Daily' ? 'none' : '';
+            }
+            typeSelect.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
+}

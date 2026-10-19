@@ -2,9 +2,10 @@
 @model Solvia.Models.FeeTableViewModel
 
 @*
-    THE FEE-TABLE SEAM (T6). Every fee table in Solvia renders through
-    this partial and only this partial. Config FeeTable:Renderer picks
-    the renderer; the rows (from IFeeCatalog) are identical either way:
+    THE FEE-TABLE SEAM (§2e). Every fee table in Solvia renders
+    through this partial and only this partial. Config
+    FeeTable:Renderer picks the renderer; the rows (from IFeeCatalog,
+    display strings computed on the server) are identical either way:
 
     - "aggrid": AG Grid Community edition (free, no license key, no
       trial) loaded from its official CDN; wwwroot/js/feetable.aggrid.js
