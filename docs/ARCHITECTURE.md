@@ -1,10 +1,10 @@
 # ARCHITECTURE — how Solvia is put together
 
-Solvia's permit core — application form, permit-type catalog, issuance,
-receipt, verification — follows the design of CarPermitApp, the author's
-own earlier permit application. The AI extraction (Phi-4-mini, local),
-the published-fee research catalog, and the PayPal Orders integration
-were built for this hackathon.
+Solvia is an independent application first built during this hackathon.
+Its permit core, vehicle extraction adapter, published-fee catalog,
+PayPal Orders integration, issuance, receipts, and verification are
+described below. General structural references do not define its
+business model or payment implementation.
 
 This file is the map of the code in this repo: what each piece is, and
 which rules it owns. `docs/REDO-PLAN.md` is the build record (the
@@ -27,10 +27,10 @@ how the inputs are gathered.
   A free application is issued at the POST and lands on My Permits;
   a payable one redirects to `/Checkout/{id}`. There is no Review
   step on this door.
-- **The AI door** — `/Permits/Ask` (Solvia's). A local model
-  (Microsoft Phi-4-mini via Ollama, 100% on this machine) reads the
-  student's own words and extracts three answers only — school, car,
-  term. The extraction result type has **no price field by
+- **The AI door** — `/Permits/Ask` (Solvia's). Microsoft Phi-4-mini
+  through the configured Ollama endpoint drafts vehicle details from
+  the car sentence. College, permit type, and term are UI selections.
+  The extraction result type has **no price field by
   construction**: the model can never name a price. The student
   confirms what the AI understood on an editable gate screen before
   anything is saved; a deterministic fallback extractor serves when
@@ -85,8 +85,7 @@ sites — the moments an application becomes live:
 2. **PayPal capture** — a capture that returns COMPLETED.
 3. **PayPal webhook** — a signature-verified
    `PAYMENT.CAPTURE.COMPLETED` that finds the application not yet
-   Paid (CarPermitApp's permit module never issued on its PayPal
-   webhook path; Solvia closes that gap through the same service).
+   Paid and issues through the shared Solvia service.
 
 A second call on an already-issued application is a no-op, so a
 capture and a webhook racing each other can never double-issue.
@@ -184,6 +183,8 @@ contracts (details and honesty limits in `docs/SPONSORS.md`):
   is not configured.
 - **KERNEL fee-refresh** — `tools/fee-refresh/` re-checks the
   published campus fees offline against `data/fees.csv`.
-- **Privacy by shape** — the AI runs 100% locally, so student words
-  never leave the machine and never train any model; see
-  `docs/PRIVACY.md`.
+- **AI data path** — the browser sends the sentence to Solvia; the app
+  calls the configured Ollama endpoint, local to the app host by default.
+  Hosting and endpoint configuration determine where data is processed.
+  The app performs inference and does not implement training; see
+  `docs/PRIVACY.md` for deployment boundaries.

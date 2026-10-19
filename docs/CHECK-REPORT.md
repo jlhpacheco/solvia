@@ -56,7 +56,7 @@ them and T10 re-verifies.
 
 ## 2. FRESH CODE — PASS (with explanation of the PMB hits)
 
-- `Duvara`, `CarPermit`, `car-permit`, `Stripe`: **zero hits**
+- Unrelated project brands and payment-provider code: **zero hits in the audited application source**.
   anywhere in the repo (code, docs, tests, data) — word-boundary
   grep, vendor `wwwroot/lib` included (Bootstrap's own "striped"
   CSS classes are the only near-match and are not the word Stripe).

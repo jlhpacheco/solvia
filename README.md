@@ -43,15 +43,15 @@ Full flow: [docs/USE-CASE.md](docs/USE-CASE.md)
 | Part | Tool |
 |---|---|
 | Payments (central) | PayPal Sandbox — Orders API (create order → student approves → capture), called directly over HTTPS from the app; a signature-verified PayPal webhook is the second road to the same truth. Paid lands only from a COMPLETED capture — never from a return page |
-| AI (central) | **Phi-4-mini** — a simple open model, run locally via **Ollama** (MIT-licensed model; structured extraction of school / car / term — the extraction has no price field, so the fee table, never the model, sets the price) |
+| AI adapter | **Phi-4-mini via Ollama** drafts vehicle details for human review. College and permit choices come from the form, and server catalog rules determine the fee. A live model demonstration remains to be verified; the labeled rules fallback is not AI evidence. |
 | Fee table | **AG Grid Community edition** (free, sponsor) — the 10-college fee table, with a built-in table renderer behind the same seam showing identical values |
 | Printable permits | **PDFsharp 6.2.3 (MIT)** with embedded **Roboto (Apache-2.0)** — US Letter student and employee permits; no separate PDF application or OS font installation required |
 | College search | Built-in deterministic search ships by default; an **Elastic** (sponsor) provider sits behind the same config seam — the live Elastic node was not run for this build and ELSER is not claimed — see [docs/SPONSORS.md](docs/SPONSORS.md) |
 | Term calendar | Native calendar list (built-in) — term start, permit end, renewal date. Bryntum is **not** used: it has no free edition, and its 45-day trial would expire during judging — see [docs/SPONSORS.md](docs/SPONSORS.md) |
 | Hosted copy | **Render** (sponsor) — **planned, not yet deployed.** There is no hosted URL yet; judges run it locally with the steps below |
-| Workflow sponsors | **APIMatic** (context document for Solvia's own API — [docs/apimatic-context.md](docs/apimatic-context.md)), **Postman** (sandbox flow collection — saved in [postman/](postman/)), **Zapier** (payment-complete webhook in the app → receipt email + ledger sheet; the live Zap is created in your own Zapier account — [docs/zapier-recipe.md](docs/zapier-recipe.md)), **KERNEL** (fee-refresh job — [tools/fee-refresh/](tools/fee-refresh/); the portable script ships, KERNEL is its production runner in the plan) |
+| Supporting artifacts and plans | An [APIMatic context document](docs/apimatic-context.md), [Postman collection](postman/), [Zapier recipe](docs/zapier-recipe.md), and portable [fee-refresh script](tools/fee-refresh/) ship. Executing APIMatic, a live Zap, or KERNEL hosting is not verified. These artifacts are not additional completed sponsor integrations. |
 
-Sponsors are used only where they do a real job in this app or its workflow. Forced fits were dropped.
+**AG Grid Community is the demonstrated sponsor integration.** The Elastic adapter and other supporting artifacts remain separate from verified external-service use; see [sponsor status](docs/SPONSORS.md).
 
 ### AI model choice
 
@@ -69,7 +69,7 @@ Use fictional people and vehicles for this public demo. Browser submissions reac
 - [x] **Locally runnable prototype** — tested routes and services; complete the external-service checks in the readiness document before submission. Render hosting is planned.
 - [x] **Public repository with an open-source license** — this repo is public, MIT License at the top level.
 - [x] **Tools are listed and explained** — see the table above.
-- [ ] **Disclose prior work** — Solvia follows the design of the author's earlier CarPermitApp. Describe that starting point and the substantial changes made during the submission period; existing projects are allowed subject to the official rules. Credentials and old app configuration are not copied into this repository.
+- [x] **New project chronology confirmed** — the participant confirmed Solvia was first built during this hackathon, after October 1, 2026. Solvia is an independent implementation and business model; its commits document development within the event.
 - [ ] Demo video: under 3 minutes, public on YouTube, showing the app working end to end — **to be recorded**.
 - [ ] Submission text in English — this README and the Devpost text.
 - [ ] Demo stays free for judges to test through the judging period (Dec 1–15, 2026).
@@ -79,11 +79,12 @@ Eligibility, registration, team details, and the actual Devpost submission remai
 
 ## Run it locally
 
-You need one thing installed first. Everything else is optional.
-These steps are what the checker executed from a pristine copy;
-that run is recorded in [docs/CLEAN-INSTALL-LOG.md](docs/CLEAN-INSTALL-LOG.md).
+The free/fallback preview requires the .NET 10 SDK. The complete PayPal-plus-AI
+journey also needs Sandbox credentials and a running Phi-4-mini/Ollama endpoint
+as described below. The free preview alone does not establish those integrations.
+An earlier clean-copy run is recorded in [docs/CLEAN-INSTALL-LOG.md](docs/CLEAN-INSTALL-LOG.md).
 
-### Step 1 — Install the .NET 10 SDK (the only requirement)
+### Step 1 — Install the .NET 10 SDK
 
 Download the free .NET 10 SDK from
 https://dotnet.microsoft.com/download/dotnet/10.0 and install it.
@@ -226,6 +227,12 @@ four colleges, student/public personas, and day/term permits, plus four
 payment guards. It verified 14 completed captures totaling **$945.00 USD in
 Sandbox test funds** and two free permits. All 16 PDFs passed content checks.
 See [the provider results](docs/SANDBOX-RESULTS-2026-10-19.md).
+Two further real-provider checks verified unapproved-order and refused-card
+handling. The official PayPal/card buttons were also checked against the
+actual remote SDK, together with the no-JavaScript continuation. The latest
+controlled browser validation verified 80 distinct desktop/mobile checks,
+including 28 smoke checks, across a full run and corrected targeted reruns.
+See [test coverage and limits](docs/TESTING.md).
 For pending order IDs, buyer approval errors, or resuming payment, see
 [Sandbox payment troubleshooting](docs/PAYPAL-TROUBLESHOOTING.md).
 

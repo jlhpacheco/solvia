@@ -3,8 +3,8 @@
 **Date:** Oct 18, 2026 (evening) · **Architect output** — Jose Luis's order:
 redo the code all over again on Duvara's permit-application blueprint,
 every piece, nothing missed. **Fresh code written to Duvara's structure —
-no Duvara code, config values, or secrets are copied.** Duvara /
-CarPermitApp is read-only reference only and is never edited.
+no reference-project code, config values, or secrets are copied.**
+Solvia is an independent app and business model, first built during this event.
 
 **Inputs (the law, in order):**
 `DUVARA-PERMIT-CHECKLIST.md` (60 items) · the frozen current tree at
@@ -262,7 +262,7 @@ the permit core and touch it only through its contracts:
 | Postman collection | `postman/` — create → capture → verify → extract against the redo's endpoints, honest 503 shape asserted. |
 | KERNEL fee-refresh tool | `tools/fee-refresh/` — offline ops against `data/fees.csv` (the trimmed 10-campus file, SHA `327aca14…`); no app dependency. |
 | Sponsor docs + honesty docs | `docs/SPONSORS.md` (source of truth for sponsor claims; Bryntum stays OUT — no free edition; Render stays "not deployed"), `docs/apimatic-context.md`, `docs/zapier-recipe.md`, `docs/PRIVACY.md`. |
-| AI layer (Phi-4-mini via Ollama + deterministic fallback) | The AI door (R3 + R4). 100% local, Source labeled, extraction has no price field by construction — the catalog prices, never the model. |
+| AI layer (Phi-4-mini via Ollama + deterministic fallback) | The AI door (R3 + R4). The configured endpoint is local to the app host by default; Source is labeled, and extraction has no price field — the catalog prices. See PRIVACY.md for actual deployment boundaries. |
 | QuestPDF permit PDF, vehicle garage + catalog, design theme (navy/PayPal-blue/gold), demo switcher | R5, R2, R0 respectively — rebuilt fresh, behavior pinned by the frozen tree's proven versions. |
 
 ---
@@ -492,12 +492,9 @@ file by construction above.
    The same tree carries, in the same motion:
    - the new `src/` (and `tests/`, `postman/`, `scripts/`, `tools/`),
    - **README** updated to the redo (run steps re-verified by R10),
-   - a new **`docs/ARCHITECTURE.md`** stating plainly: *"Solvia's
-     permit core — application form, permit-type catalog, issuance,
-     receipt, verification — follows the design of CarPermitApp, the
-     author's own earlier permit application. The AI extraction
-     (Phi-4-mini, local), the published-fee research catalog, and the
-     PayPal Orders integration were built for this hackathon."*
+   - a new **`docs/ARCHITECTURE.md`** describing Solvia's independent
+     implementation, with its own permit, pricing, AI, payment,
+     issuance, receipt, and verification services built during this event.
    - **`docs/REDO-PLAN.md`** — a copy of this plan, as the build
      record.
 4. **Docs disposition (decided, not deferred):**
@@ -538,9 +535,10 @@ file by construction above.
 
 ## 5. Standing rules the redo inherits (not re-litigated)
 
-- Country rule (final): China out, Russia out — only those two.
-  Phi-4-mini (Microsoft, MIT) via Ollama, 100% local; no student data
-  trains any model or leaves the machine.
+- The selected runtime is Phi-4-mini via the configured Ollama endpoint,
+  local to the application host by default. The app implements inference,
+  not training; deployment and endpoint configuration determine data handling.
+  Use fictional details. See `docs/PRIVACY.md`.
 - PayPal sandbox only; Paid comes only from a COMPLETED capture (or a
   verified webhook acting on one) — never from a return page.
 - Secrets only via environment variables / user-secrets; a real

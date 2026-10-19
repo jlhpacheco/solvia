@@ -3,10 +3,14 @@
 The backend suite uses C#/xUnit. Browser smoke and journey tests use
 **TypeScript and Playwright Test** with desktop Chrome and Pixel 7-sized
 Chromium contexts. Tests use fictional data only.
-The October 19 validation passed **60 desktop/mobile checks** (56 in the full
-browser run and four added receipt-navigation checks). A fresh **28-check
-desktop/mobile smoke run** also passed after the branding update. TypeScript
-type checking passed; the app build completed with zero warnings and errors.
+The latest October 19 validation verified **80 distinct desktop/mobile checks**,
+including **28 smoke checks** and **34 SDK/error contract checks**. The full run
+passed 71 checks; nine targeted reruns passed after correcting test harness
+expectations (eight stale copy assertions and one cold-start timeout budget).
+This is aggregate coverage across those runs, not a claim of one clean 80/80
+attempt. The original report and targeted report are retained separately.
+TypeScript type checking passed; the app build completed with zero warnings
+and errors.
 
 ## Backend and route regressions
 
@@ -61,6 +65,13 @@ HTTP failure/pending responses, while using real permit and checkout pages.
 It verifies that order IDs appear immediately and that failed, pending, or
 unreadable capture responses stay on checkout with a visible message. These
 contract tests are not evidence of a live PayPal capture.
+
+Native PayPal/card buttons are the primary payment controls. The suite also
+covers failed or stalled SDK loading/rendering, late completion after a
+timeout, eligibility failure, and a protected redirect backup without a
+duplicate payment action. These are controlled SDK tests. A separate pair
+of checks against the actual remote SDK and JavaScript-disabled checkout
+also passed; see the dated provider results below.
 
 ## Provider integration evidence and limits
 

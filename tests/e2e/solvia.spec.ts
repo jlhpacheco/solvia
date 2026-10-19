@@ -124,10 +124,11 @@ for (const person of ['Maria', 'Pat']) {
       await expect(page.locator('main')).toContainText(plate);
       await page.getByRole('button', { name: 'Pay with PayPal', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: `Pay $${daily ? '1.00' : '30.00'} with PayPal`, exact: true })).toBeVisible();
-      // No secrets in the isolated test server; this checks the real application
-      // up to approval. Live PayPal approval/capture is verified separately.
-      await expect(page.getByText('PayPal is not configured on this machine yet.', { exact: false })).toBeVisible();
+      await expect(page.locator('#checkout-payment')).toContainText(`$${daily ? '1.00' : '30.00'}`);
+      await expect(page.getByRole('button', { name: /^Pay \$/ })).toHaveCount(0);
+      // No credentials are configured in this isolated server. Separate opt-in
+      // tests verify Sandbox order/capture; this journey does not approve a payment.
+      await expect(page.getByText('PayPal checkout is unavailable right now.', { exact: false })).toBeVisible();
     });
   }
 }

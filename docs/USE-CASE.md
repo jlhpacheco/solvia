@@ -137,16 +137,20 @@ same doors and pays the college's full published fee, like any student.
 
 ## AI model choice — the honest framing
 
-**AI model choice: Microsoft Phi-4-mini — a U.S. (Microsoft) open model, MIT license, 2.5 GB, runs 100% locally on the student's own computer via Ollama. Country rule for this project: no China tools, models, or services, and no Russia tools, models, or services — anywhere in the stack; only those two are out. Qwen was evaluated and not used because Qwen is a China model. Because the model runs locally, student data never leaves the student's computer and is never used to train any model.**
+**Microsoft Phi-4-mini via Ollama is the configured model.** The browser sends
+the vehicle sentence to Solvia, which calls its configured Ollama endpoint.
+The default endpoint is local to the application host, which can be a server;
+it is not necessarily the student's computer. The app performs inference and
+does not implement training. Endpoint retention and data handling depend on
+deployment. Use fictional demo details; see [privacy](PRIVACY.md).
 
 What the AI does — and does not — do:
 
-- The AI **only extracts**: school, car, and term out of the student's own
-  words, into structured fields. Its result type has **no price field** —
-  not hidden, not nullable, absent. The AI can never quote or set a price.
-- Every price comes from the **catalog** (`data/fees.csv`): the AI's
-  college answer is checked against the catalog's canonical campus names,
-  and an answer naming a college the catalog does not know is thrown out.
+- The Questions flow uses the AI to draft vehicle details from the car
+  sentence. College, permit type, and term are chosen in the UI. The extraction
+  contract has no price field, and the person confirms the vehicle fields.
+- Every price comes from the **catalog** (`data/fees.csv`), using the selected
+  canonical campus and permit choice. The model cannot set the total.
 - The honest source stamp travels with the application (`Source`):
   `"ollama"` when the local model answered and passed validation,
   `"fallback"` when the deterministic rule-based extractor answered

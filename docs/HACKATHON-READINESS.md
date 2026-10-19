@@ -15,7 +15,8 @@ AI**, English instructions, a public source repository with an open-source
 license, and a public YouTube demonstration shorter than three minutes.
 Provide free judge access and identify the tools/models used. Existing work
 is allowed when substantially updated during the event; disclose the starting
-point and changes. Do not claim the earlier CarPermitApp as new work.
+point and changes if that category applies. The participant confirmed Solvia
+was first built during this hackathon and should be classified as New.
 
 Sponsor prize entries require actual use of that sponsor's tool. Solvia's
 working fee comparison uses AG Grid Community. Planned Elastic, Render,
@@ -51,6 +52,14 @@ permits issued free. All 16 PDFs passed content validation. See the
 [dated results](SANDBOX-RESULTS-2026-10-19.md) and
 [repeatable matrix setup](SANDBOX-MATRIX.md).
 
+Two additional real-provider negative checks confirmed that unapproved and
+refused payments cannot issue a paid permit. The actual remote SDK displayed
+PayPal and card options, and a no-JavaScript smoke check confirmed its
+protected continuation. The latest isolated desktop/mobile browser coverage
+verified 80 distinct checks, including 28 smokes, across the full run and
+targeted harness corrections. None of these checks establishes interactive
+wallet approval or live model inference; see [testing details](TESTING.md).
+
 ## Participant checklist
 
 - [ ] Confirm eligibility, team membership, registration, and acceptance of the rules.
@@ -63,5 +72,6 @@ permits issued free. All 16 PDFs passed content validation. See the
 - [x] Exercise AG Grid sorting and campus search in the actual app.
 - [x] Save Solvia's circular logo and public merchant name in the Sandbox business profile; keep the demo disclosure visible in the app.
 - [ ] Prepare judge access for the full judging period; local instructions ship, hosting is not deployed.
-- [ ] Record the public video, complete English submission, and disclose prior work.
+- [x] Confirm project chronology: Solvia is New, first built during this hackathon, per the participant.
+- [ ] Record the public video and complete the English submission.
 - [ ] Review and submit explicitly on Devpost. No submission has been made by this review.

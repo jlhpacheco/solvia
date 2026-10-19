@@ -5,12 +5,29 @@
     if (!checkout || !container) return;
 
     const feedback = document.getElementById('checkout-feedback');
+    const fallback = document.getElementById('paypal-redirect-fallback');
     const order = document.getElementById('paypal-order-id');
     const capture = document.getElementById('paypal-capture-id');
     const state = document.getElementById('payment-state');
     const applicationId = checkout.dataset.applicationId;
     const doneUrl = '/Checkout/Done/' + encodeURIComponent(applicationId);
     let lastError = '';
+    let optionsSettled = false;
+    let renderStarted = false;
+    let loadTimer;
+    let renderTimer;
+    const optionsTimeout = 12000;
+    const loadingMessage = 'Loading PayPal payment options…';
+
+    function showFallback() {
+        if (optionsSettled) return;
+        optionsSettled = true;
+        window.clearTimeout(loadTimer);
+        window.clearTimeout(renderTimer);
+        container.hidden = true;
+        if (fallback) fallback.hidden = false;
+        show('PayPal payment options could not load. Continue to PayPal below to finish checkout.', true);
+    }
 
     function show(message, error) {
         feedback.textContent = message;
@@ -46,12 +63,17 @@
         return data;
     }
 
-    if (!window.paypal || typeof window.paypal.Buttons !== 'function') {
-        show('PayPal buttons could not load. Use the PayPal redirect button below to continue.', true);
-        return;
-    }
-    try {
+    function renderButtons() {
+        if (optionsSettled || renderStarted) return;
+        window.clearTimeout(loadTimer);
+        if (!window.paypal || typeof window.paypal.Buttons !== 'function') {
+            showFallback();
+            return;
+        }
+        renderStarted = true;
+        try {
         const buttons = window.paypal.Buttons({
+            style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
             createOrder: async function () {
                 lastError = '';
                 show('Preparing your PayPal order…', false);
@@ -89,15 +111,43 @@
                 }
             },
             onCancel: function () {
-                show('PayPal approval was cancelled. Payment is not confirmed. You can resume the same order below.', false);
+                show('PayPal approval was cancelled. Payment is not confirmed. Choose PayPal again to resume the same order.', false);
             },
             onError: function () {
-                show(lastError || 'PayPal could not finish checkout. Payment is not confirmed. Check your permit status or use the redirect button below.', true);
+                show(lastError || 'PayPal could not finish checkout. Payment is not confirmed. Check your permit status before trying again.', true);
             }
         });
-        Promise.resolve(buttons.render('#paypal-button-container')).catch(() =>
-            show('PayPal buttons could not load. Use the PayPal redirect button below to continue.', true));
-    } catch {
-        show('PayPal buttons could not load. Use the PayPal redirect button below to continue.', true);
+        if (typeof buttons.isEligible === 'function' && !buttons.isEligible()) {
+            showFallback();
+            return;
+        }
+            renderTimer = window.setTimeout(showFallback, optionsTimeout);
+            Promise.resolve(buttons.render('#paypal-button-container')).then(function () {
+                window.clearTimeout(renderTimer);
+                // A slow provider must not replace the fallback after timeout
+                // or leave two payment actions visible.
+                if (optionsSettled) return;
+                optionsSettled = true;
+                if (feedback.textContent === loadingMessage) feedback.hidden = true;
+            }, showFallback);
+        } catch {
+            showFallback();
+        }
+    }
+
+    show(loadingMessage, false);
+    if (window.paypal && typeof window.paypal.Buttons === 'function') {
+        renderButtons();
+    } else if (checkout.dataset.paypalSdkUrl) {
+        const sdk = document.createElement('script');
+        sdk.id = 'paypal-sdk';
+        sdk.src = checkout.dataset.paypalSdkUrl;
+        sdk.async = true;
+        sdk.addEventListener('load', renderButtons, { once: true });
+        sdk.addEventListener('error', showFallback, { once: true });
+        loadTimer = window.setTimeout(showFallback, optionsTimeout);
+        document.head.append(sdk);
+    } else {
+        showFallback();
     }
 })();

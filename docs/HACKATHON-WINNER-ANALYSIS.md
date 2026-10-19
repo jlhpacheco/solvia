@@ -2,7 +2,7 @@
 
 Research date: October 19, 2026. This is a submission strategy, not an organizer score or a prediction of an award.
 
-Solvia's strongest story is one complete, trustworthy permit purchase: describe a car, review the extracted details, see the published campus price, pay through PayPal Sandbox, and receive a permit with verifiable payment references. The $30 Sandbox capture is now evidence for that story. The next decisive proof is a real AI response and a short recording of the complete experience.
+Solvia's strongest story is one complete, trustworthy permit purchase: describe a car, review the extracted details, see the published campus price, pay through PayPal Sandbox, and receive a permit with verifiable payment references. The original $30 capture and the subsequent 20-check matrix now support that story: 14 distinct captures totaled $945 in test funds across four colleges, with retry safety and 16 validated permit PDFs. The next decisive proof is a real AI response and a short recording of the complete experience.
 
 ## Scope and evidence
 
@@ -52,7 +52,7 @@ The same rules require a functional build judges can access, a public repository
 
 | Criterion | Solvia evidence today | Next proof to make the case stronger |
 |---|---|---|
-| Technological implementation | The actual PayPal Sandbox provider approved and completed a $30 test-card payment through Solvia's REST capture endpoint; the app produced the receipt and paid PDF. Automated backend and TypeScript browser checks cover core behavior. | Demonstrate the configured AI model running, then repeat actual purchases across the requested college/person/permit combinations. Keep provider evidence separate from mocked browser tests. |
+| Technological implementation | The actual PayPal Sandbox provider completed the original $30 payment plus a 20-check matrix covering four colleges and Student/Public day/term choices. Fourteen matrix captures totaled $945 in test funds, and retry checks found one capture per order. | Demonstrate the configured AI model running and record an interactive buyer checkout. Keep provider evidence separate from simulated browser callbacks. |
 | Design | A consistent Solvia identity, responsive flow, editable vehicle review, clear checkout total, and printable output. | Observe someone unfamiliar with the app completing the task on a phone. Fix confusion they encounter and show the result. |
 | Potential impact | Named campus audiences, published fee data, student/public day and term choices, and a demo employee path. | Ask a small set of students, visitors, and campus staff to try a defined task. Record actual completion time, errors, and comments. Do not claim reduced workload or savings before measuring them. |
 | Innovation/idea | The combination of plain-language entry, human confirmation, deterministic prices, verified payment, and portable permit proof. | Explain the advantage over a normal permit form in one example. A chatbot alone is weak differentiation. |
@@ -74,12 +74,12 @@ Lead with this sentence:
 
 Use one fictional person and one paid campus permit for the main narrative. Briefly show that students and public visitors can choose a day or term permit, then show a second campus to demonstrate pricing is tied to the selected college. Keep a free or exempt permit separate from payment evidence. AG Grid should appear as the working fee comparison used to make a decision, rather than as a sponsor badge.
 
-The write-up should state what the AI drafts, what the user confirms, what the server prices, and what PayPal verifies. Describe the substantial hackathon improvements to the existing code. Remove planned tools from “Built with,” absolute privacy guarantees, and unsupported compliance or impact claims. Preserve a clear “working today / next” boundary.
+The write-up should state what the AI drafts, what the user confirms, what the server prices, and what PayPal verifies. Describe Solvia as an independent new project built during this hackathon, as the participant confirmed. Remove planned tools from “Built with,” absolute privacy guarantees, and unsupported compliance or impact claims. Preserve a clear “working today / next” boundary.
 
 Priorities before submission:
 
 1. Verify the real model path with representative vehicle sentences and preserve editable review. Explain fallback mode when the model is unavailable.
-2. Finish the requested multi-college, student, and public-person Sandbox purchase matrix. Check fee, capture, receipt, PDF, and duplicate-payment behavior for every paid case.
+2. Preserve the completed multi-college Sandbox matrix as payment evidence and record a clear interactive checkout. The fee, capture, receipt, PDF, and duplicate-payment checks have passed; see [dated results](SANDBOX-RESULTS-2026-10-19.md).
 3. Test a clean judge setup and record the main journey. Keep setup and test instructions short and reproducible.
 4. Collect modest real user feedback and report only what was observed.
 5. Finish the Devpost draft and public video. Review every claim against the actual build before final submission.

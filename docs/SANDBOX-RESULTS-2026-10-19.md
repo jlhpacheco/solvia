@@ -1,8 +1,15 @@
 # Solvia multi-college Sandbox verification - October 19, 2026
 
-**All 20 checks passed.** The run used the real Solvia preview at localhost:5156 and the actual PayPal Sandbox REST API, with official test-card funds. No real money was charged.
+**The original 20-case matrix and two supplementary negative provider checks passed: 22 Sandbox integration checks in total.** Two additional actual remote SDK/JavaScript-disabled smoke checks also passed and are recorded separately. The runs used the real Solvia preview at localhost:5156; payment tests called the actual PayPal Sandbox REST API with official test-card funds. No real money was charged.
 
 One successful pilot was preserved, then the remaining 19 cases ran without rebuying that pilot. The two Playwright reports contain 20 expected passes, zero failures, zero skips, and zero flaky results.
+
+| Validation group | Verified passes | Payment effect |
+|---|---:|---|
+| Original multi-college matrix | 20 | 14 completed captures, $945.00 USD gross Sandbox test funds |
+| Supplementary negative provider cases | 2 | No completed payment and no paid permit issued |
+| Sandbox integration total | 22 | Successful capture count and total remain 14 / $945.00 USD |
+| Actual remote SDK and JavaScript-disabled smoke | 2, separate | No PayPal order creation or capture |
 
 ## Coverage and results
 
@@ -47,6 +54,41 @@ PDF content and Letter-page validation are recorded separately in the local PDF 
 | Fresno City College | Student | term | 30.00 | 40C04098PG636204X | 8JC36217HE061341S | SOL-2026-883195 |
 | Modesto Junior College / Columbia College / YCCD | Public | day | 2.00 | 1GM57482ME293150P | 4WA10712YS489992X | SOL-2026-613775 |
 | Modesto Junior College / Columbia College / YCCD | Student | day | 2.00 | 0D311799177980216 | 6CC87799PA7378948 | SOL-2026-098158 |
+
+## Supplementary real-provider negative checks
+
+Both additional cases used unique fictional Maria/Fresno City College day
+applications at $1.00 USD. They tested actual provider responses and the
+running app's receipt and PDF gates:
+
+| Case | Provider and app result | Issuance result |
+|---|---|---|
+| Unapproved order | Order `66J41507BL238010X` stayed `CREATED` with zero captures. Solvia returned HTTP 409 and `ORDER_NOT_APPROVED` | Receipt remained **Not paid yet**; no live verification link; owned PDF request returned HTTP 400 |
+| Official refused-card trigger | Order `3YW31142HP525983D`; capture `5K2698981U4039151` was `DECLINED` with processor code `0500`. Solvia returned HTTP 200, `completed: false`, `status: DECLINED` | No successful receipt or paid permit minted; no live verification link; owned PDF request returned HTTP 400 |
+
+The two checks passed across targeted runs. An earlier refused-case run found
+an overly strict test assertion: PayPal added an optional amount breakdown
+while retaining the exact $1.00/USD total. The assertion was corrected to
+verify value/currency, then only the refused case was rerun successfully.
+This was a test correction, not an application payment fix. These cases add
+no successful captures or funds to the original 14 / $945.00 matrix totals.
+Sanitized records are stored locally in
+`sandbox-results/negative-evidence/`. The refusal trigger is documented in
+[PayPal's card-testing guide](https://developer.paypal.com/sandbox-testing/card-testing/).
+
+## Actual native SDK and no-JavaScript smoke
+
+The separate opt-in `tests/sandbox/native-options.spec.ts` run passed **two
+checks in 33.5 seconds** against localhost:5156. It loaded PayPal's actual
+remote SDK and observed the **PayPal** and **Debit or Credit Card** options,
+with the duplicate redirect CTA hidden. A second browser context with
+JavaScript disabled showed one **Continue to PayPal** form with an
+antiforgery token and the correct application-specific action.
+
+The smoke created a fictional unpaid application but **no PayPal order**;
+it did not click a payment option, confirm a source or capture funds.
+Real SDK rendering is now verified. Personal-buyer login and hosted wallet
+approval/capture remain unverified.
 
 ## Verification boundaries
 

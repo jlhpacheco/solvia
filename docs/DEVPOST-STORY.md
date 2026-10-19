@@ -28,7 +28,7 @@ Numeric license plates and labels such as "license plate number" initially faile
 
 On October 19, 2026, a real PayPal Sandbox test-card transaction for a $30 Fresno City College term permit completed through Solvia's REST capture endpoint. An independent PayPal order lookup confirmed the completed capture and exact USD amount. The actual paid receipt and PDF contain matching order and capture IDs. This verifies the test-card API path; a separate Personal Sandbox wallet approval demonstration remains to be recorded.
 
-The application has passed 244 backend tests and 60 TypeScript Playwright checks across desktop and mobile. A fresh 28-check smoke run also passed after the branding update. A separate opt-in TypeScript integration matrix passed all 20 checks across four colleges: student/public day and term permits, employee exemptions, and blocked unpublished prices. Fourteen distinct PayPal captures completed for $945 in Sandbox test funds. Create and capture retries reused their original references, and independent provider lookups found one capture per order. All 16 student/public PDFs passed content validation.
+The application has passed 244 backend tests. We verified 80 distinct TypeScript Playwright checks across desktop and mobile, including 28 smoke checks, across a full run and targeted reruns after test harness corrections. A separate opt-in TypeScript integration matrix passed all 20 checks across four colleges: student/public day and term permits, employee exemptions, and blocked unpublished prices. Fourteen distinct PayPal captures completed for $945 in Sandbox test funds. Create and capture retries reused their original references, and independent provider lookups found one capture per order. All 16 student/public PDFs passed content validation. Two further real-provider checks verified unapproved-order and refused-card handling, while two actual SDK/no-JavaScript checks verified the official payment options and protected continuation without creating orders.
 
 ## What we learned
 
@@ -38,8 +38,8 @@ A simpler front end requires careful boundaries behind it: AI drafts the car det
 
 Demonstrate a live Phi-4-mini extraction, measure first-time mobile usability, and record a public YouTube demo under three minutes. Production use would require real authentication, campus-approved eligibility and pricing, and operational/privacy review.
 
-## Prior work and current status
+## Hackathon progress and current status
 
-Solvia advances an existing CarPermitApp/Solvia prototype. The hackathon work includes payment verification and recovery, vehicle parsing fixes, printable permits, fee comparison, responsive styling, automated browser tests, and updated documentation. The repository records these changes in commits. This entry is a working Sandbox prototype using fictional people, not a live campus payment service.
+Solvia is an independent application first built during this hackathon. Its development includes PayPal payment verification and recovery, vehicle extraction and review, printable permits, fee comparison, responsive styling, automated browser tests, and documentation. The repository records iterations made within the event. This entry is a working Sandbox prototype using fictional people, not a live campus payment service.
 
 Source and setup: https://github.com/jlhpacheco/solvia

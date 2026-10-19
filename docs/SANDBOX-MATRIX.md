@@ -64,7 +64,7 @@ npm ci
 npx playwright install chromium
 npm run typecheck
 $env:SOLVIA_SANDBOX_TESTS = '1'
-npx playwright test --config playwright.sandbox.config.ts
+npx playwright test --config=playwright.sandbox.config.ts tests/sandbox/paypal-matrix.spec.ts
 Remove-Item Env:SOLVIA_SANDBOX_TESTS
 ```
 
@@ -76,9 +76,60 @@ title, including its file. Fall permit-validity assertions are date-sensitive:
 run within the fixture's Fall validity window or deliberately update the
 term/date fixtures and expected pricing first.
 
+Select the file explicitly as shown above: this runs the original **20-case
+matrix only**, excluding the supplementary negative and native SDK suites.
+
 Runs use one worker and **zero automatic retries**. Re-running a case creates
 a new application, plate, order, and payment. If a run stops after capture,
 inspect its saved references and PayPal before deciding what to rerun.
+
+## Supplementary negative provider checks
+
+`tests/sandbox/paypal-negative.spec.ts` separately tests a newly created,
+unapproved $1 Fresno day order and PayPal's official `CCREJECT-REFUSED` card
+trigger. The app must keep both applications unpaid, with no live permit or
+PDF. These are real Sandbox requests, not forced/mock HTTP responses. They
+use the same private credentials above and deliberately verify Solvia's
+expected test seller. They create fictional unpaid applications/orders;
+they do not add successful funds to the positive matrix total.
+
+```powershell
+$env:SOLVIA_SANDBOX_TESTS = '1'
+npx playwright test --config=playwright.sandbox.config.ts tests/sandbox/paypal-negative.spec.ts --reporter=line --output=sandbox-results/negative-artifacts
+Remove-Item Env:SOLVIA_SANDBOX_TESTS
+```
+
+The line reporter and separate output directory preserve the original
+matrix JSON report and browser artifacts. Sanitized negative evidence is
+written to `sandbox-results/negative-evidence/`. A `DECLINED` capture is not
+a paid capture even if another provider-level status appears successful;
+capture status, amount and currency remain the payment gate.
+
+## Native SDK and JavaScript-disabled smoke checks
+
+`tests/sandbox/native-options.spec.ts` loads the **actual remote PayPal SDK**
+against the configured preview. It checks the PayPal and Debit or Credit Card
+options, hides the duplicate redirect CTA when the SDK works, and checks the
+single antiforgery-protected continuation when JavaScript is disabled.
+This suite creates one fictional unpaid application but never clicks a
+payment option, creates a PayPal order, confirms a source, or captures funds.
+The app must already have its Sandbox client configuration; no provider
+secret is passed to this browser smoke process.
+
+```powershell
+$env:SOLVIA_NATIVE_SMOKE = '1'
+npx playwright test --config=playwright.sandbox.config.ts tests/sandbox/native-options.spec.ts --reporter=line --output=sandbox-results/native-artifacts
+Remove-Item Env:SOLVIA_NATIVE_SMOKE
+```
+
+SDK rendering proves that real provider options load. It does **not** prove
+Personal-buyer login or wallet approval/capture. Those remain separate from
+both this no-payment smoke and the completed test-card/API captures.
+
+The October 19 record contains **20 original matrix checks + two negative
+provider checks = 22 Sandbox integration checks**, with **two native SDK/
+JavaScript-disabled smoke checks recorded separately**. See
+[the dated results](SANDBOX-RESULTS-2026-10-19.md).
 
 ## Evidence and limits
 
@@ -111,6 +162,7 @@ Useful official references:
 - [PayPal Sandbox accounts](https://developer.paypal.com/sandbox-testing/accounts)
 - [Orders v2: confirm payment source](https://developer.paypal.com/api/orders/v2/orders-confirm)
 - [PayPal testing cards](https://developer.paypal.com/credit-card-number-generator)
+- [Official card error triggers](https://developer.paypal.com/sandbox-testing/card-testing/)
 
 The demo-person switcher is not production authentication. Real AI inference
 is also a separate check: this matrix accepts the clearly labeled built-in

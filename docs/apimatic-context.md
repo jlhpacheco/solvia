@@ -22,9 +22,9 @@ they call), not aspirational.
 
 ## API overview
 
-- **Product:** Solvia — a fictional student picks her college, a local
-  AI (Microsoft Phi-4-mini via Ollama, 100% on the student's own
-  computer) reads her message, the app quotes the exact total from
+- **Product:** Solvia — a fictional student picks her college, the
+  configured AI endpoint (Microsoft Phi-4-mini via Ollama) drafts her
+  vehicle details for review, and the app quotes the exact total from
   the college's real published fee (`data/fees.csv`, 10 campuses),
   the student approves, and pays with **PayPal sandbox**. A paid (or
   free-issued) application IS the permit; its receipt number is the
