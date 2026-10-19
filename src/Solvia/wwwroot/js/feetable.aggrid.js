@@ -17,31 +17,50 @@
     if (typeof agGrid === 'undefined' || typeof agGrid.createGrid !== 'function') {
         if (typeof window.renderFeeTable === 'function') {
             window.renderFeeTable(gridEl, rows);
+            window.bindNativeFeeSearch(gridEl.querySelector('table'));
         }
         return;
     }
 
     // Sort prices by their real cent value; "not published" (null)
     // always sorts last, and FREE (0) sorts as the real $0 it is.
-    function byCents(_valueA, _valueB, nodeA, nodeB) {
+    function byCents(_valueA, _valueB, nodeA, nodeB, descending) {
         var a = nodeA && nodeA.data ? nodeA.data.semesterPriceCents : null;
         var b = nodeB && nodeB.data ? nodeB.data.semesterPriceCents : null;
         if (a === null && b === null) { return 0; }
-        if (a === null) { return 1; }
-        if (b === null) { return -1; }
+        if (a === null) { return descending ? -1 : 1; }
+        if (b === null) { return descending ? 1 : -1; }
         return a - b;
     }
 
     var gridOptions = {
+        theme: agGrid.themeQuartz.withParams({
+            accentColor: '#007f79',
+            fontFamily: 'inherit',
+            fontSize: 14,
+            headerBackgroundColor: '#edf4f8',
+            headerTextColor: '#071b46',
+            borderColor: '#dce4ed'
+        }),
+        rowHeight: 56,
+        headerHeight: 48,
         columnDefs: [
-            { field: 'campus', headerName: 'Campus', flex: 2 },
-            { field: 'semesterPrice', headerName: 'Semester price', flex: 1, comparator: byCents },
-            { field: 'dayPass', headerName: 'Day-pass price', flex: 1 },
-            { field: 'sourceNote', headerName: 'Source note', flex: 2 }
+            { field: 'campus', headerName: 'Campus', flex: 2, minWidth: 230 },
+            { field: 'semesterPrice', headerName: 'Semester price', minWidth: 165, flex: 1, comparator: byCents },
+            { field: 'dayPass', headerName: 'Day-pass price', minWidth: 220, flex: 2 },
+            { field: 'sourceNote', headerName: 'Source note', minWidth: 280, flex: 2 }
         ],
         rowData: rows,
-        defaultColDef: { sortable: true, filter: true, resizable: true }
+        defaultColDef: { sortable: true, filter: true, resizable: true, wrapText: true, autoHeight: true },
+        onFilterChanged: updateCount,
+        onGridReady: updateCount
     };
 
-    agGrid.createGrid(gridEl, gridOptions);
+    function updateCount(event) {
+        document.getElementById('fee-results').textContent = event.api.getDisplayedRowCount() + ' of ' + rows.length + ' campuses';
+    }
+    var api = agGrid.createGrid(gridEl, gridOptions);
+    document.getElementById('fee-search').addEventListener('input', function (event) {
+        api.setGridOption('quickFilterText', event.target.value);
+    });
 })();

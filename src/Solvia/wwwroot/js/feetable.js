@@ -34,3 +34,21 @@ function renderFeeTable(el, rows) {
 }
 
 window.renderFeeTable = renderFeeTable;
+
+// The same search stays available if the optional grid CDN is offline.
+window.bindNativeFeeSearch = function (table) {
+    var input = document.getElementById('fee-search');
+    var status = document.getElementById('fee-results');
+    if (!table || !input || !status) { return; }
+    input.addEventListener('input', function () {
+        var terms = input.value.toLocaleLowerCase().trim().split(/\s+/);
+        var visible = 0;
+        var rows = table.tBodies[0].rows;
+        Array.from(rows).forEach(function (row) {
+            var text = row.textContent.toLocaleLowerCase();
+            row.hidden = !terms.every(function (term) { return text.includes(term); });
+            if (!row.hidden) { visible++; }
+        });
+        status.textContent = visible + ' of ' + rows.length + ' campuses';
+    });
+};

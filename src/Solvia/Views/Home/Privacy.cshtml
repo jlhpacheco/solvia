@@ -7,18 +7,21 @@
     <p class="fs-5">
         Solvia is a demo built for the PayPal AI Hackathon. Every student in
         it is fictional, every payment is PayPal sandbox test money, and no
-        real personal data is collected or stored.
+        real student records are needed. Please use fictional details when trying it.
     </p>
     <p class="fs-5">
         The AI that reads a student's answers (Microsoft Phi-4-mini) runs
-        100% locally on the same computer via Ollama. Student answers never
-        leave the machine, are never sent to a cloud model, and are never
-        used to train any model — that is impossible by design, not just a
-        promise.
+        through Ollama on the application host by default. If you open a hosted
+        copy, your answers travel to that server; they do not stay in your browser.
+        A deployment can configure a different model endpoint. Solvia does not
+        implement model training. The app labels its deterministic fallback
+        whenever the model is unavailable.
     </p>
     <p class="fs-5 mb-0">
         The public permit check (<code>/verify</code>) shows only what a
         parking officer needs — whether a permit number is valid — and
-        never another student's information.
+        never a student's name, email, or license plate. The college roster is
+        public demo data, and the person switcher is for testing rather than
+        authentication. PayPal processes sandbox payment requests separately.
     </p>
 </div>

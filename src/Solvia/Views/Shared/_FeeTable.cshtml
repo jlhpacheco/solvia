@@ -21,12 +21,19 @@
 }
 
 <script type="application/json" id="fee-table-data">@Html.Raw(rowsJson)</script>
+<div class="sv-fee-tools">
+    <div>
+        <label for="fee-search" class="form-label fw-bold">Find a campus or fee</label>
+        <input id="fee-search" type="search" class="form-control" placeholder="Try Fresno or daily" aria-describedby="fee-search-help" />
+        <div id="fee-search-help" class="form-text">Search across the table. Select a column heading to sort.</div>
+    </div>
+    <p id="fee-results" class="text-muted mb-0" role="status">@Model.Rows.Count campuses</p>
+</div>
 
 @if (string.Equals(Model.Renderer, "aggrid", StringComparison.OrdinalIgnoreCase))
 {
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@34.3.1/styles/ag-grid.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@34.3.1/styles/ag-theme-quartz.css" />
-    <div id="feeGrid" class="ag-theme-quartz" style="height: 560px; width: 100%;"></div>
+    <div id="feeGrid" class="sv-fee-grid" aria-label="Published campus permit fees"></div>
+    <p class="form-text mt-2">Interactive comparison powered by AG Grid Community. Published fees can change; confirm current terms with your campus.</p>
     <script src="~/js/feetable.js" asp-append-version="true"></script>
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@34.3.1/dist/ag-grid-community.min.js"></script>
     <script src="~/js/feetable.aggrid.js" asp-append-version="true"></script>
@@ -54,4 +61,6 @@ else
             }
         </tbody>
     </table>
+    <script src="~/js/feetable.js" asp-append-version="true"></script>
+    <script src="~/js/feetable.native.js" asp-append-version="true"></script>
 }

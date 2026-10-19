@@ -27,6 +27,7 @@
 
 <div class="sv-card mt-3">
     <form asp-action="Review" method="post">
+        <div asp-validation-summary="All" class="text-danger" role="alert"></div>
         @if (Model.ApplicationId is { } draftId)
         {
             <input type="hidden" name="ApplicationId" value="@draftId" />
@@ -45,7 +46,8 @@
         <div class="mb-3">
             <label class="form-label fs-4" for="plateInput">License plate</label>
             <input class="form-control form-control-lg fs-3" id="plateInput" name="Plate"
-                   value="@Model.Plate" autocomplete="off" placeholder="Type your plate" />
+                   value="@Model.Plate" autocomplete="off" placeholder="Type your plate" required maxlength="14" aria-describedby="plate-help" />
+            <div id="plate-help" class="form-text">Check this number carefully. Use 4–10 letters or digits; spaces and hyphens are removed.</div>
         </div>
 
         <div class="mb-3">

@@ -16,9 +16,9 @@ Solvia is a .NET 10 ASP.NET Core MVC app (`src/Solvia/Solvia.csproj`,
 - The college-side fee table (`/College/Fees`, rendered through
   `src/Solvia/Views/Shared/_FeeTable.cshtml`) runs **AG Grid
   Community edition, v34.3.1**, loaded from its official CDN:
-  `cdn.jsdelivr.net/npm/ag-grid-community@34.3.1` (the stylesheet,
-  theme, and `ag-grid-community.min.js` URLs in `_FeeTable.cshtml`
-  all carry `@34.3.1`).
+  `cdn.jsdelivr.net/npm/ag-grid-community@34.3.1`. The JavaScript
+  Theming API supplies Quartz with Solvia colors; legacy CSS theme
+  files are not mixed into the page.
 - Community is the **free edition**: no license key, no trial. Solvia
   deliberately never uses an AG Grid trial license — a trial started
   at build time would expire before judging ends.
@@ -190,13 +190,10 @@ Solvia is a .NET 10 ASP.NET Core MVC app (`src/Solvia/Solvia.csproj`,
   verified live, **Render is not claimed as used** — say so plainly
   wherever hosting comes up.
 
-## QuestPDF — SHIPPED (permit PDF; Community License, NOT MIT / NOT Apache)
+## Printable PDFs — PDFsharp SHIPPED (MIT)
 
 - The printable permit PDF is rendered at runtime by
-  `src/Solvia/Services/PermitPdfService.cs` using **QuestPDF
-  2026.2.4** (`PackageReference` in `src/Solvia/Solvia.csproj`).
-- License, stated exactly: QuestPDF is used under its **Community
-  License v3.0**, which is **free for OSI open-source projects**
-  (Solvia itself is open source), with **public-sector entities
-  excluded** from that free eligibility. **QuestPDF is never called
-  MIT or Apache in this submission** — it is neither.
+  `src/Solvia/Services/PermitPdfService.cs` using **PDFsharp 6.2.3**.
+- PDFsharp is MIT; the embedded Roboto fonts are Apache-2.0.
+  QuestPDF has been removed. PDFsharp is a dependency, not a claimed
+  hackathon sponsor. See `NOTICES.md` and `PRINTABLE-PERMITS.md`.

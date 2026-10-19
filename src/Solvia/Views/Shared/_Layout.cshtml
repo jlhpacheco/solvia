@@ -1,3 +1,9 @@
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Home";
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
+    var workspace = controller is "Permits" or "MyPermits" or "Vehicles" or "College" or "Checkout";
+    bool Active(string name, string? page = null) => controller == name && (page == null || action == page);
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,26 +15,46 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Solvia.styles.css" asp-append-version="true" />
 </head>
-<body>
+<body class="@(workspace ? "sv-workspace" : "sv-public")">
+    <a class="sv-skip-link" href="#main-content">Skip to content</a>
     <header class="sv-header">
         <div class="container sv-bar">
             <a asp-area="" asp-controller="Home" asp-action="Index" aria-label="Solvia home">
-                <img class="sv-logo" src="~/img/logo.webp" alt="Solvia logo" />
+                <span class="sv-brand-icon" aria-hidden="true">S<span>↗</span></span>
             </a>
             <div>
-                <a class="sv-wordmark" asp-area="" asp-controller="Home" asp-action="Index">SOLVIA</a>
-                <div class="sv-tagline">College parking permits, paid with PayPal</div>
+                <a class="sv-wordmark" asp-area="" asp-controller="Home" asp-action="Index">Solvia</a>
+                <div class="sv-tagline">A clearer way to campus.</div>
             </div>
             <nav class="sv-nav" aria-label="Main">
-                <a asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                <a asp-area="" asp-controller="Permits" asp-action="Ask">Ask Solvia</a>
                 <a asp-area="" asp-controller="Permits" asp-action="My">My permits</a>
                 <a asp-area="" asp-controller="College" asp-action="Fees">College fees</a>
-                <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                <span class="sv-demo-badge">Sandbox demo</span>
             </nav>
         </div>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+    <div class="container sv-shell">
+        @if (workspace)
+        {
+            <aside class="sv-sidebar">
+                <span class="sv-sidebar-label">YOUR WORKSPACE</span>
+                <nav aria-label="Permit workspace">
+                    <a class="@(Active("Permits", "Ask") || Active("Permits", "Questions") ? "is-active" : "")" asp-controller="Permits" asp-action="Ask"><span aria-hidden="true">✧</span> Ask Solvia</a>
+                    <a class="@(Active("Permits", "Apply") ? "is-active" : "")" asp-controller="Permits" asp-action="Apply"><span aria-hidden="true">＋</span> Apply for a permit</a>
+                    <a class="@(Active("Permits", "My") || Active("MyPermits") ? "is-active" : "")" asp-controller="Permits" asp-action="My"><span aria-hidden="true">▤</span> My permits</a>
+                    <a class="@(Active("Vehicles") ? "is-active" : "")" asp-controller="Vehicles" asp-action="Index"><span aria-hidden="true">▱</span> My vehicles</a>
+                </nav>
+                <span class="sv-sidebar-label">COLLEGE TOOLS</span>
+                <nav aria-label="College tools">
+                    <a class="@(Active("College", "Fees") ? "is-active" : "")" asp-controller="College" asp-action="Fees"><span aria-hidden="true">≡</span> Published fees</a>
+                    <a class="@(Active("College", "Dates") ? "is-active" : "")" asp-controller="College" asp-action="Dates"><span aria-hidden="true">▦</span> Term dates</a>
+                    <a class="@(Active("College", "Roster") ? "is-active" : "")" asp-controller="College" asp-action="Roster"><span aria-hidden="true">☷</span> College roster</a>
+                </nav>
+                <div class="sv-sidebar-note"><span class="sv-status-dot"></span> PayPal Sandbox<p>Fictional people.<br />Test payments only.</p></div>
+            </aside>
+        }
+        <main id="main-content" class="sv-main pb-3" tabindex="-1">
             <partial name="_StatusBanner" />
             @RenderBody()
         </main>
@@ -36,7 +62,7 @@
 
     <footer class="sv-footer">
         <div class="container">
-            <span class="sv-foot-brand">Solvia</span> — built with PayPal · San Jose
+            <span class="sv-foot-brand">Solvia</span> · Clear prices. Confident next steps.
             <span class="d-block mt-1">
                 &copy; 2026 Solvia · Demo: fictional students, PayPal sandbox test money ·
                 <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>

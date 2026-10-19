@@ -72,7 +72,7 @@ else
                     <td class="text-nowrap">
                         @if (row.ShowPayNow)
                         {
-                            <a class="btn btn-primary btn-sm" href="/Checkout/@row.Id" target="_blank" rel="noopener">Pay Now</a>
+                            <a class="btn btn-primary btn-sm" href="/Checkout/@row.Id">Pay Now</a>
                         }
                         @if (row.ShowPdf)
                         {
@@ -128,7 +128,7 @@ else
             <div class="d-grid gap-2 mt-3">
                 @if (row.ShowPayNow)
                 {
-                    <a class="btn btn-primary btn-lg py-3" href="/Checkout/@row.Id" target="_blank" rel="noopener">Pay Now</a>
+                    <a class="btn btn-primary btn-lg py-3" href="/Checkout/@row.Id">Pay Now</a>
                 }
                 @if (row.ShowPdf)
                 {

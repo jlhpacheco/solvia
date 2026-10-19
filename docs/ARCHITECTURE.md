@@ -123,7 +123,7 @@ verification. `CheckoutService` owns the rules around it:
   spelled out. "Pay Now" appears only on price > 0 + unpaid rows;
   "Permit (PDF)" only on live rows. No search, filter, or
   pagination — as in Duvara.
-- **Receipt + permit PDF** — QuestPDF (Community License v3.0; see
+- **Receipt + permit PDF** — PDFsharp (MIT) and embedded Roboto (Apache-2.0; see
   `NOTICES.md`), regenerated on every call. Gates mirror Duvara's
   status codes: a non-owner gets 403, an unknown id 404, an owned
   but not-yet-live application 400 with a plain-language body. The

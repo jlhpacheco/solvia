@@ -8,11 +8,16 @@
 {
     <h1 class="display-4 fw-bold mt-4">Permit live &#10003;</h1>
 }
-else
+else if (Model.CanPay)
 {
     <h1 class="display-4 fw-bold mt-4">Not paid yet</h1>
     <p class="fs-4">This permit is not live. It goes live only when a PayPal payment completes.</p>
     <a class="btn btn-primary sv-cta w-100 mb-3" href="/Checkout/@Model.Id">Finish paying</a>
+}
+else
+{
+    <h1 class="display-4 fw-bold mt-4">Permit status</h1>
+    <p class="fs-4">This permit is not active and cannot accept a new payment.</p>
 }
 
 <div class="sv-card mt-3">

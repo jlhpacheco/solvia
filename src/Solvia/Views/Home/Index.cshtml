@@ -1,33 +1,45 @@
 @model Solvia.Models.ViewModels.HomeIndexViewModel
 @{
-    ViewData["Title"] = "Solvia";
+    ViewData["Title"] = "A clearer way to campus";
 }
+<section class="sv-home-hero" aria-labelledby="home-title">
+    <div class="sv-hero-copy">
+        <span class="sv-eyebrow"><span class="sv-status-dot"></span> COLLEGE PARKING, SIMPLIFIED</span>
+        <h1 id="home-title">Your permit.<br />Your campus.<br /><span>A clearer way.</span></h1>
+        <p class="sv-hero-description">Tell Solvia where you're headed. See your college's published price, check the details, and pay with PayPal. One clear path from application to permit.</p>
+        <div class="sv-hero-actions">
+            <a class="btn btn-primary" asp-controller="Permits" asp-action="Ask">Ask Solvia <span aria-hidden="true">↗</span></a>
+            <a class="btn btn-outline-secondary" asp-controller="Permits" asp-action="Apply">Use the classic form</a>
+        </div>
+        <div class="sv-trust-row"><span>✓ Price before payment</span><span>✓ Your approval, every time</span><span>✓ Permit PDF &amp; receipt</span></div>
+    </div>
+    <div class="sv-journey-panel">
+        <div class="sv-panel-heading"><span class="sv-mini-brand">S<span>↗</span></span><div><strong>Your path to a permit</strong><p>Three steps. No guesswork.</p></div><span class="sv-panel-label">HOW IT WORKS</span></div>
+        <ol class="sv-journey-list">
+            <li><span class="sv-step-number">01</span><div><strong>School. Car. Term.</strong><p>Answer three questions. Solvia prepares your application.</p></div></li>
+            <li><span class="sv-step-number">02</span><div><strong>Review the exact total</strong><p>Published college fees set the price. You check it before paying.</p></div></li>
+            <li><span class="sv-step-number">03</span><div><strong>Approve. Pay. Get your permit.</strong><p>PayPal confirms the payment. Your receipt and permit PDF follow.</p></div></li>
+        </ol>
+        <div class="sv-journey-footer"><span class="sv-status-dot"></span> Powered by PayPal Sandbox <span>Test money only</span></div>
+    </div>
+</section>
 
-<div class="sv-hero">
-    <img class="sv-hero-logo" src="~/img/logo.webp" alt="Solvia — an S made of a road rising into the sun" />
-    <h1>Solvia</h1>
-    <p class="fs-3">Your college parking permit.<br />Price first — then pay with PayPal.</p>
-</div>
-
-<a class="btn btn-primary sv-cta w-100 mb-3" href="/Permits/Apply">Get my parking permit</a>
-<a class="btn btn-outline-primary btn-lg w-100 py-3 fs-3 mb-3" href="/Permits/My">My permits</a>
-
-<div class="sv-card mt-4">
-    <p class="fs-4 mb-2">Demo — you are <strong>@Model.CurrentStudentName</strong>.</p>
-    <p class="fs-5 mb-2">Switch demo student:</p>
-    <div class="d-flex flex-wrap gap-2">
+<section class="sv-demo-panel" aria-labelledby="demo-title">
+    <div><span class="sv-eyebrow">EXPLORE THE WORKING DEMO</span><h2 id="demo-title">Welcome, @Model.CurrentStudentName.</h2><p>Choose a fictional person to try their permit journey.</p></div>
+    <div class="sv-demo-people">
         @foreach (var student in Model.Students)
         {
-            <form method="post" action="/Home/SwitchStudent">
-                @Html.AntiForgeryToken()
+            <form method="post" asp-controller="Home" asp-action="SwitchStudent">
                 <input type="hidden" name="id" value="@student.Id" />
-                <button type="submit" class="btn btn-lg @(student.Id == Model.CurrentStudentId ? "btn-primary" : "btn-outline-secondary") fs-4">
-                    @student.DisplayName
-                </button>
+                <button type="submit" aria-pressed="@(student.Id == Model.CurrentStudentId ? "true" : "false")" class="sv-person @(student.Id == Model.CurrentStudentId ? "is-selected" : "")"><span class="sv-avatar" aria-hidden="true">@student.DisplayName[..1]</span>@student.DisplayName</button>
             </form>
         }
     </div>
-    <p class="fs-6 text-muted mt-3 mb-0">
-        Demo only: fictional students, PayPal sandbox test money. No real personal data.
-    </p>
-</div>
+    <p class="sv-demo-disclosure">Fictional people · PayPal sandbox test money · No real student records</p>
+</section>
+
+<section class="sv-feature-grid" aria-label="Explore Solvia">
+    <a class="sv-feature-card" asp-controller="College" asp-action="Fees"><span class="sv-feature-icon" aria-hidden="true">≡</span><h2>Know the price first.</h2><p>Explore published campus fees before you start. A missing fee stays missing—Solvia never guesses.</p><span class="sv-feature-link">Explore college fees ↗</span></a>
+    <a class="sv-feature-card" asp-controller="Permits" asp-action="My"><span class="sv-feature-icon" aria-hidden="true">▤</span><h2>Your proof, in one place.</h2><p>View your applications, payment standing, receipts, and issued permit PDFs.</p><span class="sv-feature-link">Open my permits ↗</span></a>
+    <a class="sv-feature-card" asp-controller="Home" asp-action="Privacy"><span class="sv-feature-icon" aria-hidden="true">◇</span><h2>Thoughtful about data.</h2><p>The AI reader runs locally via Ollama, with a clearly labeled fallback when the model is unavailable.</p><span class="sv-feature-link">How your data is handled ↗</span></a>
+</section>
