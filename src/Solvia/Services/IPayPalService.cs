@@ -80,7 +80,8 @@ public sealed record PayPalOrderResult(string OrderId, string Status, string App
 /// A capture attempt's outcome: PayPal's order status (Paid requires
 /// exactly "COMPLETED") and the capture id when PayPal issued one.
 /// </summary>
-public sealed record PayPalCaptureResult(string Status, string? CaptureId);
+public sealed record PayPalCaptureResult(string Status, string? CaptureId,
+    int? AmountCents = null, string? Currency = null);
 
 /// <summary>
 /// The PayPal sandbox credentials are not configured on this machine.

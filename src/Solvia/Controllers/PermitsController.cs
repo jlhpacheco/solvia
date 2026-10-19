@@ -368,6 +368,7 @@ public sealed class PermitsController : DemoControllerBase
             College = fee.Campus,
             CarText = carText,
             Plate = result.Plate,
+            PlateMissing = string.IsNullOrWhiteSpace(result.Plate),
             CarMake = result.CarMake,
             CarModel = result.CarModel,
             CarColor = result.CarColor,
@@ -408,11 +409,14 @@ public sealed class PermitsController : DemoControllerBase
         draft.College = fee.Campus;
         draft.SourceNote = SourceNote(draft.Source);
 
-        if (string.IsNullOrWhiteSpace(draft.Plate))
+        var normalizedPlate = FallbackExtractor.NormalizePlate(draft.Plate);
+        if (normalizedPlate is null)
         {
             draft.PlateMissing = true;
+            ModelState.AddModelError(nameof(draft.Plate), "Enter a license plate with 4 to 10 letters or digits.");
             return View("Understood", draft);
         }
+        draft.Plate = normalizedPlate;
 
         var student = await CurrentStudentAsync(_db, cancellationToken);
 

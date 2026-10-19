@@ -89,6 +89,12 @@ public sealed class PriceRepairService
 
         foreach (var application in pending)
         {
+            if (!string.IsNullOrWhiteSpace(application.PayPalOrderId))
+            {
+                skipped.Add(new PriceRepairSkip(application.Id, application.StudentId,
+                    application.Campus, "A PayPal order already holds this price. Payment must be reconciled before repricing."));
+                continue;
+            }
             var fee = _catalog.Find(application.Campus);
             if (fee is null)
             {

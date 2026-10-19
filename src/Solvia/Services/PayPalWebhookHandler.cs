@@ -207,6 +207,11 @@ public sealed class PayPalWebhookHandler
             {
                 var result = await ProcessAsync(
                     root, eventType, cancellationToken);
+                if (result.Outcome == OutcomeUnmatched)
+                {
+                    _db.ChangeTracker.Clear();
+                    return new PayPalWebhookOutcome(StatusCodes.Status503ServiceUnavailable, OutcomeUnmatched);
+                }
                 log.Outcome = result.Outcome;
                 log.ProcessedAtUtc = DateTime.UtcNow;
                 await _db.SaveChangesAsync(cancellationToken);
@@ -225,12 +230,23 @@ public sealed class PayPalWebhookHandler
                 return new PayPalWebhookOutcome(
                     StatusCodes.Status200OK, result.Outcome);
             }
-            catch (DbUpdateException)
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _db.ChangeTracker.Clear();
+                _logger.LogWarning(ex, "PayPal webhook {EventId} raced with another payment writer; retry required.", eventId);
+                return new PayPalWebhookOutcome(StatusCodes.Status503ServiceUnavailable, OutcomeFailed);
+            }
+            catch (DbUpdateException ex)
             {
                 // The unique (Provider, EventId) index fired: a
                 // sibling delivery won the race. That IS the
                 // duplicate case — unwind and answer as one.
                 _db.ChangeTracker.Clear();
+                if (!await _db.WebhookEventLogs.AnyAsync(w => w.Provider == ProviderName && w.EventId == eventId, cancellationToken))
+                {
+                    _logger.LogError(ex, "PayPal webhook {EventId} could not be saved; retry required.", eventId);
+                    return new PayPalWebhookOutcome(StatusCodes.Status503ServiceUnavailable, OutcomeFailed);
+                }
                 _logger.LogInformation(
                     "PayPal webhook {EventId} collided with its own log row " +
                     "— treated as a duplicate delivery.", eventId);
@@ -319,6 +335,10 @@ public sealed class PayPalWebhookHandler
         var eventCents = GetAmountCents(resource);
         if (application.Category == UserCategory.Employee ||
             application.PriceCents <= 0 ||
+            GetString(resource, "status") != "COMPLETED" ||
+            !resource.TryGetProperty("amount", out var eventAmount) ||
+            !string.Equals(GetString(eventAmount, "currency_code"), "USD", StringComparison.OrdinalIgnoreCase) ||
+            (application.PayPalCaptureId != null && application.PayPalCaptureId != captureId) ||
             eventCents is null ||
             eventCents.Value != application.PriceCents)
         {
@@ -378,11 +398,12 @@ public sealed class PayPalWebhookHandler
 
         var value = GetString(amount, "value");
         if (value is null ||
-            !decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var major))
+            !decimal.TryParse(value, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var major) ||
+            major < 0 || major > int.MaxValue / 100m || major * 100m != decimal.Truncate(major * 100m))
         {
             return null;
         }
 
-        return (int)Math.Round(major * 100m, MidpointRounding.AwayFromZero);
+        return (int)(major * 100m);
     }
 }

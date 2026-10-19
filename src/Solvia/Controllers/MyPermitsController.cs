@@ -68,8 +68,7 @@ public sealed class MyPermitsController : DemoControllerBase
             TotalCount = applications.Count,
             PaidCount = applications.Count(
                 a => a.PaymentStatus == PaymentStatus.Paid),
-            PendingPaymentCount = applications.Count(
-                a => a.PriceCents > 0 && a.PaymentStatus != PaymentStatus.Paid),
+            PendingPaymentCount = applications.Count(CanPay),
             Rows = applications.Select(ToRow).ToList(),
         };
 
@@ -98,7 +97,7 @@ public sealed class MyPermitsController : DemoControllerBase
             CategoryLabel = a.Category.ToString(),
             PaymentDisplay = payment,
             IsLive = isLive,
-            ShowPayNow = a.PriceCents > 0 && a.PaymentStatus != PaymentStatus.Paid,
+            ShowPayNow = CanPay(a),
             ReceiptNumber = a.ReceiptNumber,
         };
     }
@@ -131,6 +130,7 @@ public sealed class MyPermitsController : DemoControllerBase
         {
             Id = application.Id,
             IsLive = isLive,
+            CanPay = CanPay(application),
             IsFree = isFree,
             ReceiptNumber = application.ReceiptNumber,
             College = application.Campus,
@@ -228,6 +228,10 @@ public sealed class MyPermitsController : DemoControllerBase
         PaymentStatus.PartiallyRefunded => "Partially Refunded",
         _ => status.ToString(),
     };
+
+    private static bool CanPay(PermitApplication app) => app.Status != ApplicationStatus.Denied &&
+        app.Category != UserCategory.Employee && app.PriceCents > 0 &&
+        app.PaymentStatus is PaymentStatus.Pending or PaymentStatus.Failed;
 
     private static string Pacific(DateTime utc) =>
         TimeZoneInfo.ConvertTimeFromUtc(

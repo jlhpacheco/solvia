@@ -24,7 +24,7 @@ namespace Solvia.Tests;
 /// guards, owner checks, and the return endpoint's refusal to
 /// render a success state for a bogus token.
 /// </summary>
-public sealed class CheckoutTests
+public sealed partial class CheckoutTests
 {
     // ------------------------------------------------------- harness
 
@@ -34,8 +34,9 @@ public sealed class CheckoutTests
         public int CreateCalls;
         public int CaptureCalls;
         public string CreateOrderId = "ORDER-1";
-        public PayPalCaptureResult CaptureResult = new("COMPLETED", "CAP-1");
+        public PayPalCaptureResult CaptureResult = new("COMPLETED", "CAP-1", 3000, "USD");
         public bool ThrowNotConfigured;
+        public Action? BeforeCapture;
 
         public Task<string> GetAccessTokenAsync(
             CancellationToken cancellationToken = default) =>
@@ -61,6 +62,7 @@ public sealed class CheckoutTests
             string orderId, CancellationToken cancellationToken = default)
         {
             CaptureCalls++;
+            BeforeCapture?.Invoke();
             return Task.FromResult(CaptureResult);
         }
 
@@ -531,7 +533,7 @@ public sealed class CheckoutTests
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Index", redirect.ActionName);
         Assert.True(controller.TempData.ContainsKey("CheckoutError"));
-        Assert.Equal(PaymentStatus.Failed, (await Reload(w, app.Id)).PaymentStatus);
+        Assert.Equal(PaymentStatus.Pending, (await Reload(w, app.Id)).PaymentStatus);
     }
 
     [Fact]

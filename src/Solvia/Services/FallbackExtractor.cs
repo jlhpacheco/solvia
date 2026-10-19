@@ -187,19 +187,13 @@ public sealed class FallbackExtractor
     // Vehicle: plate, make, model, color, state
     // ------------------------------------------------------------------
     //
-    // Plate rules (proven in v1; the plate is the flow's gate field,
-    // so the reader is deliberately narrow but forgiving of spacing):
-    // 1. the word "plate"/"plates"/"license" followed within a few
-    //    characters by 4–12 alphanumerics — SPACES INSIDE THE PLATE
-    //    ARE ALLOWED AND THEN STRIPPED ("plate 8XYZ 123" → "8XYZ123");
-    // 2. failing that, the strict California pattern digit + three
-    //    letters + three digits ("8XYZ123") anywhere in the text.
-    // Whatever wins is normalized: upper case, separators removed,
-    // and it must end up 4–10 alphanumerics or it is not a plate.
+    // Consume compound labels before reading a value: "license plate number"
+    // must not turn into the bogus plate "PLATENUMBER". Keep numeric plates,
+    // stop at surrounding prose/state codes, and reject conflicting mentions.
 
     private static readonly Regex PlateAfterKeyword = new(
-        @"\b(?:plate|plates|license)\b[^A-Za-z0-9]{0,12}([A-Za-z0-9][A-Za-z0-9\- ]{2,10}[A-Za-z0-9])",
-        RegexOptions.Compiled);
+        @"\b(?:(?:licen[cs]e\s+)?plates?|licen[cs]e|registration)\b(?:\s+(?:number|no\.?|num))?\s*(?:[:#=\-]\s*)?(?:(?:is|reads)\s+)?",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // California-style plate: digit, three letters, three digits (8XYZ123).
     private static readonly Regex StrictPlate = new(
@@ -207,19 +201,35 @@ public sealed class FallbackExtractor
 
     private static string? FindPlate(string text)
     {
-        var keyword = PlateAfterKeyword.Match(text);
-        if (keyword.Success)
+        var labeled = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match keyword in PlateAfterKeyword.Matches(text))
         {
-            var plate = NormalizePlate(keyword.Groups[1].Value);
-            if (plate is not null)
+            var value = Regex.Match(text[(keyword.Index + keyword.Length)..], @"^[A-Za-z0-9]+(?:[- ]+[A-Za-z0-9]+){0,2}");
+            if (!value.Success) continue;
+            var parts = Regex.Split(value.Value, @"[- ]+");
+            if (IsPlateProse(parts[0])) continue;
+            var raw = parts[0];
+            foreach (var part in parts.Skip(1))
             {
-                return plate;
+                if (IsPlateProse(part) ||
+                    (part.Length == 2 && part.All(char.IsLetter) && Enum.TryParse<UsState>(part, true, out _))) break;
+                // Join spaced fragments, never a following ordinary word.
+                if (!part.Any(char.IsDigit) && !(raw.Any(char.IsDigit) && part.Length <= 3)) break;
+                raw += part;
             }
+            if (NormalizePlate(raw) is { } plate) labeled.Add(plate);
         }
+        if (labeled.Count > 0) return labeled.Count == 1 ? labeled.Single() : null;
 
-        var strict = StrictPlate.Match(text);
-        return strict.Success ? NormalizePlate(strict.Value) : null;
+        var strict = StrictPlate.Matches(text).Select(match => NormalizePlate(match.Value)).Distinct().ToArray();
+        return strict.Length == 1 ? strict[0] : null;
     }
+
+    private static bool IsPlateProse(string word) => new[] {
+        "plate", "plates", "license", "licence", "number", "no", "none", "unknown", "missing",
+        "pending", "not", "yet", "is", "for", "from", "with", "and", "in", "on", "at", "the",
+        "my", "car", "vehicle", "i", "need", "fall", "spring", "summer", "color", "state"
+    }.Contains(word, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Upper-cases and strips separators; sane plates are 4–10 alphanumerics.</summary>
     public static string? NormalizePlate(string? raw)

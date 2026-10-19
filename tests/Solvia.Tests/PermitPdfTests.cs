@@ -18,7 +18,7 @@ namespace Solvia.Tests;
 /// the gate over HTTP-shaped calls (unknown 404, non-owner 403,
 /// owned-but-unpaid 400 in plain words, live 200 %PDF), the
 /// document's contents read back out of the real bytes with
-/// pdftotext (permit number, plate + state, PayPal ids, category,
+/// PdfPig (permit number, plate + state, PayPal ids, category,
 /// the privilege line, EXEMPT (Employee) on Elena's permit), and
 /// regeneration — two consecutive calls, two fresh PDFs.
 /// </summary>
@@ -113,36 +113,15 @@ public sealed class PermitPdfTests
     }
 
     /// <summary>
-    /// Reads the text layer out of real PDF bytes (poppler's
-    /// pdftotext — the house verification tool for generated PDFs).
+    /// Reads the text layer out of real PDF bytes (managed PdfPig extraction:
+    /// PdfPig — the house verification tool for generated PDFs).
     /// </summary>
     private static string PdfText(byte[] bytes)
     {
-        var pdfPath = Path.Combine(
-            Path.GetTempPath(), $"solvia-r5-{Guid.NewGuid():N}.pdf");
-        File.WriteAllBytes(pdfPath, bytes);
-        try
-        {
-            var psi = new ProcessStartInfo("pdftotext", $"\"{pdfPath}\" -")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            };
-            using var process = Process.Start(psi)
-                ?? throw new InvalidOperationException("pdftotext did not start");
-            var text = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            Assert.True(process.ExitCode == 0,
-                "pdftotext failed — PDF text assertions need poppler-utils.");
-            return text;
-        }
-        finally
-        {
-            File.Delete(pdfPath);
-        }
+        using var document = UglyToad.PdfPig.PdfDocument.Open(bytes);
+        return string.Join("\n", document.GetPages().Select(page =>
+            string.Join(" ", page.GetWords().Select(word => word.Text))));
     }
-
     private static PermitApplication LoadForPdf(World w, Guid id) =>
         w.Db.PermitApplications
             .Include(a => a.Vehicle)
@@ -300,7 +279,7 @@ public sealed class PermitPdfTests
 
         var text = PdfText(new PermitPdfService()
             .BuildPermitPdf(LoadForPdf(w, app.Id), "https://solvia.test"));
-        Assert.Contains("FREE — ISSUED", text);
+        Assert.Contains("FREE - ISSUED", text);
         Assert.Contains(freeCampus, text); // the $0 campus is named
     }
 }

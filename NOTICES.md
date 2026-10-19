@@ -12,24 +12,23 @@ Copyright (c) 2026 Jose Luis Pacheco.
 
 ## Components the app ships or calls
 
-- **QuestPDF 2026.2.4** — the permit receipt PDF
-  (`PermitPdfService`). **QuestPDF Community License v3.0 — this
-  is NOT the MIT License and NOT Apache.** The Community License
-  is free for open-source projects published under an OSI-approved
-  license (Solvia is MIT and publicly available, so it qualifies),
-  for individuals, and for organizations under its revenue
-  threshold; **public-sector entities are excluded** from the free
-  Community terms. Solvia sets `QuestPDF.Settings.License =
-  LicenseType.Community` in code and claims nothing more. Full
-  terms: https://www.questpdf.com/license
+- **PDFsharp 6.2.3** — MIT License. Generates the student/employee
+  permit PDFs in `PermitPdfService`. [Upstream license](https://github.com/empira/PDFsharp/blob/master/LICENSE).
+- **Roboto Regular and Bold** — Apache License 2.0. Embedded fonts
+  under `src/Solvia/Assets/Fonts/`; their complete license and pinned
+  upstream provenance are retained there. These assets come from the
+  Apache-licensed Roboto 2 distribution, not a different font release.
 
 - **Microsoft.EntityFrameworkCore.Sqlite 10.0.13** — MIT License.
   The app's only database provider (EF Core + SQLite, a single
   local file; there is no database server). SQLite itself is
   public domain.
+- **System.Security.Cryptography.Pkcs 10.0.13** — MIT License.
+  Explicitly overrides PDFsharp's older transitive dependency with the
+  patched version identified by Microsoft's October 2026 advisories.
 
 - **Microsoft Phi-4-mini** — MIT License. The AI model. It is NOT
-  bundled with this repo: it runs on the user's own machine,
+  bundled with this repo: the default endpoint runs on the app host,
   served by Ollama (`ollama pull phi4-mini`, about 2.5 GB).
   Microsoft is the model's author; the model card and license ship
   with the model, not with Solvia.
@@ -65,6 +64,8 @@ Copyright (c) 2026 Jose Luis Pacheco.
   Apache License 2.0 / MIT (test project only).
 - **Microsoft.NET.Test.Sdk 17.14.1** — MIT License (test only).
 - **coverlet.collector 6.0.4** — MIT License (test only).
+- **PdfPig 0.1.12** — Apache License 2.0 (test-only PDF text extraction).
+- **Microsoft.AspNetCore.Mvc.Testing 10.0.13** — MIT License (test-only application host).
 
 ## Services used at runtime (not code, not bundled)
 

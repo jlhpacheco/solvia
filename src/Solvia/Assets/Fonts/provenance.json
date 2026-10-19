@@ -1,0 +1,9 @@
+{
+  "Source": "googlefonts/roboto-2",
+  "Commit": "38062f4b4a0be4346d07a928408da21602545e9e",
+  "Files": [
+    "LICENSE.txt",
+    "Roboto-Bold.ttf",
+    "Roboto-Regular.ttf"
+  ]
+}

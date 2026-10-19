@@ -103,6 +103,15 @@ public sealed class PayPalController : DemoControllerBase
                 }),
             };
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new { error = "This permit changed during checkout. Refresh its status before retrying." });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "PayPal sandbox connection failed.");
+            return StatusCode(503, new { error = "PayPal sandbox is temporarily unavailable. Check your permit status before retrying." });
+        }
         catch (PayPalNotConfiguredException ex)
         {
             return StatusCode(
@@ -166,6 +175,15 @@ public sealed class PayPalController : DemoControllerBase
                 captureId = result.CaptureId,
                 receiptNumber = result.ReceiptNumber,
             });
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new { error = "This permit changed during payment. Refresh its status before retrying." });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "PayPal sandbox connection failed.");
+            return StatusCode(503, new { error = "PayPal sandbox is temporarily unavailable. Check your permit status before retrying." });
         }
         catch (PayPalNotConfiguredException ex)
         {

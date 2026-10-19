@@ -12,9 +12,8 @@ namespace Solvia.Services;
 /// served by Ollama on the SAME computer — to read a permit draft
 /// out of the student's plain words (REDO-PLAN §3 R3).
 ///
-/// Privacy by design: the only thing that leaves this process is an
-/// HTTP call to Ollama on localhost. Student data never reaches a
-/// vendor cloud and can never be used to train any model.
+/// Default inference is local to the application host. Configuring a remote
+/// endpoint sends extraction inputs there; this service implements no training.
 ///
 /// Trust rules:
 /// - The prompt demands ONLY a JSON object in our schema, lists the
@@ -77,7 +76,9 @@ public sealed class OllamaExtractionService : IAiExtractor
             var ai = await TryModelAsync(studentText, cancellationToken);
             if (ai is not null)
             {
-                return ai;
+                // Preserve a clearly labeled plate even if the model omits it.
+                // The review page remains editable; no price comes from either reader.
+                return ai.Plate is null ? ai with { Plate = _fallback.Extract(studentText).Plate } : ai;
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException ||

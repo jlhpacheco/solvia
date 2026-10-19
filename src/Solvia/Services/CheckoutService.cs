@@ -85,8 +85,8 @@ public sealed class CheckoutPricingException : InvalidOperationException
 ///   PaidAtUtc, the capture id, and issuance through
 ///   <see cref="IIssuanceService"/> (which does NOT save; this
 ///   service saves). Landing on a return page never marks anything.
-/// - Any non-COMPLETED capture leaves the application Failed with
-///   the PayPal status logged — never Paid, never issued.
+/// - A PENDING capture remains Pending; other non-COMPLETED captures
+///   fail. Amount, currency and capture id must also match before issuance.
 /// - Missing PayPal credentials surface as
 ///   <see cref="PayPalNotConfiguredException"/> from the PayPal
 ///   client — the honest 503 the controllers render.
@@ -136,6 +136,10 @@ public sealed class CheckoutService
         CancellationToken cancellationToken = default)
     {
         var application = await LoadAsync(applicationId, cancellationToken);
+
+        if (application.Status == ApplicationStatus.Denied || application.PaymentStatus is
+            PaymentStatus.Refunded or PaymentStatus.PartiallyRefunded or PaymentStatus.Expired)
+            throw new CheckoutPricingException("This application cannot start a new payment.");
 
         if (application.PaymentStatus == PaymentStatus.Paid)
         {
@@ -201,6 +205,11 @@ public sealed class CheckoutService
                 application.PayPalOrderId, null);
         }
 
+        // SQLite's write transaction and token check prevent maintenance from
+        // changing the amount between order creation and saving its durable id.
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        application.ConcurrencyToken = Guid.NewGuid();
+        await _db.SaveChangesAsync(cancellationToken);
         var order = await _payPal.CreateOrderAsync(
             application.PriceCents,
             application.Id.ToString("N"),
@@ -212,6 +221,7 @@ public sealed class CheckoutService
         application.PaymentStatus = PaymentStatus.Pending;
         application.ConcurrencyToken = Guid.NewGuid();
         await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new CheckoutStartResult(
             CheckoutStartKind.OrderReady, application.Id,
@@ -224,6 +234,10 @@ public sealed class CheckoutService
         CancellationToken cancellationToken = default)
     {
         var application = await LoadAsync(applicationId, cancellationToken);
+
+        if (application.Status == ApplicationStatus.Denied || application.PaymentStatus is
+            PaymentStatus.Refunded or PaymentStatus.PartiallyRefunded or PaymentStatus.Expired)
+            throw new InvalidOperationException("This application cannot accept a payment.");
 
         if (application.PaymentStatus == PaymentStatus.Paid)
         {
@@ -240,6 +254,10 @@ public sealed class CheckoutService
             throw new InvalidOperationException(
                 "This application has no PayPal order to capture. Start checkout first.");
         }
+
+        if (application.PriceCents <= 0 || application.Category == UserCategory.Employee ||
+            application.PaymentStatus == PaymentStatus.NotRequired)
+            throw new InvalidOperationException("This permit does not require a payment.");
 
         var capture = await _payPal.CaptureOrderAsync(
             application.PayPalOrderId, cancellationToken);
@@ -329,23 +347,35 @@ public sealed class CheckoutService
 
     /// <summary>
     /// THE one place Paid is decided. Only a capture response with
-    /// status COMPLETED marks the application Paid; anything else
-    /// marks it Failed (with the status logged) and the permit stays
-    /// dead — no number, no token, no issuance.
+    /// status COMPLETED plus verified amount/currency marks it Paid.
+    /// A pending capture can settle later through the verified webhook.
     /// </summary>
     private async Task<CheckoutCaptureResult> ApplyCaptureAsync(
         PermitApplication application,
         PayPalCaptureResult capture,
         CancellationToken cancellationToken)
     {
-        if (string.Equals(capture.Status, "COMPLETED", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(capture.Status, "COMPLETED", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(capture.CaptureId) && capture.AmountCents == application.PriceCents &&
+            string.Equals(capture.Currency, "USD", StringComparison.OrdinalIgnoreCase))
         {
             application.PaymentStatus = PaymentStatus.Paid;
-            application.PaidAtUtc = DateTime.UtcNow;
+            application.PaidAtUtc ??= DateTime.UtcNow;
             application.PayPalCaptureId = capture.CaptureId;
             await _issuance.IssueIfAbsentAsync(application, cancellationToken);
             application.ConcurrencyToken = Guid.NewGuid();
-            await _db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await _db.Entry(application).ReloadAsync(cancellationToken);
+                if (application.PaymentStatus == PaymentStatus.Paid)
+                    return new CheckoutCaptureResult(true, application.Id, "COMPLETED",
+                        application.PayPalCaptureId, application.ReceiptNumber);
+                throw;
+            }
 
             _logger.LogInformation(
                 "Application {ApplicationId} marked Paid from COMPLETED capture {CaptureId}; " +
@@ -357,7 +387,9 @@ public sealed class CheckoutService
                 capture.CaptureId, application.ReceiptNumber);
         }
 
-        application.PaymentStatus = PaymentStatus.Failed;
+        application.PaymentStatus = string.Equals(capture.Status, "PENDING", StringComparison.OrdinalIgnoreCase)
+            ? PaymentStatus.Pending : PaymentStatus.Failed;
+        application.PayPalCaptureId ??= capture.CaptureId;
         application.ConcurrencyToken = Guid.NewGuid();
         await _db.SaveChangesAsync(cancellationToken);
         _logger.LogWarning(
@@ -365,7 +397,7 @@ public sealed class CheckoutService
             "(PayPal status {Status}) — permit is NOT paid and was not issued.",
             application.Id, capture.Status);
         return new CheckoutCaptureResult(
-            false, application.Id, capture.Status, capture.CaptureId, null);
+            false, application.Id, capture.Status == "COMPLETED" ? "VERIFICATION_FAILED" : capture.Status, capture.CaptureId, null);
     }
 
     private async Task<PermitApplication> LoadAsync(

@@ -70,6 +70,7 @@ public sealed class VehiclesController : DemoControllerBase
     {
         var student = await CurrentStudentAsync(_db, cancellationToken);
 
+        if (!ModelState.IsValid) return View(form);
         var plate = NormalizePlate(form.Plate);
         if (plate is null)
         {
@@ -124,6 +125,7 @@ public sealed class VehiclesController : DemoControllerBase
             return NotFound();
         }
 
+        if (!ModelState.IsValid) { form.Id = id; return View(form); }
         var plate = NormalizePlate(form.Plate);
         if (plate is null)
         {
@@ -132,6 +134,13 @@ public sealed class VehiclesController : DemoControllerBase
             return View(form);
         }
 
+        if ((vehicle.Plate != plate || vehicle.State != form.State) &&
+            await _db.PermitApplications.AnyAsync(a => a.VehicleId == id, cancellationToken))
+        {
+            form.Id = id;
+            form.Error = "This plate is linked to permit applications. Add a new vehicle to use a different plate or state.";
+            return View(form);
+        }
         vehicle.Plate = plate;
         vehicle.State = form.State;
         vehicle.Color = form.Color;

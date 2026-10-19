@@ -1,4 +1,5 @@
 using Solvia.Models.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace Solvia.Models.ViewModels;
 
@@ -24,24 +25,24 @@ public sealed class VehicleEditViewModel
     public Guid Id { get; set; }
 
     /// <summary>License plate, as typed; normalized on save.</summary>
-    public string Plate { get; set; } = "";
+    [Required, StringLength(20)] public string Plate { get; set; } = "";
 
     /// <summary>Plate state (defaults to CA, like the model).</summary>
-    public UsState State { get; set; } = UsState.CA;
+    [EnumDataType(typeof(UsState))] public UsState State { get; set; } = UsState.CA;
 
     /// <summary>Make: a catalog make, a stored off-catalog make, or the "type it" sentinel.</summary>
-    public string? Make { get; set; }
+    [StringLength(50)] public string? Make { get; set; }
 
     /// <summary>The typed make, used only when <see cref="Make"/> is the sentinel.</summary>
-    public string? MakeOther { get; set; }
+    [StringLength(50)] public string? MakeOther { get; set; }
 
     /// <summary>Model: a catalog model for the make, a stored off-catalog model, or the "type it" sentinel.</summary>
-    public string? Model { get; set; }
+    [StringLength(50)] public string? Model { get; set; }
 
     /// <summary>The typed model, used only when <see cref="Model"/> is the sentinel.</summary>
-    public string? ModelOther { get; set; }
+    [StringLength(50)] public string? ModelOther { get; set; }
 
-    public VehicleColor Color { get; set; } = VehicleColor.Other;
+    [EnumDataType(typeof(VehicleColor))] public VehicleColor Color { get; set; } = VehicleColor.Other;
 
     /// <summary>
     /// A plain-language problem to show at the top of the form (the

@@ -186,6 +186,7 @@ public sealed class PayPalService : IPayPalService
             HttpMethod.Post, $"v2/checkout/orders/{Uri.EscapeDataString(orderId)}/capture");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.Add("Prefer", "return=representation");
+        request.Headers.Add("PayPal-Request-Id", $"capture-{orderId}");
         request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
 
         using var response = await _http.SendAsync(request, cancellationToken);
@@ -193,26 +194,36 @@ public sealed class PayPalService : IPayPalService
 
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
-        var status = root.TryGetProperty("status", out var statusEl)
-            ? statusEl.GetString() ?? ""
-            : "";
+        var status = "";
+        int? amountCents = null;
+        string? currency = null;
 
         // The capture id lives at purchase_units[0].payments.captures[0].id.
         string? captureId = null;
         if (root.TryGetProperty("purchase_units", out var units) &&
-            units.ValueKind == JsonValueKind.Array && units.GetArrayLength() > 0 &&
+            units.ValueKind == JsonValueKind.Array && units.GetArrayLength() == 1 &&
             units[0].TryGetProperty("payments", out var payments) &&
             payments.TryGetProperty("captures", out var captures) &&
-            captures.ValueKind == JsonValueKind.Array && captures.GetArrayLength() > 0 &&
+            captures.ValueKind == JsonValueKind.Array && captures.GetArrayLength() == 1 &&
             captures[0].TryGetProperty("id", out var captureEl))
         {
             captureId = captureEl.GetString();
+            var item = captures[0];
+            status = item.TryGetProperty("status", out var state) ? state.GetString() ?? "" : "";
+            if (item.TryGetProperty("amount", out var money))
+            {
+                currency = money.TryGetProperty("currency_code", out var code) ? code.GetString() : null;
+                if (money.TryGetProperty("value", out var value) &&
+                    decimal.TryParse(value.GetString(), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var major) &&
+                    major >= 0 && major <= int.MaxValue / 100m && major * 100m == decimal.Truncate(major * 100m))
+                    amountCents = (int)(major * 100m);
+            }
         }
 
         _logger.LogInformation(
             "Captured PayPal sandbox order {OrderId}: status {Status}, capture {CaptureId}.",
             orderId, status, captureId ?? "(none)");
-        return new PayPalCaptureResult(status, captureId);
+        return new PayPalCaptureResult(status, captureId, amountCents, currency);
     }
 
     public async Task<bool> VerifyWebhookSignatureAsync(
@@ -286,6 +297,10 @@ public sealed class PayPalService : IPayPalService
     /// </summary>
     private void EnsureConfigured()
     {
+        if (!string.Equals(_options.Environment.Trim(), "sandbox", StringComparison.OrdinalIgnoreCase) ||
+            _http.BaseAddress is not { Scheme: "https", Host: "api-m.sandbox.paypal.com", Port: 443 } ||
+            !string.Equals(_options.Currency, "USD", StringComparison.OrdinalIgnoreCase))
+            throw new PayPalNotConfiguredException("This demo requires PayPal Sandbox over HTTPS and USD campus fees.");
         var missing = new List<string>();
         if (string.IsNullOrWhiteSpace(_options.ClientId))
         {

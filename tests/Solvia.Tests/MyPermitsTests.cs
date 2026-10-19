@@ -26,7 +26,7 @@ namespace Solvia.Tests;
 /// PaidAtUtc, then issuance — because the capture itself is R6's
 /// test surface; what R5 owes is the display of that truth.
 /// </summary>
-public sealed class MyPermitsTests
+public sealed partial class MyPermitsTests
 {
     // ------------------------------------------------------- harness
 

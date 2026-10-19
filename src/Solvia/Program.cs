@@ -127,6 +127,14 @@ builder.Services.AddHttpClient<PaymentWebhookService>();
 builder.Services.AddScoped<PayPalWebhookHandler>();
 builder.Services.AddSingleton<VerifyRateLimiter>();
 
+builder.Services.AddSingleton<BuiltinCollegeSearch>();
+builder.Services.AddHttpClient<ElasticCollegeSearch>();
+builder.Services.AddScoped<ICollegeSearch>(sp =>
+    string.Equals(sp.GetRequiredService<IOptions<SearchOptions>>().Value.Provider, "elastic", StringComparison.OrdinalIgnoreCase)
+        ? sp.GetRequiredService<ElasticCollegeSearch>()
+        : sp.GetRequiredService<BuiltinCollegeSearch>());
+builder.Services.AddScoped<PriceRepairService>();
+
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
@@ -171,3 +179,5 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
+
+public partial class Program { }

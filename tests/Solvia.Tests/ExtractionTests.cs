@@ -30,7 +30,7 @@ namespace Solvia.Tests;
 /// - the result type has NO price member by construction: the AI
 ///   can never set a price.
 /// </summary>
-public sealed class ExtractionTests
+public sealed partial class ExtractionTests
 {
     // The plan's pinned sentence (REDO-PLAN §3 R3): Fresno + a blue
     // 2019 Honda Civic + plate 8XYZ123 + the fall term.

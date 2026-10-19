@@ -15,7 +15,7 @@ namespace Solvia.Tests;
 /// capture-id parsing, not-configured failing BEFORE any HTTP, and
 /// webhook-signature verification for R7.
 /// </summary>
-public sealed class PayPalServiceTests
+public sealed partial class PayPalServiceTests
 {
     // ------------------------------------------------------- harness
 
@@ -52,7 +52,7 @@ public sealed class PayPalServiceTests
                     "{\"id\":\"ORDER-1\",\"status\":\"" + CaptureStatus + "\"," +
                     "\"purchase_units\":[{\"reference_id\":\"abc\",\"payments\":" +
                     "{\"captures\":[{\"id\":\"CAP-9\",\"status\":\"" + CaptureStatus +
-                    "\"}]}}]}");
+                    "\",\"amount\":{\"value\":\"30.00\",\"currency_code\":\"USD\"}}]}}]}");
             }
 
             if (path.EndsWith("/v2/checkout/orders", StringComparison.Ordinal))

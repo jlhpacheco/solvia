@@ -20,7 +20,7 @@ namespace Solvia.Tests;
 /// the database back through a fresh context — saved truth, not
 /// tracked-entity hope.
 /// </summary>
-public sealed class WebhookTests
+public sealed partial class WebhookTests
 {
     // ------------------------------------------------------- harness
 
@@ -382,7 +382,7 @@ public sealed class WebhookTests
     }
 
     [Fact]
-    public async Task UnknownCapture_LoggedUnmatched_NothingChanges()
+    public async Task UnknownCapture_RetryableWithoutConsumingEvent()
     {
         var w = NewWorld();
         using var _ = w.Connection;
@@ -392,10 +392,10 @@ public sealed class WebhookTests
         var outcome = await w.Handler.HandleAsync(
             CaptureCompletedEvent("EVT-1", "CAP-OTHER", "30.00"), SignedHeaders());
 
-        Assert.Equal(200, outcome.StatusCode);
+        Assert.Equal(503, outcome.StatusCode);
         Assert.Equal(PayPalWebhookHandler.OutcomeUnmatched, outcome.Outcome);
         Assert.Equal(PaymentStatus.Pending, (await Reload(w, app.Id)).PaymentStatus);
-        Assert.Single(await EventLogs(w));
+        Assert.Empty(await EventLogs(w));
     }
 
     [Fact]

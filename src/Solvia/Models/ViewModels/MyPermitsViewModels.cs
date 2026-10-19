@@ -82,6 +82,7 @@ public sealed class MyPermitsViewModel
 /// </summary>
 public sealed class ReceiptViewModel
 {
+    public bool CanPay { get; init; }
     public Guid Id { get; set; }
 
     /// <summary>True when Paid or NotRequired — the permit is live.</summary>

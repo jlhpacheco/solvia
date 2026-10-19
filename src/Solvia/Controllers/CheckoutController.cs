@@ -65,7 +65,8 @@ public sealed class CheckoutController : DemoControllerBase
 
         // Item 19: Paid and $0 permits never see a checkout page —
         // their home is My Permits.
-        if (application.PaymentStatus == PaymentStatus.Paid ||
+        if (application.Status == ApplicationStatus.Denied || application.Category == UserCategory.Employee ||
+            application.PaymentStatus is not (PaymentStatus.Pending or PaymentStatus.Failed) ||
             application.PriceCents <= 0)
         {
             return Redirect("/Permits/My");
@@ -118,6 +119,17 @@ public sealed class CheckoutController : DemoControllerBase
                     RedirectToAction(nameof(Done), new { id }),
                 _ => RedirectToAction(nameof(Index), new { id }),
             };
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            TempData["ErrorMessage"] = "This permit changed during checkout. Check its current status before retrying.";
+            return Redirect("/Permits/My");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "PayPal sandbox connection failed.");
+            TempData["CheckoutError"] = "PayPal sandbox is temporarily unavailable. Check your permit status before retrying.";
+            return RedirectToAction(nameof(Index), new { id });
         }
         catch (PayPalNotConfiguredException ex)
         {
@@ -175,6 +187,22 @@ public sealed class CheckoutController : DemoControllerBase
                 $"PayPal did not complete this payment (status: {result.Status}). " +
                 "Your permit is not paid — you can try again.";
             return RedirectToAction(nameof(Index), new { id = application.Id });
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            TempData["ErrorMessage"] = "This permit changed during payment. Check its current status before retrying.";
+            return Redirect("/Permits/My");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "PayPal sandbox connection failed.");
+            TempData["ErrorMessage"] = "PayPal sandbox is temporarily unavailable. Check your permit status before retrying.";
+            return Redirect("/Permits/My");
+        }
+        catch (InvalidOperationException ex) when (ex is not PayPalNotConfiguredException)
+        {
+            TempData["ErrorMessage"] = "This permit cannot accept a payment. Check its current status.";
+            return Redirect("/Permits/My");
         }
         catch (PayPalNotConfiguredException ex)
         {

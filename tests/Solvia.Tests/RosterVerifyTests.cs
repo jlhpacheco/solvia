@@ -36,20 +36,24 @@ public sealed class RosterVerifyTests
 
     private sealed class StubPayPal : IPayPalService
     {
+        private int _amountCents;
         public Task<string> GetAccessTokenAsync(
             CancellationToken cancellationToken = default) =>
             Task.FromResult("test-token");
 
         public Task<PayPalOrderResult> CreateOrderAsync(
             int amountCents, string reference, string? returnUrl = null,
-            string? cancelUrl = null, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new PayPalOrderResult(
+            string? cancelUrl = null, CancellationToken cancellationToken = default)
+        {
+            _amountCents = amountCents;
+            return Task.FromResult(new PayPalOrderResult(
                 "ORDER-1", "CREATED",
                 "https://www.sandbox.paypal.com/checkoutnow?token=ORDER-1"));
+        }
 
         public Task<PayPalCaptureResult> CaptureOrderAsync(
             string orderId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new PayPalCaptureResult("COMPLETED", "CAP-1"));
+            Task.FromResult(new PayPalCaptureResult("COMPLETED", "CAP-1", _amountCents, "USD"));
 
         public Task<bool> VerifyWebhookSignatureAsync(
             string transmissionId, string transmissionTime, string transmissionSig,

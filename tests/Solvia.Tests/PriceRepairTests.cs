@@ -23,7 +23,7 @@ namespace Solvia.Tests;
 /// rows are produced through ApplicationService — the tamper itself
 /// is a direct write, because tampering is the fault being repaired.
 /// </summary>
-public sealed class PriceRepairTests
+public sealed partial class PriceRepairTests
 {
     private const string Fresno = "Fresno City College";
     private const string Bakersfield = "CSU Bakersfield";
