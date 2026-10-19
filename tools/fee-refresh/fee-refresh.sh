@@ -34,7 +34,7 @@
 #
 # USAGE
 #   tools/fee-refresh/fee-refresh.sh [--limit N] [--campus "Fresno"]
-#     --limit N       check only the first N sources (default: all 25)
+#     --limit N       check only the first N sources (default: all 10)
 #     --campus TEXT   check only campuses whose name contains TEXT
 # =============================================================================
 

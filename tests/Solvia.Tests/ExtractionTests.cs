@@ -20,7 +20,7 @@ namespace Solvia.Tests;
 /// - valid model JSON → Source=Ollama with the validated fields, the
 ///   college resolved against the REAL fee catalog;
 /// - the request asks phi4-mini for ONLY JSON in our schema, with the
-///   25 catalog campus names embedded and prices explicitly excluded;
+///   10 catalog campus names embedded and prices explicitly excluded;
 /// - garbage JSON / connection refused / HTTP 500 / timeout → the
 ///   deterministic fallback answers, Source=Fallback, nothing throws;
 /// - a model answer naming a college the catalog does not know is
@@ -318,22 +318,22 @@ public sealed class ExtractionTests
     }
 
     [Fact]
-    public void Fallback_DayPassForDeltaCollege()
+    public void Fallback_DayPassForFresnoCityCollege()
     {
         var fallback = new FallbackExtractor(Catalog);
 
-        var result = fallback.Extract("I need a day pass for Delta College tomorrow");
+        var result = fallback.Extract("I need a day pass for Fresno City College tomorrow");
 
-        Assert.Equal("Delta College", result.College);
+        Assert.Equal("Fresno City College", result.College);
         Assert.Equal(PermitTypeCode.Daily, result.PermitType);
         Assert.Null(result.Term);
     }
 
     [Theory]
-    [InlineData("I need the spring semester at Clovis Community College",
-        "Clovis Community College", TermKind.Spring)]
-    [InlineData("summer term at Merced College for my Toyota Camry",
-        "Merced College", TermKind.Summer)]
+    [InlineData("I need the spring semester at Diablo Valley College",
+        "Diablo Valley College", TermKind.Spring)]
+    [InlineData("summer term at Antelope Valley College for my Toyota Camry",
+        "Antelope Valley College", TermKind.Summer)]
     public void Fallback_TermsAndCampuses(
         string sentence, string expectedCollege, TermKind expectedTerm)
     {
@@ -360,15 +360,29 @@ public sealed class ExtractionTests
     }
 
     [Fact]
-    public void Fallback_AmbiguousBakersfield_ReturnsNullCollege()
+    public void Fallback_AmbiguousValley_ReturnsNullCollege()
     {
-        // "Bakersfield" alone is TWO catalog campuses (CSU Bakersfield
-        // and Bakersfield College) — the extractor must not guess.
+        // "Valley" alone is shared by TWO catalog campuses (Antelope
+        // Valley College and Diablo Valley College) — no guess.
+        var fallback = new FallbackExtractor(Catalog);
+
+        var result = fallback.Extract("I go to Valley, I need the fall term");
+
+        Assert.Null(result.College);
+        Assert.Equal(TermKind.Fall, result.Term);
+    }
+
+    [Fact]
+    public void Fallback_Bakersfield_ResolvesToCsuBakersfield()
+    {
+        // Bakersfield College published no semester price and was
+        // removed from the table (Oct 18 order), so "Bakersfield"
+        // now names exactly one catalog campus.
         var fallback = new FallbackExtractor(Catalog);
 
         var result = fallback.Extract("I go to Bakersfield, I need the fall term");
 
-        Assert.Null(result.College);
+        Assert.Equal("CSU Bakersfield", result.College);
         Assert.Equal(TermKind.Fall, result.Term);
     }
 

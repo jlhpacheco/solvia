@@ -21,7 +21,7 @@ Maria is a fictional student. It is her first day.
 
 1. Maria picks her college.
 2. The AI asks three questions only: **School? Car? Term?**
-3. The AI shows the **exact total first**, taken from a real fee table (see `data/fees.csv` — 25 campuses scanned from mycampuspermit.com on 2026-10-18; prices that a campus does not publish are marked "not listed", never guessed).
+3. The AI shows the **exact total first**, taken from a real fee table (see `data/fees.csv` — 10 campuses, every one publishing its student semester price, from the 2026-10-18 scan of 25 mycampuspermit.com pages; only the 10 with a published price ship, and no price is ever guessed).
 4. Maria approves the total.
 5. **PayPal Sandbox pays.** Test money only — no real money, no real student data.
 6. Maria gets a receipt. Her permit is live. She can park.
@@ -36,7 +36,7 @@ Full flow: [docs/USE-CASE.md](docs/USE-CASE.md)
 |---|---|
 | Payments (central) | PayPal Sandbox — Orders API (create order → student approves → capture), called directly over HTTPS from the app |
 | AI (central) | **Phi-4-mini** — a simple open model, run locally via **Ollama** (MIT-licensed model; structured JSON extraction of school / car / term) |
-| Fee table | **AG Grid Community edition** (free, sponsor) — the 25-college fee table |
+| Fee table | **AG Grid Community edition** (free, sponsor) — the 10-college fee table |
 | College search | Built-in deterministic search ships by default; an **Elastic** (sponsor) provider sits behind the same config seam — ELSER did not run and is not claimed — see [docs/SPONSORS.md](docs/SPONSORS.md) |
 | Term calendar | Native calendar list (built-in) — term start, permit end, renewal date. Bryntum is **not** used: it has no free edition, and its 45-day trial would expire during judging — see [docs/SPONSORS.md](docs/SPONSORS.md) |
 | Hosted copy | **Render** (sponsor) — **planned, not yet deployed.** There is no hosted URL yet; judges run it locally with the steps below |
@@ -164,7 +164,7 @@ Open the address the app prints — **http://localhost:5156**:
 |---|---|
 | http://localhost:5156/ | Home — pick which fictional student you are (Maria is the default) |
 | http://localhost:5156/Permits/Apply | The student flow: pick your college |
-| http://localhost:5156/College/Fees | The 25-college fee table (AG Grid Community) |
+| http://localhost:5156/College/Fees | The 10-college fee table (AG Grid Community) |
 | http://localhost:5156/College/Dates | Term dates — term start, permit end, renewal date |
 | http://localhost:5156/College/Roster | The college side: who paid, who hasn't |
 | The receipt page at the end of the flow | Your permit number, plus a public check link (`/verify?t=…`) anyone can open |
@@ -193,7 +193,7 @@ Thank you, PayPal. Built with PayPal, in San Jose.
 
 ## Data note
 
-`data/fees.csv` is research data scanned 2026-10-18 from the public pages of mycampuspermit.com (Parking Management Bureau), the incumbent permit store for these 25 campuses, plus one clearly labeled separate source (Delta College's official site, because its PMB page returned HTTP 502). Where a campus does not publish a price, the file says "not listed on PMB page" — we never filled a price in. See the research aggregate for counts and method.
+`data/fees.csv` is research data scanned 2026-10-18 from the public pages of mycampuspermit.com (Parking Management Bureau), the incumbent permit store for these campuses. The shipped table holds exactly the 10 campuses that published a student semester price in that scan of 25 PMB pages; the other 15 published none and are not in the app. Every shipped row has a price (FREE is a price) — we never filled a price in. See the research aggregate for counts and method.
 
 ## License
 

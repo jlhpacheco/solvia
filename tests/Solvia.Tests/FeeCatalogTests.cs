@@ -50,17 +50,19 @@ public sealed class FeeCatalogTests
     }
 
     [Fact]
-    public void LoadsExactly25Campuses()
+    public void LoadsExactly10Campuses()
     {
-        Assert.Equal(25, Catalog.All().Count);
+        Assert.Equal(10, Catalog.All().Count);
     }
 
     [Fact]
-    public void Exactly10CampusesPublishASemesterPrice()
+    public void EveryCampusPublishesASemesterPrice()
     {
-        // BUILD-PLAN §2: 10 of 25 publish a semester price (FREE counts).
+        // Jose Luis's Oct 18 order: the shipped table holds ONLY the
+        // campuses that publish a student semester price (FREE counts)
+        // — the 15 scanned campuses that publish none were removed.
         Assert.Equal(
-            10,
+            Catalog.All().Count,
             Catalog.All().Count(c => c.HasPublishedSemesterPrice));
     }
 
@@ -97,12 +99,31 @@ public sealed class FeeCatalogTests
     [Fact]
     public void NotListedCampusReturnsNull_NotZero()
     {
-        // Sonoma State publishes no semester price on its PMB page.
-        var fee = FindOrFail("Sonoma State");
-        Assert.False(fee.IsFree);
-        Assert.Null(Catalog.SemesterPriceCents(fee, TermKind.Fall));
-        Assert.Null(Catalog.SemesterPriceCents(fee, TermKind.Spring));
-        Assert.Null(Catalog.SemesterPriceCents(fee, TermKind.Summer));
+        // Every campus in the SHIPPED table publishes a price now, so
+        // the not-listed behavior is proven against a synthetic row:
+        // the parser must still map "not listed" to null — never 0 —
+        // so the defensive path stays honest for any future data.
+        var header = File.ReadLines(FindFeesCsv()).First();
+        var row = "Nowhere State,not listed on PMB page,not listed on PMB page," +
+                  "$5/day,not listed on PMB page,not listed on PMB page," +
+                  "not listed on PMB page,synthetic test row";
+        var path = Path.Combine(
+            Path.GetTempPath(), $"solvia-fees-{Guid.NewGuid():N}.csv");
+        File.WriteAllText(path, header + "\n" + row + "\n");
+        try
+        {
+            var catalog = new FeeCatalogService(path);
+            var fee = catalog.Find("Nowhere State");
+            Assert.NotNull(fee);
+            Assert.False(fee!.IsFree);
+            Assert.Null(catalog.SemesterPriceCents(fee, TermKind.Fall));
+            Assert.Null(catalog.SemesterPriceCents(fee, TermKind.Spring));
+            Assert.Null(catalog.SemesterPriceCents(fee, TermKind.Summer));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [Fact]

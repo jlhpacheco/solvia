@@ -15,7 +15,7 @@ public sealed record CollegeSearchResult(
 /// College search behind the pick-your-college screen (BUILD-PLAN
 /// T8). Two implementations serve the SAME contract:
 /// - <see cref="BuiltinCollegeSearch"/> — deterministic in-memory
-///   match over <see cref="IFeeCatalog"/>'s 25 rows; the shipped
+///   match over <see cref="IFeeCatalog"/>'s 10 rows; the shipped
 ///   default, needs no server, never fails.
 /// - <see cref="ElasticCollegeSearch"/> — a local Elasticsearch
 ///   <c>colleges</c> index (hybrid keyword multi_match), selected by
@@ -30,7 +30,7 @@ public interface ICollegeSearch
     /// <summary>
     /// Ranked campuses matching <paramref name="query"/> (a college
     /// name, a town, or words from the fee notes — e.g. "Fresno",
-    /// "monterey", "motorcycle"). A null/empty query returns all 25
+    /// "monterey", "motorcycle"). A null/empty query returns all 10
     /// campuses in catalog order.
     /// </summary>
     Task<CollegeSearchResult> SearchAsync(

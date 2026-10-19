@@ -6,7 +6,7 @@ providers:
 
 | Provider | What it is | When it serves |
 |---|---|---|
-| `builtin` (default, shipped) | Deterministic in-memory match over the 25 fee rows (`BuiltinCollegeSearch`) | Always available; needs no server; also the fallback for the Elastic provider |
+| `builtin` (default, shipped) | Deterministic in-memory match over the 10 fee rows (`BuiltinCollegeSearch`) | Always available; needs no server; also the fallback for the Elastic provider |
 | `elastic` | A local Elasticsearch `colleges` index, hybrid keyword `multi_match` over `campus^3` + `searchText` (`ElasticCollegeSearch`) | Only when config `Search:Provider` is `elastic` |
 
 Whichever provider answers, the rows and prices are the catalog's:
@@ -33,7 +33,7 @@ which mode actually ran** — read it before claiming anything.
    `bin/elasticsearch`. Wait until `curl http://localhost:9200`
    answers.
 
-2. **Create the index and load the 25 campuses** (Python 3, standard
+2. **Create the index and load the 10 campuses** (Python 3, standard
    library only):
 
    ```bash

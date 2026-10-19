@@ -12,7 +12,7 @@ Environment:
 
 What it does: deletes the index if present, recreates it from
 colleges.mapping.json (next to this script), bulk-loads one document
-per campus (25), refreshes, and prints the document count.
+per campus (10), refreshes, and prints the document count.
 
 Price honesty: the cent values are parsed with the SAME rules as the
 app's FeeCatalogService — "not listed" stays null (the field is left
@@ -107,8 +107,8 @@ def main():
 
     with open(csv_path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    if len(rows) != 25:
-        print(f"WARNING: expected 25 campus rows, found {len(rows)}")
+    if len(rows) != 10:
+        print(f"WARNING: expected 10 campus rows, found {len(rows)}")
 
     docs = []
     for row in rows:

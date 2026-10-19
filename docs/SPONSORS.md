@@ -12,7 +12,7 @@ real piece of it runs in the app.
   deliberately never uses an AG Grid trial license — a 45-day trial
   started at build time would expire before judging ends (Dec 15, 2026).
 - The only AG Grid integration point in the codebase is
-  `wwwroot/js/feetable.aggrid.js`. All 25 campuses render through it,
+  `wwwroot/js/feetable.aggrid.js`. All 10 campuses render through it,
   sortable and filterable, with prices taken exactly from
   `IFeeCatalog` (null = "Not published", FREE = "$0 FREE").
 - Fallback behind the same seam: set config `FeeTable:Renderer=native`
@@ -101,7 +101,7 @@ real piece of it runs in the app.
 ## KERNEL — FEE-REFRESH JOB SHIPPED (script + real run output)
 
 - `tools/fee-refresh/` — the fee-table refresh job: `fee-refresh.sh`
-  (bash + curl) re-walks the 25 public campus pages listed in
+  (bash + curl) re-walks the 10 public campus pages listed in
   `sources.csv`, extracts the price lines, and diffs the amounts
   against `data/fees.csv`, printing a human review report
   (UNCHANGED / CHANGED / UNREACHABLE / NO BASELINE). It **proposes
@@ -110,9 +110,8 @@ real piece of it runs in the app.
 - KERNEL's role, stated exactly: KERNEL is this job's production
   runner in the sponsor plan (cloud browser infrastructure for
   re-walking pages); the shipped artifact is the portable script
-  doing the same job, with its real sample output (3 campuses
-  checked Oct 19, 2026 — all UNCHANGED, incl. CSUMB's $229.50)
-  recorded in `tools/fee-refresh/README.md`. No KERNEL session or
+  doing the same job, with its real sample output (sample run
+  recorded in `tools/fee-refresh/README.md`). No KERNEL session or
   replay is claimed.
 
 ## Render — NOT SHIPPED YET (no claim)
@@ -136,7 +135,7 @@ real piece of it runs in the app.
   (`/Permits/Apply?q=…`) runs through the seam and **prints which
   provider served the results**; on any Elastic failure it falls
   back to the built-in match and the screen says so. Index mapping,
-  an optional ELSER mapping, a seed script that loads all 25
+  an optional ELSER mapping, a seed script that loads all 10
   campuses from `data/fees.csv`, and run instructions live in
   `scripts/elastic/`. Ten unit tests cover both providers,
   including Elastic hits through a fake handler and three fallback

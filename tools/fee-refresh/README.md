@@ -1,8 +1,10 @@
 # Fee refresh — the KERNEL-style browser job that keeps fees.csv honest
 
 Solvia's prices are real published college fees, scanned by hand into
-`data/fees.csv` (25 campuses, from Parking Management Bureau pages at
-mycampuspermit.com). Fees change. This tool is the refresh job: it
+`data/fees.csv` (the 10 campuses that publish a student semester price,
+from Parking Management Bureau pages at mycampuspermit.com — the
+2026-10-18 scan covered 25 pages; the 15 that publish no semester
+price are not in the app). Fees change. This tool is the refresh job: it
 **re-walks the same public pages**, extracts the price lines, and
 diffs them against the fees.csv baseline.
 
@@ -26,12 +28,12 @@ change on the college's own page, and edits `fees.csv` by hand.
 | File | What it is |
 |---|---|
 | `fee-refresh.sh` | The refresh job (bash + curl). Read-only against the repo |
-| `sources.csv` | The 25 campus pages the fee table was built from (campus,url) — generated from the Source notes in `data/fees.csv` |
+| `sources.csv` | The 10 campus pages the fee table was built from (campus,url) — generated from the Source notes in `data/fees.csv` |
 
 ## Run it
 
 ```bash
-tools/fee-refresh/fee-refresh.sh              # all 25 campuses
+tools/fee-refresh/fee-refresh.sh              # all 10 campuses
 tools/fee-refresh/fee-refresh.sh --limit 3    # first 3 sources
 tools/fee-refresh/fee-refresh.sh --campus "Fresno"   # name filter
 ```
@@ -58,27 +60,27 @@ public, nothing is logged into, and the tool's user agent names it
 
 ```text
 ==============================================================
- Solvia fee refresh — 2026-10-19 01:24 UTC
+ Solvia fee refresh — 2026-10-19 01:54 UTC
  Sources : tools/fee-refresh/sources.csv
  Baseline: data/fees.csv (read-only — this tool never edits it)
 ==============================================================
 
-[1] Stanislaus State
-    https://mycampuspermit.com/stanstate.html
-    fees.csv amounts: 121.00 28.00 33.00
-    page amounts:     121.00 28.00 33.00 39.00 41.00 43.00 53.00 60.00 73.00
-    UNCHANGED — every fees.csv amount still appears on the page.
-
-[2] CSU Monterey Bay
+[1] CSU Monterey Bay
     https://mycampuspermit.com/mbay.html
     fees.csv amounts: 100.00 153.00 2.00 229.50 459.00 5.00 612.00 86.00
     page amounts:     100.00 119.07 135.00 14.89 153.00 158.76 180.00 2.00 204.00 229.50 24.75 33.75 39.69 45.00 459.00 5.00 51.00 59.53 612.00 67.50 76.50 86.00
     UNCHANGED — every fees.csv amount still appears on the page.
 
-[3] CSU East Bay
+[2] CSU East Bay
     https://mycampuspermit.com/eastbay.html
     fees.csv amounts: 10.00 100.00 195.00 2.00 50.00 97.50
     page amounts:     10.00 100.00 195.00 2.00 50.00 97.50
+    UNCHANGED — every fees.csv amount still appears on the page.
+
+[3] CSU Bakersfield
+    https://mycampuspermit.com/bakersfield.html
+    fees.csv amounts: 22.00 6.00 93.00
+    page amounts:     22.00 6.00 93.00
     UNCHANGED — every fees.csv amount still appears on the page.
 
 ==============================================================
@@ -92,5 +94,7 @@ public, nothing is logged into, and the tool's user agent names it
 
 (Absolute paths in the header lines are trimmed above; the verdicts,
 amounts, and summary are verbatim. `data/fees.csv`'s SHA-256 before
-and after the run: `6df00f9dea4de01462284fe6e11472cf1b6f0a292a114812a8c3847d3b4c96f2`
-— identical, as the read-only rule requires.)
+and after the run: `327aca14c33f99a1ffd412ccdbb8ec434b02c1cb440c17d2e5ce5edfabe5771c`
+— identical, as the read-only rule requires. That hash is the
+10-campus table; the earlier 25-campus scan file lives in the
+research record, not in this repo's data.)

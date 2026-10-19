@@ -94,7 +94,7 @@ public sealed class CollegeController : Controller
         _ => "NO PERMIT",
     };
 
-    /// <summary>Fee table page: all 25 campuses through the configured renderer.</summary>
+    /// <summary>Fee table page: all 10 campuses through the configured renderer.</summary>
     public IActionResult Fees()
     {
         var renderer = string.Equals(_feeTable.Renderer, "aggrid",

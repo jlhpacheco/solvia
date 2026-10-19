@@ -50,7 +50,7 @@ doubles as the permit number.
 
 ### College fee data — `data/fees.csv`
 
-Not a database table: a plain CSV of real published parking-permit fees for 25
+Not a database table: a plain CSV of real published parking-permit fees for 10
 California campuses. The AI reads the student's college row from this file so
 the total it quotes — and the amount sent to PayPal — is the college's real
 fee, never a generic or invented price.

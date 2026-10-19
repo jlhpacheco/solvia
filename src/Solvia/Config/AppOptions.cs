@@ -58,7 +58,7 @@ public sealed class CalendarOptions
 /// Search configuration section — which college-search provider serves
 /// the pick-your-college screen (the T8 seam, same flag pattern as
 /// <see cref="FeeTableOptions"/>). "builtin" ships and is the default:
-/// the deterministic in-memory match over the 25 fee rows needs no
+/// the deterministic in-memory match over the 10 fee rows needs no
 /// server at all. "elastic" routes the same screen through a local
 /// Elasticsearch <c>colleges</c> index (see <see cref="ElasticOptions"/>
 /// and scripts/elastic/) and falls back to the built-in match whenever

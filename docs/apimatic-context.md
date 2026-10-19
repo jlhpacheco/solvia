@@ -22,7 +22,7 @@ has. Everything below is verified against the shipped code
   AI (Microsoft Phi-4-mini via Ollama, 100% on the student's own
   computer) asks 3 questions (school / car / term), the app quotes the
   exact total from the college's real published fee (`data/fees.csv`,
-  25 campuses), the student approves, and pays with **PayPal sandbox**.
+  10 campuses), the student approves, and pays with **PayPal sandbox**.
   A paid application IS the permit; its receipt number is the permit
   number.
 - **Base URL (local demo):** `http://localhost:5156`

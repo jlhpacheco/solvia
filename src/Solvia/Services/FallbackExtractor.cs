@@ -11,10 +11,10 @@ namespace Solvia.Services;
 /// Ollama path uses to validate (and re-match) the model's college.
 ///
 /// Honesty rules, shared with the AI path:
-/// - The campus must resolve against <see cref="IFeeCatalog"/>'s 25
-///   campuses. An ambiguous mention (e.g. "Bakersfield", which is both
-///   CSU Bakersfield and Bakersfield College) resolves to null —
-///   never a guess.
+/// - The campus must resolve against <see cref="IFeeCatalog"/>'s 10
+///   campuses. An ambiguous mention (e.g. "Valley", shared by
+///   Antelope Valley College and Diablo Valley College) resolves
+///   to null — never a guess.
 /// - Nothing about money is ever produced here; the result type carries
 ///   no price at all.
 /// </summary>
@@ -100,7 +100,7 @@ public sealed class FallbackExtractor
         }
 
         // Pass 3: a token that names exactly one campus in the catalog
-        // (e.g. "fresno", "clovis", "sonoma") mentioned in the text.
+        // (e.g. "fresno", "monterey", "antelope") mentioned in the text.
         var owners = new Dictionary<string, CampusFee>(StringComparer.Ordinal);
         var ambiguous = new HashSet<string>(StringComparer.Ordinal);
         foreach (var campus in campuses)

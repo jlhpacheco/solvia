@@ -56,11 +56,11 @@ public sealed class CollegeSearchTests
     }
 
     [Fact]
-    public async Task Builtin_EmptyQuery_ReturnsAll25InCatalogOrder()
+    public async Task Builtin_EmptyQuery_ReturnsAll10InCatalogOrder()
     {
         var result = await Builtin.SearchAsync("  ");
 
-        Assert.Equal(25, result.Campuses.Count);
+        Assert.Equal(10, result.Campuses.Count);
         Assert.Equal(
             Catalog.All().Select(c => c.Campus),
             result.Campuses.Select(c => c.Campus));

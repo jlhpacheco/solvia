@@ -14,7 +14,8 @@ MARIA — student, first day
 1. PICK A COLLEGE
    Maria picks her college from the fee table.
    (AG Grid table; fees come from data/fees.csv —
-    real fees scanned from 25 campuses, 2026-10-18.)
+    real fees from the 10 campuses that publish a semester
+    price, from the 2026-10-18 scan of 25 campus pages.)
         |
         v
 2. AI ASKS — 3 questions only
@@ -55,7 +56,7 @@ MARIA — student, first day
 
 ## Why this matters
 
-- Today, at the incumbent store (mycampuspermit.com), many campuses do not publish their semester price on the public page at all — in the 2026-10-18 scan, only 10 of 25 campuses listed a student semester price publicly; the rest hide it behind a login or do not list it. A student can finish a long form without knowing the total.
+- Today, at the incumbent store (mycampuspermit.com), many campuses do not publish their semester price on the public page at all — in the 2026-10-18 research scan of 25 campus pages, only 10 listed a student semester price publicly; the rest hide it behind a login or do not list it. (That scan describes the incumbent's pages, not Solvia's campus count.) Solvia ships exactly those 10 campuses — every one with a published semester price. A student can finish a long form without knowing the total.
 - Prices also differ a lot by college (publicly listed semester prices in the scan run from FREE to $229.50), so one generic price would be wrong. The total must come from her college's real row.
 - Maria's case fixes both: the price comes first, from her college, and she only approves — the AI and PayPal do the steps.
 

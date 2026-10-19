@@ -18,7 +18,7 @@ namespace Solvia.Services;
 ///
 /// Trust rules:
 /// - The prompt demands ONLY a JSON object in our schema, and lists the
-///   25 real campus names from the fee catalog — the model may not
+///   10 real campus names from the fee catalog — the model may not
 ///   invent a college.
 /// - The answer is validated before it is believed: the college must
 ///   resolve against <see cref="IFeeCatalog"/> (a name the catalog does

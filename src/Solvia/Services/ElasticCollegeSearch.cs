@@ -8,7 +8,7 @@ namespace Solvia.Services;
 /// <summary>
 /// The Elastic college search (BUILD-PLAN T8, stretch): the same
 /// <see cref="ICollegeSearch"/> contract served by a local
-/// Elasticsearch <c>colleges</c> index — one index over the 25
+/// Elasticsearch <c>colleges</c> index — one index over the 10
 /// campuses, hybrid keyword <c>multi_match</c> over the campus name
 /// (boosted) and a combined <c>searchText</c> field holding the fee
 /// notes (see scripts/elastic/). ELSER semantic search is
