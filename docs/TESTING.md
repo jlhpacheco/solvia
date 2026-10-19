@@ -3,8 +3,10 @@
 The backend suite uses C#/xUnit. Browser smoke and journey tests use
 **TypeScript and Playwright Test** with desktop Chrome and Pixel 7-sized
 Chromium contexts. Tests use fictional data only.
-The final October 19 full browser run passed **46/46 checks**; TypeScript
-type checking passed. The app build completed with zero warnings and errors.
+The October 19 validation passed **60 desktop/mobile checks** (56 in the full
+browser run and four added receipt-navigation checks). A fresh **28-check
+desktop/mobile smoke run** also passed after the branding update. TypeScript
+type checking passed; the app build completed with zero warnings and errors.
 
 ## Backend and route regressions
 
@@ -14,7 +16,7 @@ dotnet test tests/Solvia.Tests
 
 This covers domain pricing, ownership, checkout/capture verification,
 webhooks, PDF contents, and actual Program.cs dependency injection, routing,
-Razor rendering, and antiforgery. The October 19 run passed **231 tests**.
+Razor rendering, and antiforgery. The October 19 run passed **244 tests**.
 
 ## TypeScript browser tests
 
@@ -60,24 +62,60 @@ It verifies that order IDs appear immediately and that failed, pending, or
 unreadable capture responses stay on checkout with a visible message. These
 contract tests are not evidence of a live PayPal capture.
 
-## Live integration boundary
+## Provider integration evidence and limits
 
-Browser tests stop before external buyer approval. They do not prove a live
-PayPal capture or a real AI inference. On October 19, the running app
-successfully authenticated with PayPal Sandbox, created a $30 USD order,
-and reused that order on a repeated request. Buyer approval/capture remains
-pending until the Personal sandbox buyer completes it.
+The isolated Playwright suite stops before external buyer approval. Its SDK
+contract tests simulate provider responses; they do not prove a provider
+capture or real AI inference.
 
-The follow-up real-provider check returned `CREATED` with the expected
-$30 USD amount. Calling the app's capture endpoint returned HTTP 409 with
-`ORDER_NOT_APPROVED`; retrying the redirect start returned 302 to the same
-provider approval URL. No capture ID or completed payment was claimed.
+A separate check against the running app and the real PayPal **Sandbox**
+completed on **2026-10-19 at 22:26:52 UTC**:
 
-Latest validation: 244 backend tests, 56 desktop/mobile checks in the full
-browser run, followed by the four added receipt-navigation checks (two on
-each viewport), all passing. TypeScript checking and the app build pass.
+| Check | Verified result |
+|---|---|
+| Application | Maria, Fresno City College term permit, $30.00 USD |
+| PayPal order | `1G1852006N6969449`, provider status `COMPLETED` |
+| PayPal capture | `7WR24202DB5257942`, provider status `COMPLETED` |
+| App capture endpoint | HTTP 200; `completed` true |
+| App receipt | `SOL-2026-197973` |
+| Paid permit PDF | One US Letter page; $30.00 USD and both provider IDs checked in extracted text and rendered output |
 
-Use the **Personal** test account as the buyer and the app's **Business**
-test account as the seller. Never put credentials in test source, reports,
-or commits. See [PayPal's sandbox account guide](https://developer.paypal.com/sandbox-testing/accounts).
-Real AI verification requires Ollama/Phi-4-mini and an `ollama` source label.
+This check used PayPal's published Sandbox test card with the official
+`confirm-payment-source` API, followed by the app's actual
+`POST /api/paypal/capture` endpoint. An independent provider order query
+matched the completed capture, exact amount, currency, and merchant. No raw
+card-handling feature was added to Solvia. This was a test-money transaction.
+
+Earlier in the same session, an unapproved order returned HTTP 409 with
+`ORDER_NOT_APPROVED`, and redirect resume reused its existing approval URL.
+The later completed capture supersedes that earlier pending status.
+
+Wallet/Personal-buyer UI approval has **not** been verified. A Business
+sandbox seller cannot buy from itself; use a separate **Personal** sandbox
+buyer when testing that UI path. Never put credentials in test source,
+reports, or commits. See [PayPal's sandbox account guide](https://developer.paypal.com/sandbox-testing/accounts).
+
+Real AI verification still requires Ollama/Phi-4-mini and an `ollama` source
+label. The demo person switcher tests fictional ownership flows and is not
+production authentication. CSV pricing is the accepted hackathon scope;
+no real-time college fee feed is claimed.
+
+## Multi-college Sandbox matrix
+
+The subsequent opt-in real-provider suite passed **20 checks**: 16 permit
+cases and four payment guards. The cases cover CSU Monterey Bay, CSU East
+Bay, Fresno City College, and Modesto Junior College / Columbia College /
+YCCD, each with Student and Public personas buying day and term permits.
+Fourteen captures completed for **$945.00 USD in Sandbox test funds**; the two
+YCCD term permits correctly issued free without PayPal transactions.
+
+Independent read-only PDF validation checked all 16 documents for one-page
+US Letter output, exact campus, plate, category, permit type, fee, receipt,
+and payment references. Free documents correctly state `FREE - ISSUED` and
+`Not required ($0 fee / exempt)` for provider references. Selected public day,
+public term, and long-campus-name free documents were also rendered for
+visual review.
+
+See [matrix setup and scope](SANDBOX-MATRIX.md) and
+[the dated provider results](SANDBOX-RESULTS-2026-10-19.md). These card/API
+captures do not establish that interactive PayPal wallet checkout was tested.

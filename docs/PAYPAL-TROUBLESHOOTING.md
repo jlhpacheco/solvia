@@ -5,9 +5,11 @@ then open My permits and Finish paying. Checkout displays the snapshotted
 college fee, existing PayPal order ID, and capture ID or pending text.
 
 An order ID identifies the request to collect that fee. It is not a receipt.
-The buyer must approve the order with a separate **Personal sandbox test
-account**. The configured **Business sandbox account** is the seller and
-cannot buy from itself. Use sandbox test funds; no real card is needed.
+For wallet checkout, the buyer approves the order with a separate
+**Personal sandbox test account**. The configured **Business sandbox
+account** is the seller and cannot buy from itself. Use sandbox test funds;
+no real card is needed. Official Sandbox test cards are another test-only
+payment route; the October 19 API check below used that route.
 Retrieve the Personal account privately in the developer dashboard's sandbox
 accounts area. Never add its password or app secrets to source or reports.
 
@@ -30,11 +32,32 @@ status is `COMPLETED`, and a capture ID exists. The server independently
 checks the exact fee and USD before issuance. HTTP failures expose a safe
 provider issue code/support reference when available.
 
-On October 19, a real Sandbox order was confirmed `CREATED` for $30 USD,
-the app returned `ORDER_NOT_APPROVED` on capture, and redirect resume reused
-the same order. Completed buyer approval/capture is still an outstanding
-integration check. Automated SDK contract tests use simulated responses and
-are not a substitute for that check.
+## October 19 provider result
+
+The initial $30.00 USD order returned `CREATED` and
+`ORDER_NOT_APPROVED`; redirect resume reused that same order. A later
+test completed its official Sandbox test-card confirmation and invoked
+Solvia's actual `POST /api/paypal/capture` endpoint successfully:
+
+- Order: `1G1852006N6969449`, independently confirmed `COMPLETED`.
+- Capture: `7WR24202DB5257942`, independently confirmed `COMPLETED` for
+  exactly $30.00 USD.
+- Receipt: `SOL-2026-197973`, with both provider IDs in the paid PDF.
+
+This is actual provider Sandbox evidence, separate from simulated SDK tests.
+Wallet/Personal-buyer UI approval remains unverified. The seller cannot pay
+itself; a `CANNOT_PAY_SELF` message requires a different sandbox buyer session.
+
+Fees come from the accepted CSV catalog. Solvia creates a distinct order for
+each paid application using its snapshotted total; it does not need a hosted
+payment link for each college or price. A later CSV edit must not change an
+open order's agreed amount.
+
+A follow-up matrix passed 20 real-integration checks across four campuses:
+14 paid captures totaling $945.00 USD in Sandbox test funds, two free permit
+cases, and four guards. All 16 permit PDFs passed content validation. See
+[the detailed results](SANDBOX-RESULTS-2026-10-19.md) and
+[matrix instructions](SANDBOX-MATRIX.md).
 
 References: [Sandbox accounts](https://developer.paypal.com/sandbox-testing/accounts),
 [Orders API](https://developer.paypal.com/api/orders/v2),

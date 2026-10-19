@@ -63,8 +63,9 @@ Use fictional people and vehicles for this public demo. Browser submissions reac
 
 ## Rules compliance — PayPal AI Hackathon
 
-- [ ] Record **live PayPal and AI evidence** — integrations ship, but a real sandbox buyer approval/capture and an Ollama inference must be verified for the final demo. The fee catalog sets the total.
-- [x] **PayPal Sandbox only** — fictitious test accounts, mock transactions, no real money, no real student data (Maria is fictional).
+- [x] **Verify a real PayPal Sandbox capture** — the running app captured a $30.00 USD Fresno City College term permit and produced a paid receipt/PDF. An independent provider query confirmed `COMPLETED` and the exact amount. This used PayPal's official Sandbox test-card confirmation followed by Solvia's capture endpoint; wallet/Personal-buyer UI approval has not been verified.
+- [ ] Record **live AI evidence** — verify an Ollama/Phi-4-mini extraction explicitly labeled `ollama`. The fee catalog, not the model, sets the total.
+- [x] **PayPal Sandbox only** — fictitious test accounts and test transactions, no real money, no real student data (Maria is fictional).
 - [x] **Locally runnable prototype** — tested routes and services; complete the external-service checks in the readiness document before submission. Render hosting is planned.
 - [x] **Public repository with an open-source license** — this repo is public, MIT License at the top level.
 - [x] **Tools are listed and explained** — see the table above.
@@ -213,16 +214,29 @@ checks the capture status, amount, currency, and ID before marking it Paid.
 AI drafts permit details; the person approves payment and the catalog sets
 the price.
 
-Sandbox authentication and a $30 order creation/reuse have been verified
-through the running app. Buyer approval and capture are still pending. The
-recorded demo must show those steps completing rather than relying on test
-doubles. See [the testing record](docs/TESTING.md).
+On October 19, the running app completed a **$30.00 USD Sandbox capture**
+for a Fresno City College term permit. PayPal order `1G1852006N6969449`
+and capture `7WR24202DB5257942` were independently confirmed `COMPLETED`;
+Solvia issued receipt `SOL-2026-197973` and a paid PDF containing both IDs.
+The verified path used PayPal's official Sandbox test-card confirmation and
+Solvia's actual REST capture endpoint. Wallet/Personal-buyer UI approval is
+a separate, unverified path. See [the testing record](docs/TESTING.md).
+The follow-up Sandbox matrix passed **20 checks**: 16 permit purchases across
+four colleges, student/public personas, and day/term permits, plus four
+payment guards. It verified 14 completed captures totaling **$945.00 USD in
+Sandbox test funds** and two free permits. All 16 PDFs passed content checks.
+See [the provider results](docs/SANDBOX-RESULTS-2026-10-19.md).
 For pending order IDs, buyer approval errors, or resuming payment, see
 [Sandbox payment troubleshooting](docs/PAYPAL-TROUBLESHOOTING.md).
 
 ## Data note
 
 `data/fees.csv` is research data scanned 2026-10-18 from the public pages of mycampuspermit.com (Parking Management Bureau), the incumbent permit store for these campuses. The shipped table holds exactly the 10 campuses that published a student semester price in that scan of 25 PMB pages; the other 15 published none and are not in the app. Every shipped row has a price (FREE is a price) — we never filled a price in.
+
+CSV pricing is the accepted hackathon scope. No live college feed is connected.
+Checkout snapshots the catalog fee; an open PayPal order or completed payment
+cannot be repriced by a later catalog edit. Each purchase creates its own order,
+so a separate hosted payment link for every college and price is unnecessary.
 
 ## License
 
