@@ -1,0 +1,84 @@
+@model Solvia.Models.ViewModels.RosterViewModel
+@using Solvia.Services
+@{
+    ViewData["Title"] = "Who paid";
+    string LongDate(System.DateOnly d) => d.ToString("MMMM d, yyyy",
+        System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+}
+
+<h1 class="display-5">@Model.Campus</h1>
+<p class="lead fs-3">Who has a parking permit — and who does not.</p>
+<p class="fs-4">
+    <strong>@Model.WithPermitCount</strong> with a permit ·
+    <strong>@Model.WithoutPermitCount</strong> not yet
+</p>
+
+<form method="get" asp-controller="College" asp-action="Roster" class="row g-2 align-items-end mb-4">
+    <div class="col-auto">
+        <label for="campus-picker" class="form-label fs-5">College</label>
+        <select id="campus-picker" name="campus" class="form-select form-select-lg">
+            @foreach (var campus in Model.Campuses)
+            {
+                if (campus == Model.Campus)
+                {
+                    <option value="@campus" selected>@campus</option>
+                }
+                else
+                {
+                    <option value="@campus">@campus</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-lg">Show roster</button>
+    </div>
+</form>
+
+<ul class="list-group mb-4">
+    @foreach (var row in Model.Rows)
+    {
+        <li class="list-group-item py-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="fs-2 fw-bold">@row.StudentName</span>
+                @switch (row.State)
+                {
+                    case RosterPermitState.Paid:
+                        <span class="badge bg-success fs-3">✔ @row.StateLabel</span>
+                        break;
+                    case RosterPermitState.FreeIssued:
+                        <span class="badge bg-primary fs-3">✔ @row.StateLabel</span>
+                        break;
+                    case RosterPermitState.Pending:
+                        <span class="badge bg-warning text-dark fs-3">@row.StateLabel</span>
+                        break;
+                    default:
+                        <span class="badge bg-secondary fs-3">@row.StateLabel</span>
+                        break;
+                }
+            </div>
+
+            @if (row.PermitNumber is not null && row.StartDate is not null && row.EndDate is not null)
+            {
+                <div class="fs-4 mt-2">
+                    Permit <strong>@row.PermitNumber</strong> —
+                    valid @LongDate(row.StartDate.Value) to @LongDate(row.EndDate.Value)
+                </div>
+            }
+            else if (row.State == RosterPermitState.Pending)
+            {
+                <div class="fs-4 mt-2 text-muted">Started an application — not paid yet.</div>
+            }
+            else if (row.State == RosterPermitState.NoPermit)
+            {
+                <div class="fs-4 mt-2 text-muted">No permit application at this college.</div>
+            }
+        </li>
+    }
+</ul>
+
+<p class="fs-5">
+    See also:
+    <a asp-controller="College" asp-action="Fees">parking fees for all 25 colleges</a> ·
+    <a asp-controller="College" asp-action="Dates" asp-route-campus="@Model.Campus">term dates for @Model.Campus</a>
+</p>

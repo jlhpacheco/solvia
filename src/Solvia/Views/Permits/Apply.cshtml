@@ -1,0 +1,69 @@
+@model Solvia.Models.ViewModels.CollegePickViewModel
+@{
+    ViewData["Title"] = "Pick your college";
+}
+
+<h1 class="display-5 fw-bold">Pick your college</h1>
+<p class="fs-4">Tap your college. The price shown is your college's real published price.</p>
+
+<form method="get" action="/Permits/Apply" class="mb-3">
+    <label class="form-label fs-4" for="collegeSearch">Search</label>
+    <div class="input-group input-group-lg">
+        <input id="collegeSearch" name="q" type="search" class="form-control fs-4"
+               placeholder="Type your college name…" autocomplete="off"
+               value="@Model.Query" />
+        <button class="btn btn-primary fs-4" type="submit">Search</button>
+    </div>
+</form>
+
+@if (Model.SearchServedBy is not null)
+{
+    <p class="fs-5 text-muted">
+        Search results for “@Model.Query” — served by
+        @(Model.SearchServedBy == "elastic"
+            ? "Elastic (local colleges index)"
+            : "the built-in search").
+    </p>
+    @if (Model.Campuses.Count == 0)
+    {
+        <p class="fs-4">No college matched. Try the town or part of the college name —
+            or <a href="/Permits/Apply">see all 25 colleges</a>.</p>
+    }
+}
+
+<div class="list-group" id="collegeList">
+    @foreach (var campus in Model.Campuses)
+    {
+        <a class="list-group-item list-group-item-action py-3 campus-item"
+           href="/Permits/Questions?college=@Uri.EscapeDataString(campus.Name)">
+            <span class="fs-3 fw-semibold d-block">@campus.Name</span>
+            @if (campus.HasPublishedPrice)
+            {
+                <span class="fs-4">@campus.PriceLabel</span>
+            }
+            else
+            {
+                <span class="fs-4 text-danger">@campus.PriceLabel</span>
+            }
+        </a>
+    }
+</div>
+
+<p class="mt-4">
+    <a class="fs-5" href="/College/Fees">See the full fee table for all 25 colleges</a>
+</p>
+
+<script>
+    // Simple client-side search over the server-rendered list.
+    // Without JavaScript the full list still shows — nothing is hidden.
+    (function () {
+        var box = document.getElementById('collegeSearch');
+        var items = document.querySelectorAll('.campus-item');
+        box.addEventListener('input', function () {
+            var q = box.value.trim().toLowerCase();
+            items.forEach(function (item) {
+                item.style.display = item.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+            });
+        });
+    })();
+</script>

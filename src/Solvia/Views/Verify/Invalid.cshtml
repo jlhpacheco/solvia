@@ -1,0 +1,25 @@
+@model Solvia.Models.ViewModels.VerifyViewModel
+@{
+    ViewData["Title"] = "Permit check";
+}
+
+<div class="text-center mt-5">
+    <h1 class="display-1 fw-bold text-danger">NOT VALID</h1>
+    <p class="fs-3">@Model.Reason</p>
+</div>
+
+@if (Model.PermitNumber is not null || Model.Campus is not null)
+{
+    <dl class="row fs-3 mt-5">
+        @if (Model.PermitNumber is not null)
+        {
+            <dt class="col-sm-4">Permit number</dt>
+            <dd class="col-sm-8"><strong>@Model.PermitNumber</strong></dd>
+        }
+        @if (Model.Campus is not null)
+        {
+            <dt class="col-sm-4">College</dt>
+            <dd class="col-sm-8">@Model.Campus</dd>
+        }
+    </dl>
+}

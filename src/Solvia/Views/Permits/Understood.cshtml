@@ -1,0 +1,59 @@
+@model Solvia.Models.ViewModels.PermitDraftViewModel
+@{
+    ViewData["Title"] = "Did I get this right?";
+}
+
+<h1 class="display-5 fw-bold">Here is what I understood</h1>
+
+<dl class="fs-3 mt-3">
+    <dt>Your college</dt>
+    <dd>@Model.College</dd>
+
+    <dt>Your car</dt>
+    <dd>@Model.CarSummary</dd>
+
+    <dt>Plate</dt>
+    <dd>@(string.IsNullOrWhiteSpace(Model.Plate) ? "I did not catch it" : Model.Plate)</dd>
+
+    <dt>Your permit</dt>
+    <dd>@Model.PermitSummary</dd>
+</dl>
+
+@if (Model.Source == "ollama")
+{
+    <p class="fs-5 text-muted">Read by the AI on this computer.</p>
+}
+else
+{
+    <p class="fs-5 text-muted">answered by our backup reader</p>
+}
+
+<form method="post" action="/Permits/Review">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="College" value="@Model.College" />
+    <input type="hidden" name="CarText" value="@Model.CarText" />
+    <input type="hidden" name="Plate" value="@Model.Plate" />
+    <input type="hidden" name="CarMake" value="@Model.CarMake" />
+    <input type="hidden" name="CarModel" value="@Model.CarModel" />
+    <input type="hidden" name="CarColor" value="@Model.CarColor" />
+    <input type="hidden" name="CarState" value="@Model.CarState" />
+    <input type="hidden" name="PermitType" value="@Model.PermitType" />
+    <input type="hidden" name="Term" value="@Model.Term" />
+    <input type="hidden" name="Source" value="@Model.Source" />
+    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3">Yes — show my total</button>
+</form>
+
+<form method="post" action="/Permits/Questions">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="College" value="@Model.College" />
+    <input type="hidden" name="CarText" value="@Model.CarText" />
+    <input type="hidden" name="Plate" value="@Model.Plate" />
+    <input type="hidden" name="CarMake" value="@Model.CarMake" />
+    <input type="hidden" name="CarModel" value="@Model.CarModel" />
+    <input type="hidden" name="CarColor" value="@Model.CarColor" />
+    <input type="hidden" name="CarState" value="@Model.CarState" />
+    <input type="hidden" name="PermitType" value="@Model.PermitType" />
+    <input type="hidden" name="Term" value="@Model.Term" />
+    <input type="hidden" name="Source" value="@Model.Source" />
+    <button type="submit" class="btn btn-outline-secondary btn-lg w-100 py-3 fs-3">Fix it</button>
+</form>

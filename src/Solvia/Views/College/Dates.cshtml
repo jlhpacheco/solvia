@@ -1,0 +1,49 @@
+@using System.Text.Json
+@model Solvia.Services.TermDates
+@{
+    ViewData["Title"] = "Term dates";
+    var datesJson = JsonSerializer.Serialize(Model,
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+    string Big(System.DateOnly d) => d.ToString("dddd, MMMM d, yyyy",
+        System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+}
+
+<h1 class="display-5">@Model.Campus — @Model.Term @Model.Year</h1>
+<p class="lead">The dates that matter for this permit, in one place.</p>
+
+@* The calendar seam in plain big text. DECISION (T5, docs/SPONSORS.md):
+   Bryntum Calendar is NOT embedded — Bryntum has no free community
+   edition, only a paid license or a 45-day trial, and a trial would
+   expire during judging (Dec 1–15, 2026). The native list renders the
+   identical TermDates JSON (island below, and /College/DatesJson). A
+   licensed Bryntum build drops in by adding wwwroot/js/calendar.bryntum.js
+   and setting config Calendar:Renderer=bryntum — no other change. *@
+<dl class="row fs-3">
+    <dt class="col-sm-4">Term starts</dt>
+    <dd class="col-sm-8"><strong>@Big(Model.TermStart)</strong></dd>
+
+    <dt class="col-sm-4">Term ends</dt>
+    <dd class="col-sm-8"><strong>@Big(Model.TermEnd)</strong></dd>
+
+    <dt class="col-sm-4">Permit ends</dt>
+    <dd class="col-sm-8"><strong>@Big(Model.PermitEndDate)</strong>
+        <span class="fs-5 text-muted">(term start + @Model.DurationDays days)</span></dd>
+
+    <dt class="col-sm-4">Renew by</dt>
+    <dd class="col-sm-8"><strong>@Big(Model.RenewalDate)</strong></dd>
+</dl>
+
+<div id="term-calendar"></div>
+
+<script type="application/json" id="term-dates-data">@Html.Raw(datesJson)</script>
+
+@section Scripts {
+    @if ((string?)ViewData["CalendarRenderer"] == "bryntum")
+    {
+        <script src="~/js/calendar.bryntum.js" asp-append-version="true"></script>
+    }
+    else
+    {
+        <script src="~/js/calendar.js" asp-append-version="true"></script>
+    }
+}

@@ -1,0 +1,65 @@
+@model Solvia.Models.ViewModels.ReviewViewModel
+@{
+    ViewData["Title"] = "Check your permit";
+    var draft = Model.Draft;
+}
+
+@if (Model.Blocked)
+{
+    <h1 class="display-5 fw-bold">Price not published</h1>
+    <p class="fs-3"><strong>@draft.College</strong> does not publish this price.</p>
+    <p class="fs-3">Price not published — ask your college.</p>
+    <p class="fs-5">Solvia never invents a price. There is no total to pay here.</p>
+    <a class="btn btn-primary btn-lg w-100 py-3 fs-3" href="/Permits/Apply">Pick another college</a>
+}
+else
+{
+    <h1 class="display-5 fw-bold">Check your permit</h1>
+
+    <dl class="fs-3 mt-3">
+        <dt>College</dt>
+        <dd>@draft.College</dd>
+
+        <dt>Car</dt>
+        <dd>@draft.CarSummary</dd>
+
+        <dt>Permit</dt>
+        <dd>@draft.PermitSummary</dd>
+
+        <dt>Good for</dt>
+        <dd>@Model.StartDate.ToString("MMM d, yyyy") to @Model.EndDate.ToString("MMM d, yyyy")</dd>
+    </dl>
+
+    <p class="display-4 fw-bold">Total: @Model.TotalDisplay</p>
+    <p class="fs-5 text-muted">The exact fee from your college's published fee row.</p>
+
+    @if (draft.Source == "fallback")
+    {
+        <p class="fs-5 text-muted">answered by our backup reader</p>
+    }
+
+    <form method="post" action="/Permits/Confirm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="College" value="@draft.College" />
+        <input type="hidden" name="CarText" value="@draft.CarText" />
+        <input type="hidden" name="Plate" value="@draft.Plate" />
+        <input type="hidden" name="CarMake" value="@draft.CarMake" />
+        <input type="hidden" name="CarModel" value="@draft.CarModel" />
+        <input type="hidden" name="CarColor" value="@draft.CarColor" />
+        <input type="hidden" name="CarState" value="@draft.CarState" />
+        <input type="hidden" name="PermitType" value="@draft.PermitType" />
+        <input type="hidden" name="Term" value="@draft.Term" />
+        <input type="hidden" name="Source" value="@draft.Source" />
+        @if (Model.IsFree)
+        {
+            <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3">Get my free permit</button>
+        }
+        else
+        {
+            <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3">Pay with PayPal</button>
+            <p class="fs-5 text-muted mt-2">PayPal sandbox — test money only, never real money.</p>
+        }
+    </form>
+
+    <a class="btn btn-outline-secondary btn-lg w-100 py-3 fs-4 mt-2" href="/Permits/Apply">Start over</a>
+}

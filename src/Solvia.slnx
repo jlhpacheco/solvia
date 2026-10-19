@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Solvia/Solvia.csproj" />
+  <Project Path="../tests/Solvia.Tests/Solvia.Tests.csproj" />
+</Solution>

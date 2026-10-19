@@ -1,0 +1,51 @@
+@model Solvia.Models.PermitApplication
+@{
+    var amount = ViewData["AmountDisplay"] as string;
+    var isPaid = Model.PaymentStatus == Solvia.Models.Enums.PaymentStatus.Paid;
+    var isFree = Model.PaymentStatus == Solvia.Models.Enums.PaymentStatus.NotRequired;
+}
+
+@if (isPaid)
+{
+    <h1>Permit live &#10003;</h1>
+    <p>Your payment is complete and this permit is active.</p>
+    <dl>
+        <dt>Permit number (= receipt number)</dt>
+        <dd><strong>@Model.ReceiptNumber</strong></dd>
+        <dt>Permit</dt>
+        <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+        <dt>Valid</dt>
+        <dd>@Model.StartDate to @Model.EndDate</dd>
+        <dt>Amount paid</dt>
+        <dd>$@amount (PayPal sandbox)</dd>
+        <dt>PayPal order ID</dt>
+        <dd>@Model.PayPalOrderId</dd>
+        <dt>PayPal capture ID</dt>
+        <dd>@Model.PayPalCaptureId</dd>
+        <dt>Paid at (UTC)</dt>
+        <dd>@Model.PaidAtUtc</dd>
+    </dl>
+}
+else if (isFree)
+{
+    <h1>Permit live &#10003;</h1>
+    <p>This permit is <strong>free</strong> at your college — no payment was needed.</p>
+    <dl>
+        <dt>Permit number (= receipt number)</dt>
+        <dd><strong>@Model.ReceiptNumber</strong></dd>
+        <dt>Permit</dt>
+        <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+        <dt>Valid</dt>
+        <dd>@Model.StartDate to @Model.EndDate</dd>
+    </dl>
+}
+else
+{
+    <h1>Not paid yet</h1>
+    <p>
+        This permit is <strong>not</strong> paid (payment status:
+        @Model.PaymentStatus). A permit only goes live when a PayPal
+        capture returns COMPLETED.
+    </p>
+    <p><a href="/Checkout/@Model.Id">Back to checkout</a></p>
+}

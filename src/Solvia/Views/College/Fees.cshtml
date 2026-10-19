@@ -1,0 +1,16 @@
+@model Solvia.Models.FeeTableViewModel
+@{
+    ViewData["Title"] = "College permit fees";
+}
+
+<h1 class="display-5">College permit fees</h1>
+<p class="lead">
+    Real published parking-permit fees for all @Model.Rows.Count campuses in the catalog.
+    A campus that does not publish a price shows <strong>Not published</strong> — Solvia never invents a fee.
+</p>
+<p class="text-muted">
+    Renderer: <strong>@Model.Renderer</strong>
+    (switch with config <code>FeeTable:Renderer</code> — <code>aggrid</code> or <code>native</code>; same rows either way)
+</p>
+
+<partial name="_FeeTable" model="Model" />

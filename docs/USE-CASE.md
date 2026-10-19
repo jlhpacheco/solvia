@@ -33,7 +33,7 @@ MARIA — student, first day
         v
 4. MARIA SAYS YES
    She reviews the total and the permit dates
-   (Bryntum calendar: term start, permit end, renewal date).
+   (term calendar: term start, permit end, renewal date).
    No approval, no payment.
         |
         v

@@ -1,0 +1,30 @@
+﻿@model Solvia.Models.ViewModels.HomeIndexViewModel
+@{
+    ViewData["Title"] = "Solvia";
+}
+
+<h1 class="display-3 fw-bold">Solvia</h1>
+<p class="fs-3">Your college parking permit.<br />Price first — then pay with PayPal.</p>
+
+<a class="btn btn-success btn-lg w-100 py-4 fs-2 mb-3" href="/Permits/Apply">Get my parking permit</a>
+<a class="btn btn-outline-primary btn-lg w-100 py-3 fs-3 mb-3" href="/Permits/My">My permits</a>
+
+<div class="border rounded p-3 mt-4">
+    <p class="fs-4 mb-2">Demo — you are <strong>@Model.CurrentStudentName</strong>.</p>
+    <p class="fs-5 mb-2">Switch demo student:</p>
+    <div class="d-flex flex-wrap gap-2">
+        @foreach (var student in Model.Students)
+        {
+            <form method="post" action="/Home/SwitchStudent">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@student.Id" />
+                <button type="submit" class="btn btn-lg @(student.Id == Model.CurrentStudentId ? "btn-primary" : "btn-outline-secondary") fs-4">
+                    @student.DisplayName
+                </button>
+            </form>
+        }
+    </div>
+    <p class="fs-6 text-muted mt-3 mb-0">
+        Demo only: fictional students, PayPal sandbox test money. No real personal data.
+    </p>
+</div>

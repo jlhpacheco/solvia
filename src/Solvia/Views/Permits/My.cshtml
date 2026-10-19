@@ -1,0 +1,39 @@
+@model Solvia.Models.ViewModels.MyPermitsViewModel
+@{
+    ViewData["Title"] = "My permits";
+}
+
+<h1 class="display-5 fw-bold">My permits</h1>
+<p class="fs-4">@Model.StudentName's permits</p>
+
+@if (Model.Permits.Count == 0)
+{
+    <p class="fs-3">No permits yet.</p>
+    <a class="btn btn-success btn-lg w-100 py-3 fs-3" href="/Permits/Apply">Get my parking permit</a>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var permit in Model.Permits)
+        {
+            <div class="list-group-item py-3">
+                <p class="fs-3 fw-semibold mb-1">@permit.Campus</p>
+                <p class="fs-4 mb-1">@permit.TypeName — @permit.StartDate.ToString("MMM d, yyyy") to @permit.EndDate.ToString("MMM d, yyyy")</p>
+                <p class="fs-4 mb-2">@permit.PriceDisplay</p>
+                @if (permit.IsLive)
+                {
+                    <p class="fs-4 mb-2"><span class="badge bg-success fs-5">Permit live</span></p>
+                    <a class="btn btn-primary btn-lg fs-4" href="/Permits/Receipt/@permit.Id">See my receipt</a>
+                }
+                else
+                {
+                    <p class="fs-4 mb-2"><span class="badge bg-warning text-dark fs-5">Not paid yet</span></p>
+                    <a class="btn btn-success btn-lg fs-4" href="/Checkout/@permit.Id">Finish paying</a>
+                }
+            </div>
+        }
+    </div>
+    <a class="btn btn-outline-primary btn-lg w-100 py-3 fs-3 mt-3" href="/Permits/Apply">Get another permit</a>
+}
+
+<p class="mt-3"><a class="fs-5" href="/Vehicles">My cars</a></p>

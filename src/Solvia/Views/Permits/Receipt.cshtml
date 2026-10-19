@@ -1,0 +1,59 @@
+@model Solvia.Models.ViewModels.ReceiptViewModel
+@{
+    ViewData["Title"] = "Your permit";
+}
+
+@if (Model.IsLive)
+{
+    <h1 class="display-4 fw-bold">Permit live &#10003;</h1>
+}
+else
+{
+    <h1 class="display-4 fw-bold">Not paid yet</h1>
+    <p class="fs-3">This permit is not live. It goes live only when a PayPal payment completes.</p>
+    <a class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3" href="/Checkout/@Model.Id">Finish paying</a>
+}
+
+<p class="fs-4 mb-1">Permit number</p>
+<p class="display-3 fw-bold">@(Model.ReceiptNumber ?? "—")</p>
+
+<dl class="fs-3">
+    <dt>College</dt>
+    <dd>@Model.College</dd>
+
+    <dt>Car</dt>
+    <dd>@Model.CarLine</dd>
+
+    <dt>Permit</dt>
+    <dd>@Model.TypeName</dd>
+
+    <dt>Good for</dt>
+    <dd>@Model.StartDate.ToString("MMM d, yyyy") to @Model.EndDate.ToString("MMM d, yyyy")</dd>
+
+    <dt>Total</dt>
+    <dd>@Model.TotalDisplay</dd>
+</dl>
+
+@if (Model.PayPalOrderId is not null)
+{
+    <p class="fs-5 mb-1">Paid with PayPal (sandbox)</p>
+    <p class="fs-5 mb-1">PayPal order ID: <span class="text-break">@Model.PayPalOrderId</span></p>
+}
+@if (Model.PayPalCaptureId is not null)
+{
+    <p class="fs-5">PayPal capture ID: <span class="text-break">@Model.PayPalCaptureId</span></p>
+}
+@if (Model.IsFree)
+{
+    <p class="fs-4">Free at your college — no payment was needed.</p>
+}
+
+@if (Model.VerifyUrl is not null)
+{
+    <div class="border rounded p-3 mt-3">
+        <p class="fs-4 mb-1">Anyone can check this permit:</p>
+        <a class="fs-4 text-break" href="@Model.VerifyUrl">@Model.VerifyUrl</a>
+    </div>
+}
+
+<a class="btn btn-outline-primary btn-lg w-100 py-3 fs-3 mt-4" href="/Permits/My">Back to my permits</a>

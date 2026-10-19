@@ -1,0 +1,56 @@
+@using System.Text.Json
+@model Solvia.Models.FeeTableViewModel
+
+@*
+    THE FEE-TABLE SEAM (T6). Every fee table in Solvia renders through
+    this partial and only this partial. Config FeeTable:Renderer picks
+    the renderer; the rows (from IFeeCatalog) are identical either way:
+
+    - "aggrid": AG Grid Community edition (free, no license key, no
+      trial) loaded from its official CDN; wwwroot/js/feetable.aggrid.js
+      is the only AG Grid integration point in the app. If the CDN is
+      unreachable, the adapter falls back to the native renderer below
+      with the same rows.
+    - "native": the plain server-rendered table in this file.
+*@
+
+@{
+    var rowsJson = JsonSerializer.Serialize(Model.Rows,
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+}
+
+<script type="application/json" id="fee-table-data">@Html.Raw(rowsJson)</script>
+
+@if (string.Equals(Model.Renderer, "aggrid", StringComparison.OrdinalIgnoreCase))
+{
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@34.3.1/styles/ag-grid.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@34.3.1/styles/ag-theme-quartz.css" />
+    <div id="feeGrid" class="ag-theme-quartz" style="height: 560px; width: 100%;"></div>
+    <script src="~/js/feetable.js" asp-append-version="true"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@34.3.1/dist/ag-grid-community.min.js"></script>
+    <script src="~/js/feetable.aggrid.js" asp-append-version="true"></script>
+}
+else
+{
+    <table class="table table-striped" id="feeTableNative">
+        <thead>
+            <tr>
+                <th scope="col">Campus</th>
+                <th scope="col">Semester price</th>
+                <th scope="col">Day-pass price</th>
+                <th scope="col">Source note</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                <tr>
+                    <td>@row.Campus</td>
+                    <td>@row.SemesterPrice</td>
+                    <td>@row.DayPass</td>
+                    <td>@row.SourceNote</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
