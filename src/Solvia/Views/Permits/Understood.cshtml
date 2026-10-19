@@ -11,7 +11,6 @@
     <input type="hidden" name="ApplicationId" value="@Model.ApplicationId" />
     <input type="hidden" name="College" value="@Model.College" />
     <input type="hidden" name="CarText" value="@Model.CarText" />
-    <input type="hidden" name="CarState" value="@Model.CarState" />
     <input type="hidden" name="PermitType" value="@Model.PermitType" />
     <input type="hidden" name="Term" value="@Model.Term" />
     <input type="hidden" name="Source" value="@Model.Source" />
@@ -27,11 +26,22 @@
 
         <p class="fs-3 fw-bold mb-2">Your car — fix anything that is wrong:</p>
 
-        <div class="mb-3">
-            <label class="form-label fs-4 fw-bold" for="plateInput">Plate</label>
-            <input id="plateInput" name="Plate" type="text" class="form-control fs-3"
-                   value="@Model.Plate" placeholder="Type your plate here"
-                   autocomplete="off" required />
+        <div class="row g-3 mb-3">
+            <div class="col-md-8">
+                <label class="form-label fs-4 fw-bold" for="plateInput">Plate</label>
+                <input id="plateInput" name="Plate" type="text" class="form-control fs-3"
+                       value="@Model.Plate" placeholder="Type your plate here"
+                       autocomplete="off" required />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fs-4 fw-bold" for="stateInput">Plate state</label>
+                <select id="stateInput" name="CarState" class="form-select fs-3">
+                    @foreach (var state in Enum.GetNames<Solvia.Models.Enums.UsState>())
+                    {
+                        <option value="@state" selected="@(state == (Model.CarState ?? "CA"))">@state</option>
+                    }
+                </select>
+            </div>
         </div>
 
         <div class="row g-3">

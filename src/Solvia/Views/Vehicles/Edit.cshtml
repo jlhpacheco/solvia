@@ -8,41 +8,7 @@
 <form method="post" action="/Vehicles/Edit">
     @Html.AntiForgeryToken()
     <input type="hidden" name="Id" value="@Model.Id" />
-
-    <div class="mb-3">
-        <label class="form-label fs-3 fw-bold" for="Plate">Plate</label>
-        <input id="Plate" name="Plate" class="form-control form-control-lg fs-4" value="@Model.Plate" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label fs-3 fw-bold" for="Make">Make</label>
-        <input id="Make" name="Make" class="form-control form-control-lg fs-4" value="@Model.Make" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label fs-3 fw-bold" for="Model">Model</label>
-        <input id="Model" name="Model" class="form-control form-control-lg fs-4" value="@Model.Model" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label fs-3 fw-bold" for="Color">Color</label>
-        <select id="Color" name="Color" class="form-select form-select-lg fs-4">
-            @foreach (var color in Enum.GetNames<Solvia.Models.Enums.VehicleColor>())
-            {
-                <option value="@color" selected="@(color == Model.Color.ToString())">@color</option>
-            }
-        </select>
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label fs-3 fw-bold" for="State">Plate state</label>
-        <select id="State" name="State" class="form-select form-select-lg fs-4">
-            @foreach (var state in Enum.GetNames<Solvia.Models.Enums.UsState>())
-            {
-                <option value="@state" selected="@(state == Model.State.ToString())">@state</option>
-            }
-        </select>
-    </div>
+    <partial name="_VehicleFields" model="Model" />
 
     <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3">Save</button>
 </form>

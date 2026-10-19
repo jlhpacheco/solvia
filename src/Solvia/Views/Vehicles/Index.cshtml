@@ -8,7 +8,8 @@
 @if (Model.Count == 0)
 {
     <p class="fs-3">No cars yet. Your car is saved when you get a permit.</p>
-    <a class="btn btn-success btn-lg w-100 py-3 fs-3" href="/Permits/Apply">Get my parking permit</a>
+    <a class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3" href="/Vehicles/Create">Add a car</a>
+    <a class="btn btn-outline-primary btn-lg w-100 py-3 fs-3" href="/Permits/Apply">Get my parking permit</a>
 }
 else
 {
@@ -22,4 +23,5 @@ else
             </div>
         }
     </div>
+    <a class="btn btn-success btn-lg w-100 py-3 fs-3 mt-3" href="/Vehicles/Create">Add a car</a>
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Solvia.Data;
+using Solvia.Models;
 using Solvia.Models.Enums;
 using Solvia.Models.ViewModels;
 
@@ -29,6 +30,41 @@ public sealed class VehiclesController : DemoControllerBase
             .OrderBy(v => v.Plate)
             .ToListAsync(cancellationToken);
         return View(vehicles);
+    }
+
+    [HttpGet]
+    public IActionResult Create()
+    {
+        // State defaults to CA on the view model — Duvara's default.
+        return View(new VehicleEditViewModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(
+        VehicleEditViewModel form, CancellationToken cancellationToken)
+    {
+        var plate = NormalizePlate(form.Plate);
+        if (plate.Length == 0)
+        {
+            ViewData["FormError"] = "Please type the plate.";
+            return View(form);
+        }
+
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        _db.Vehicles.Add(new Vehicle
+        {
+            Id = Guid.NewGuid(),
+            StudentId = student.Id,
+            Plate = plate,
+            State = form.State,
+            Make = NullIfBlank(form.Make),
+            Model = NullIfBlank(form.Model),
+            Color = form.Color,
+        });
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -66,13 +102,28 @@ public sealed class VehiclesController : DemoControllerBase
             return NotFound();
         }
 
-        vehicle.Plate = (form.Plate ?? "").Trim().ToUpperInvariant().Replace(" ", "");
-        vehicle.Make = string.IsNullOrWhiteSpace(form.Make) ? null : form.Make.Trim();
-        vehicle.Model = string.IsNullOrWhiteSpace(form.Model) ? null : form.Model.Trim();
+        var plate = NormalizePlate(form.Plate);
+        if (plate.Length == 0)
+        {
+            ViewData["FormError"] = "Please type the plate.";
+            return View(form);
+        }
+
+        vehicle.Plate = plate;
+        vehicle.Make = NullIfBlank(form.Make);
+        vehicle.Model = NullIfBlank(form.Model);
         vehicle.Color = form.Color;
         vehicle.State = form.State;
         await _db.SaveChangesAsync(cancellationToken);
 
         return RedirectToAction(nameof(Index));
     }
+
+    /// <summary>Plate normalization, shared by Create and Edit:
+    /// trimmed, upper-cased, spaces dropped ("8xyz 123" → "8XYZ123").</summary>
+    private static string NormalizePlate(string? plate) =>
+        (plate ?? "").Trim().ToUpperInvariant().Replace(" ", "");
+
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

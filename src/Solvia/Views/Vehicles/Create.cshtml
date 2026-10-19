@@ -1,0 +1,13 @@
+@model Solvia.Models.ViewModels.VehicleEditViewModel
+@{
+    ViewData["Title"] = "Add a car";
+}
+
+<h1 class="display-5 fw-bold">Add a car</h1>
+
+<form method="post" action="/Vehicles/Create">
+    @Html.AntiForgeryToken()
+    <partial name="_VehicleFields" model="Model" />
+
+    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3">Add my car</button>
+</form>

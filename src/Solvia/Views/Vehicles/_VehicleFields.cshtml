@@ -1,0 +1,139 @@
+@model Solvia.Models.ViewModels.VehicleEditViewModel
+@using System.Text.Json
+@{
+    // Duvara-style garage fields: pick from lists, don't free-type.
+    // Field order mirrors Duvara: Plate, State, Make, Model, Color.
+    var catalogMakes = Solvia.Models.VehicleCatalog.Makes;
+    var modelsByMake = Solvia.Models.VehicleCatalog.ModelsByMake;
+    var currentMake = Model.Make ?? "";
+    var currentModel = Model.Model ?? "";
+
+    // Models offered for the current make on first paint (before any
+    // JS runs): the catalog's list — plus the car's own model when it
+    // is off-list, so an extracted or unusual model is never dropped.
+    var initialModels = new List<string>();
+    if (modelsByMake.TryGetValue(currentMake, out var knownModels))
+    {
+        initialModels.AddRange(knownModels);
+    }
+    if (currentModel.Length > 0 && !initialModels.Contains(currentModel))
+    {
+        initialModels.Add(currentModel);
+    }
+}
+
+@if (ViewData["FormError"] is string formError)
+{
+    <div class="alert alert-warning fs-4 fw-bold" role="alert">@formError</div>
+}
+
+<div class="mb-3">
+    <label class="form-label fs-3 fw-bold" for="Plate">Plate</label>
+    <input id="Plate" name="Plate" class="form-control form-control-lg fs-4" value="@Model.Plate" autocomplete="off" required />
+</div>
+
+<div class="mb-3">
+    <label class="form-label fs-3 fw-bold" for="State">Plate state</label>
+    <select id="State" name="State" class="form-select form-select-lg fs-4">
+        @foreach (var state in Enum.GetNames<Solvia.Models.Enums.UsState>())
+        {
+            <option value="@state" selected="@(state == Model.State.ToString())">@state</option>
+        }
+    </select>
+</div>
+
+<div class="mb-3">
+    <label class="form-label fs-3 fw-bold" for="Make">Make</label>
+    <select id="Make" name="Make" class="form-select form-select-lg fs-4">
+        <option value="">Pick a make</option>
+        @foreach (var make in catalogMakes)
+        {
+            <option value="@make" selected="@(make == currentMake)">@make</option>
+        }
+        @if (currentMake.Length > 0 && !catalogMakes.Contains(currentMake))
+        {
+            <option value="@currentMake" selected>@currentMake</option>
+        }
+    </select>
+</div>
+
+<div class="mb-3">
+    <label class="form-label fs-3 fw-bold" for="ModelSelect">Model</label>
+    <select id="ModelSelect" name="Model" class="form-select form-select-lg fs-4">
+        <option value="">Pick a model</option>
+        @foreach (var modelName in initialModels)
+        {
+            <option value="@modelName" selected="@(modelName == currentModel)">@modelName</option>
+        }
+        <option value="__other__">Other — type it</option>
+    </select>
+    <input id="ModelOther" class="form-control form-control-lg fs-4 mt-2 d-none"
+           placeholder="Type the model" autocomplete="off" />
+</div>
+
+<div class="mb-3">
+    <label class="form-label fs-3 fw-bold" for="Color">Color</label>
+    <select id="Color" name="Color" class="form-select form-select-lg fs-4">
+        @foreach (var color in Enum.GetNames<Solvia.Models.Enums.VehicleColor>())
+        {
+            <option value="@color" selected="@(color == Model.Color.ToString())">@color</option>
+        }
+    </select>
+</div>
+
+<script>
+    // Make -> Model cascade. The Model select posts as "Model";
+    // picking "Other — type it" hands the "Model" name to the text
+    // box instead, so the server always binds exactly one Model —
+    // and an off-catalog model can never break the form.
+    (function () {
+        var MODELS = @Html.Raw(JsonSerializer.Serialize(Solvia.Models.VehicleCatalog.ModelsByMake));
+        var OTHER = "__other__";
+        var make = document.getElementById('Make');
+        var model = document.getElementById('ModelSelect');
+        var other = document.getElementById('ModelOther');
+
+        function showOther(show) {
+            if (show) {
+                model.removeAttribute('name');
+                other.setAttribute('name', 'Model');
+                other.classList.remove('d-none');
+            } else {
+                model.setAttribute('name', 'Model');
+                other.removeAttribute('name');
+                other.classList.add('d-none');
+            }
+        }
+
+        function rebuildModels() {
+            var list = MODELS[make.value] || [];
+            model.innerHTML = '';
+            var blank = document.createElement('option');
+            blank.value = '';
+            blank.textContent = 'Pick a model';
+            model.appendChild(blank);
+            list.forEach(function (name) {
+                var option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                model.appendChild(option);
+            });
+            var otherOption = document.createElement('option');
+            otherOption.value = OTHER;
+            otherOption.textContent = 'Other — type it';
+            model.appendChild(otherOption);
+            model.value = '';
+            showOther(false);
+        }
+
+        make.addEventListener('change', rebuildModels);
+        model.addEventListener('change', function () {
+            if (model.value === OTHER) {
+                showOther(true);
+                other.focus();
+            } else {
+                showOther(false);
+            }
+        });
+    })();
+</script>
