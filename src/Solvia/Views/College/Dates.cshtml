@@ -8,7 +8,7 @@
         System.Globalization.CultureInfo.GetCultureInfo("en-US"));
 }
 
-<h1 class="display-5">@Model.Campus — @Model.Term @Model.Year</h1>
+<h1 class="display-5 fw-bold">@Model.Campus — @Model.Term @Model.Year</h1>
 <p class="lead">The dates that matter for this permit, in one place.</p>
 
 @* The calendar seam in plain big text. DECISION (T5, docs/SPONSORS.md):
@@ -18,6 +18,7 @@
    identical TermDates JSON (island below, and /College/DatesJson). A
    licensed Bryntum build drops in by adding wwwroot/js/calendar.bryntum.js
    and setting config Calendar:Renderer=bryntum — no other change. *@
+<div class="sv-card">
 <dl class="row fs-3">
     <dt class="col-sm-4">Term starts</dt>
     <dd class="col-sm-8"><strong>@Big(Model.TermStart)</strong></dd>
@@ -32,6 +33,7 @@
     <dt class="col-sm-4">Renew by</dt>
     <dd class="col-sm-8"><strong>@Big(Model.RenewalDate)</strong></dd>
 </dl>
+</div>
 
 <div id="term-calendar"></div>
 

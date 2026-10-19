@@ -1,59 +1,92 @@
 @model Solvia.Models.ViewModels.PermitDraftViewModel
 @{
     ViewData["Title"] = "Did I get this right?";
+    var plateMissing = Model.PlateMissing || string.IsNullOrWhiteSpace(Model.Plate);
 }
 
 <h1 class="display-5 fw-bold">Here is what I understood</h1>
 
-<dl class="fs-3 mt-3">
-    <dt>Your college</dt>
-    <dd>@Model.College</dd>
-
-    <dt>Your car</dt>
-    <dd>@Model.CarSummary</dd>
-
-    <dt>Plate</dt>
-    <dd>@(string.IsNullOrWhiteSpace(Model.Plate) ? "I did not catch it" : Model.Plate)</dd>
-
-    <dt>Your permit</dt>
-    <dd>@Model.PermitSummary</dd>
-</dl>
-
-@if (Model.Source == "ollama")
-{
-    <p class="fs-5 text-muted">Read by the AI on this computer.</p>
-}
-else
-{
-    <p class="fs-5 text-muted">answered by our backup reader</p>
-}
-
 <form method="post" action="/Permits/Review">
     @Html.AntiForgeryToken()
+    <input type="hidden" name="ApplicationId" value="@Model.ApplicationId" />
     <input type="hidden" name="College" value="@Model.College" />
     <input type="hidden" name="CarText" value="@Model.CarText" />
-    <input type="hidden" name="Plate" value="@Model.Plate" />
-    <input type="hidden" name="CarMake" value="@Model.CarMake" />
-    <input type="hidden" name="CarModel" value="@Model.CarModel" />
-    <input type="hidden" name="CarColor" value="@Model.CarColor" />
     <input type="hidden" name="CarState" value="@Model.CarState" />
     <input type="hidden" name="PermitType" value="@Model.PermitType" />
     <input type="hidden" name="Term" value="@Model.Term" />
     <input type="hidden" name="Source" value="@Model.Source" />
-    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3">Yes — show my total</button>
+
+    <div class="sv-card mb-4">
+        <dl class="fs-3">
+            <dt>Your college</dt>
+            <dd>@Model.College</dd>
+
+            <dt>Your permit</dt>
+            <dd>@Model.PermitSummary</dd>
+        </dl>
+
+        <p class="fs-3 fw-bold mb-2">Your car — fix anything that is wrong:</p>
+
+        <div class="mb-3">
+            <label class="form-label fs-4 fw-bold" for="plateInput">Plate</label>
+            <input id="plateInput" name="Plate" type="text" class="form-control fs-3"
+                   value="@Model.Plate" placeholder="Type your plate here"
+                   autocomplete="off" required />
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label fs-4 fw-bold" for="colorInput">Color</label>
+                <input id="colorInput" name="CarColor" type="text" class="form-control fs-4"
+                       value="@Model.CarColor" autocomplete="off" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fs-4 fw-bold" for="makeInput">Make</label>
+                <input id="makeInput" name="CarMake" type="text" class="form-control fs-4"
+                       value="@Model.CarMake" autocomplete="off" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fs-4 fw-bold" for="modelInput">Model</label>
+                <input id="modelInput" name="CarModel" type="text" class="form-control fs-4"
+                       value="@Model.CarModel" autocomplete="off" />
+            </div>
+        </div>
+
+        @if (Model.Source == "ollama")
+        {
+            <p class="fs-5 text-muted mt-3 mb-0">Read by the AI on this computer.</p>
+        }
+        else
+        {
+            <p class="fs-5 text-muted mt-3 mb-0">answered by our backup reader</p>
+        }
+    </div>
+
+    @if (plateMissing)
+    {
+        <div id="platePrompt" class="alert alert-warning fs-3 fw-bold" role="alert">
+            I still need your plate — type it here, in the Plate box above.
+        </div>
+    }
+
+    <button id="continueButton" type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3">Yes — show my total</button>
+    <button type="submit" formaction="/Permits/Questions" formnovalidate
+            class="btn btn-outline-secondary btn-lg w-100 py-3 fs-3">Fix it</button>
 </form>
 
-<form method="post" action="/Permits/Questions">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="College" value="@Model.College" />
-    <input type="hidden" name="CarText" value="@Model.CarText" />
-    <input type="hidden" name="Plate" value="@Model.Plate" />
-    <input type="hidden" name="CarMake" value="@Model.CarMake" />
-    <input type="hidden" name="CarModel" value="@Model.CarModel" />
-    <input type="hidden" name="CarColor" value="@Model.CarColor" />
-    <input type="hidden" name="CarState" value="@Model.CarState" />
-    <input type="hidden" name="PermitType" value="@Model.PermitType" />
-    <input type="hidden" name="Term" value="@Model.Term" />
-    <input type="hidden" name="Source" value="@Model.Source" />
-    <button type="submit" class="btn btn-outline-secondary btn-lg w-100 py-3 fs-3">Fix it</button>
-</form>
+<script>
+    // Client nicety only — the server checks the plate again and the
+    // flow cannot advance past this screen until it is non-blank.
+    (function () {
+        var plate = document.getElementById('plateInput');
+        var button = document.getElementById('continueButton');
+        var prompt = document.getElementById('platePrompt');
+        function sync() {
+            var has = plate.value.trim().length > 0;
+            button.disabled = !has;
+            if (prompt) { prompt.style.display = has ? 'none' : ''; }
+        }
+        plate.addEventListener('input', sync);
+        sync();
+    })();
+</script>

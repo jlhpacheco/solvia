@@ -7,45 +7,59 @@
 
 @if (isPaid)
 {
-    <h1>Permit live &#10003;</h1>
-    <p>Your payment is complete and this permit is active.</p>
-    <dl>
-        <dt>Permit number (= receipt number)</dt>
-        <dd><strong>@Model.ReceiptNumber</strong></dd>
-        <dt>Permit</dt>
-        <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
-        <dt>Valid</dt>
-        <dd>@Model.StartDate to @Model.EndDate</dd>
-        <dt>Amount paid</dt>
-        <dd>$@amount (PayPal sandbox)</dd>
-        <dt>PayPal order ID</dt>
-        <dd>@Model.PayPalOrderId</dd>
-        <dt>PayPal capture ID</dt>
-        <dd>@Model.PayPalCaptureId</dd>
-        <dt>Paid at (UTC)</dt>
-        <dd>@Model.PaidAtUtc</dd>
-    </dl>
+    <div class="receipt-card">
+        <h1 class="display-5 fw-bold">Permit live &#10003;</h1>
+        <p class="fs-4">Your payment is complete and this permit is active.</p>
+        <p class="fs-5 text-muted mb-1">Permit number (= receipt number)</p>
+        <p class="receipt-number">@Model.ReceiptNumber</p>
+        <dl class="fs-4">
+            <dt>Permit</dt>
+            <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+            <dt>Valid</dt>
+            <dd>@Model.StartDate to @Model.EndDate</dd>
+            <dt>Amount paid</dt>
+            <dd>$@amount (PayPal sandbox)</dd>
+            <dt>Paid at (UTC)</dt>
+            <dd>@Model.PaidAtUtc</dd>
+        </dl>
+        <div class="receipt-ids">
+            <p class="mb-1">PayPal order ID<br /><code>@Model.PayPalOrderId</code></p>
+            <p class="mb-0">PayPal capture ID<br /><code>@Model.PayPalCaptureId</code></p>
+        </div>
+        @if (Model.VerifyToken is not null)
+        {
+            <a class="btn btn-primary btn-lg w-100 py-3 fs-4 mt-4" href="/verify?t=@Model.VerifyToken">Check this permit</a>
+        }
+    </div>
 }
 else if (isFree)
 {
-    <h1>Permit live &#10003;</h1>
-    <p>This permit is <strong>free</strong> at your college — no payment was needed.</p>
-    <dl>
-        <dt>Permit number (= receipt number)</dt>
-        <dd><strong>@Model.ReceiptNumber</strong></dd>
-        <dt>Permit</dt>
-        <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
-        <dt>Valid</dt>
-        <dd>@Model.StartDate to @Model.EndDate</dd>
-    </dl>
+    <div class="receipt-card">
+        <h1 class="display-5 fw-bold">Permit live &#10003;</h1>
+        <p class="fs-4">This permit is <strong>free</strong> at your college — no payment was needed.</p>
+        <p class="fs-5 text-muted mb-1">Permit number (= receipt number)</p>
+        <p class="receipt-number">@Model.ReceiptNumber</p>
+        <dl class="fs-4">
+            <dt>Permit</dt>
+            <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+            <dt>Valid</dt>
+            <dd>@Model.StartDate to @Model.EndDate</dd>
+        </dl>
+        @if (Model.VerifyToken is not null)
+        {
+            <a class="btn btn-primary btn-lg w-100 py-3 fs-4 mt-4" href="/verify?t=@Model.VerifyToken">Check this permit</a>
+        }
+    </div>
 }
 else
 {
-    <h1>Not paid yet</h1>
-    <p>
-        This permit is <strong>not</strong> paid (payment status:
-        @Model.PaymentStatus). A permit only goes live when a PayPal
-        capture returns COMPLETED.
-    </p>
-    <p><a href="/Checkout/@Model.Id">Back to checkout</a></p>
+    <div class="receipt-card receipt-card-pending">
+        <h1 class="display-5 fw-bold">Not paid yet</h1>
+        <p class="fs-4">
+            This permit is <strong>not</strong> paid (payment status:
+            @Model.PaymentStatus). A permit only goes live when a PayPal
+            capture returns COMPLETED.
+        </p>
+        <p><a class="btn btn-primary btn-lg fs-4" href="/Checkout/@Model.Id">Back to checkout</a></p>
+    </div>
 }

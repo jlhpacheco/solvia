@@ -38,7 +38,7 @@
 <ul class="list-group mb-4">
     @foreach (var row in Model.Rows)
     {
-        <li class="list-group-item py-4">
+        <li class="list-group-item py-4 roster-card">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <span class="fs-2 fw-bold">@row.StudentName</span>
                 @switch (row.State)
@@ -79,6 +79,6 @@
 
 <p class="fs-5">
     See also:
-    <a asp-controller="College" asp-action="Fees">parking fees for all 25 colleges</a> ·
+    <a asp-controller="College" asp-action="Fees">parking fees for all 10 colleges</a> ·
     <a asp-controller="College" asp-action="Dates" asp-route-campus="@Model.Campus">term dates for @Model.Campus</a>
 </p>

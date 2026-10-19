@@ -5,26 +5,26 @@
         System.Globalization.CultureInfo.GetCultureInfo("en-US"));
 }
 
-<div class="text-center mt-5">
-    <h1 class="display-1 fw-bold text-success">✔ VALID</h1>
+<div class="verify-card verify-valid mt-4">
+    <h1 class="display-1 fw-bold">✔ VALID</h1>
     <p class="fs-2">This parking permit is real and live.</p>
+
+    <dl class="row fs-3 mt-4 text-start">
+        <dt class="col-sm-4">Permit number</dt>
+        <dd class="col-sm-8"><strong>@Model.PermitNumber</strong></dd>
+
+        <dt class="col-sm-4">College</dt>
+        <dd class="col-sm-8">@Model.Campus</dd>
+
+        <dt class="col-sm-4">Student</dt>
+        <dd class="col-sm-8">@Model.StudentName</dd>
+
+        @if (Model.StartDate is not null && Model.EndDate is not null)
+        {
+            <dt class="col-sm-4">Valid dates</dt>
+            <dd class="col-sm-8">
+                @LongDate(Model.StartDate.Value) to @LongDate(Model.EndDate.Value)
+            </dd>
+        }
+    </dl>
 </div>
-
-<dl class="row fs-3 mt-5">
-    <dt class="col-sm-4">Permit number</dt>
-    <dd class="col-sm-8"><strong>@Model.PermitNumber</strong></dd>
-
-    <dt class="col-sm-4">College</dt>
-    <dd class="col-sm-8">@Model.Campus</dd>
-
-    <dt class="col-sm-4">Student</dt>
-    <dd class="col-sm-8">@Model.StudentName</dd>
-
-    @if (Model.StartDate is not null && Model.EndDate is not null)
-    {
-        <dt class="col-sm-4">Valid dates</dt>
-        <dd class="col-sm-8">
-            @LongDate(Model.StartDate.Value) to @LongDate(Model.EndDate.Value)
-        </dd>
-    }
-</dl>

@@ -11,8 +11,9 @@
     <div class="alert alert-warning fs-4" role="alert">@Model.Notice</div>
 }
 
-<form method="post" action="/Permits/Understand">
+<form method="post" action="/Permits/Understand" class="sv-card">
     @Html.AntiForgeryToken()
+    <input type="hidden" name="applicationId" value="@Model.ApplicationId" />
     <input type="hidden" name="college" value="@Model.College" />
 
     <div class="mb-4">
@@ -31,7 +32,7 @@
     <div class="mb-4">
         <p class="fs-3 fw-bold mb-2">3. Your term</p>
 
-        <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Permit type">
+        <div class="d-flex flex-wrap gap-2 mb-3 choice-cards" role="group" aria-label="Permit type">
             <input type="radio" class="btn-check" name="permitType" id="ptTerm" value="Term"
                    @(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Term ? "checked" : "") />
             <label class="btn btn-outline-primary btn-lg fs-4 px-4 py-3" for="ptTerm">Term permit</label>
@@ -41,7 +42,7 @@
             <label class="btn btn-outline-primary btn-lg fs-4 px-4 py-3" for="ptDaily">Day pass</label>
         </div>
 
-        <div class="d-flex flex-wrap gap-2" role="group" aria-label="Term">
+        <div class="d-flex flex-wrap gap-2 choice-cards" role="group" aria-label="Term">
             <input type="radio" class="btn-check" name="term" id="termFall" value="Fall"
                    @(Model.Term == Solvia.Models.Enums.TermKind.Fall ? "checked" : "") />
             <label class="btn btn-outline-primary btn-lg fs-4 px-4 py-3" for="termFall">Fall</label>
@@ -56,5 +57,5 @@
         </div>
     </div>
 
-    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fs-3">Next</button>
+    <button type="submit" class="btn btn-success btn-lg w-100 py-4 fs-3">Next</button>
 </form>

@@ -1,31 +1,446 @@
+/* ============================================================
+   SOLVIA THEME — navy + PayPal blue + gold (the Road S brand).
+   Presentation only: no view depends on these class names for
+   behavior; forms, routes and ids live in the views.
+   Accessibility brief: base font >= 1.1rem, high contrast,
+   big tap targets, one strong primary action per screen.
+   ============================================================ */
+
+:root {
+  --sv-navy: #0a2540;
+  --sv-navy-2: #103a5f;
+  --sv-blue: #0070e0;        /* PayPal blue — primary actions */
+  --sv-blue-dark: #003087;
+  --sv-blue-soft: #e8f2fd;
+  --sv-gold: #f2b33d;
+  --sv-gold-soft: #fdf3dd;
+  --sv-ink: #14232e;
+  --sv-muted: #4d6070;
+  --sv-bg: #f4f7fa;
+  --sv-card: #ffffff;
+  --sv-line: #d7e0e8;
+  --sv-green: #0e7c3e;
+  --sv-green-soft: #e6f6ec;
+  --sv-radius: 1.1rem;
+}
+
 html {
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
+  /* 17.5px base: every Bootstrap fs-* size scales up with it */
+  font-size: 17.5px;
   position: relative;
   min-height: 100%;
 }
 
 body {
-  margin-bottom: 60px;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: var(--sv-ink);
+  background: var(--sv-bg);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+main {
+  flex: 1 0 auto;
+  padding-bottom: 2.5rem;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+h1, h2, h3 {
+  color: var(--sv-navy);
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--sv-blue-dark);
+}
+
+::selection {
+  background: var(--sv-gold);
+  color: var(--sv-navy);
+}
+
+/* ---------- Header: deep navy, logo + wordmark, gold rule ---------- */
+
+.sv-header {
+  background: linear-gradient(135deg, var(--sv-navy) 0%, var(--sv-navy-2) 70%, #17507f 100%);
+  border-bottom: 4px solid var(--sv-gold);
+  box-shadow: 0 4px 18px rgba(10, 37, 64, .28);
+}
+
+.sv-header .sv-bar {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  padding-top: .8rem;
+  padding-bottom: .8rem;
+  flex-wrap: wrap;
+}
+
+.sv-logo {
+  height: 52px;
+  width: auto;
+  border-radius: .65rem;
+  background: #fff;
+  padding: 3px;
+}
+
+.sv-wordmark {
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.sv-wordmark:hover { color: var(--sv-gold); }
+
+.sv-tagline {
+  color: #bcd6ee;
+  font-size: .95rem;
+  letter-spacing: .02em;
+}
+
+.sv-nav {
+  margin-left: auto;
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+
+.sv-nav a {
+  color: #eaf3fc;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.05rem;
+  padding: .55rem 1rem;
+  border-radius: 999px;
+}
+
+.sv-nav a:hover {
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+}
+
+/* ---------- Footer ---------- */
+
+.sv-footer {
+  background: var(--sv-navy);
+  color: #cfe0f0;
+  border-top: 4px solid var(--sv-gold);
+  padding: 1.4rem 0 1.6rem;
+  margin-top: auto;
+  font-size: 1rem;
+}
+
+.sv-footer .sv-foot-brand {
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.sv-footer a { color: var(--sv-gold); }
+
+/* ---------- Cards & panels ---------- */
+
+.sv-card {
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: var(--sv-radius);
+  box-shadow: 0 10px 28px rgba(10, 37, 64, .08);
+  padding: 1.6rem;
+}
+
+.sv-card + .sv-card { margin-top: 1.2rem; }
+
+.price-panel {
+  background: var(--sv-navy);
+  color: #fff;
+  border-radius: var(--sv-radius);
+  padding: 1.4rem 1.6rem;
+  box-shadow: 0 12px 30px rgba(10, 37, 64, .22);
+}
+
+.price-panel .price-total {
+  font-size: 2.9rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.price-panel .text-muted,
+.price-panel .price-note { color: #bcd6ee !important; }
+
+/* Definition lists inside cards: roomy, easy to scan */
+.sv-card dl { margin-bottom: 0; }
+.sv-card dt { color: var(--sv-muted); font-weight: 600; margin-top: .9rem; }
+.sv-card dt:first-child { margin-top: 0; }
+.sv-card dd { font-weight: 600; margin-bottom: 0; }
+
+/* ---------- Buttons: one strong PayPal-blue primary ---------- */
+
+.btn-primary,
+.btn-success {
+  color: #fff;
+  background: linear-gradient(180deg, #0a84e8, var(--sv-blue));
+  border-color: var(--sv-blue-dark);
+  border-radius: .9rem;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(0, 112, 224, .28);
+}
+
+.btn-primary:hover, .btn-primary:focus,
+.btn-success:hover, .btn-success:focus {
+  color: #fff;
+  background: linear-gradient(180deg, #0070e0, #005fc0);
+  border-color: var(--sv-blue-dark);
+}
+
+.btn-outline-primary {
+  color: var(--sv-blue-dark);
+  border-color: var(--sv-blue);
+  border-radius: .9rem;
+  font-weight: 600;
+}
+
+.btn-outline-primary:hover {
+  background: var(--sv-blue);
+  border-color: var(--sv-blue-dark);
+  color: #fff;
+}
+
+.btn-outline-secondary { border-radius: .9rem; font-weight: 600; }
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus,
+.form-control:focus, .form-check-input:focus, .form-select:focus {
+  box-shadow: 0 0 0 .22rem rgba(242, 179, 61, .55);
+}
+
+.sv-cta {
+  font-size: 1.6rem !important;
+  padding-top: 1.1rem !important;
+  padding-bottom: 1.1rem !important;
+  border-radius: 1.1rem !important;
+}
+
+/* ---------- Home hero ---------- */
+
+.sv-hero {
+  text-align: left;
+  padding: 1.6rem 0 .4rem;
+}
+
+.sv-hero-logo {
+  width: 132px;
+  max-width: 40vw;
+  height: auto;
+  border-radius: 1.4rem;
+  box-shadow: 0 14px 34px rgba(10, 37, 64, .25);
+  background: #fff;
+  padding: 6px;
+  margin-bottom: 1.1rem;
+}
+
+.sv-hero h1 {
+  font-size: 3.4rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  margin-bottom: .4rem;
+}
+
+/* ---------- College pick list ---------- */
+
+#collegeList { gap: .8rem; display: flex; flex-direction: column; }
+#collegeList .list-group-item { border: 1px solid var(--sv-line) !important; }
+
+.college-card {
+  background: #fff;
+  border-radius: var(--sv-radius) !important;
+  box-shadow: 0 6px 18px rgba(10, 37, 64, .07);
+  padding: 1.1rem 1.3rem !important;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.college-card:hover, .college-card:focus {
+  border-color: var(--sv-blue) !important;
+  box-shadow: 0 10px 24px rgba(0, 112, 224, .18);
+  transform: translateY(-2px);
+}
+
+.price-chip {
+  display: inline-block;
+  margin-top: .45rem;
+  padding: .28rem .95rem;
+  border-radius: 999px;
+  background: var(--sv-blue-soft);
+  color: var(--sv-blue-dark);
+  font-weight: 700;
+  font-size: 1.15rem !important;
+}
+
+.price-chip-free {
+  background: var(--sv-green-soft);
+  color: var(--sv-green);
+  box-shadow: inset 0 0 0 2px var(--sv-green);
+}
+
+.price-chip-none {
+  background: #fdecec;
+  color: #9c1c1c;
+  box-shadow: none;
+}
+
+/* ---------- Questions: big selectable choice cards ---------- */
+
+.choice-cards { gap: .8rem !important; }
+
+.choice-cards .btn {
+  border-radius: 1rem;
+  border: 2px solid var(--sv-line);
+  background: #fff;
+  color: var(--sv-navy);
+  min-width: 9.5rem;
+  text-align: center;
+  transition: all .12s ease;
+}
+
+.choice-cards .btn:hover { border-color: var(--sv-blue); }
+
+.btn-check:checked + .btn,
+.btn-check:active + .btn {
+  background: var(--sv-navy);
+  border-color: var(--sv-gold);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(10, 37, 64, .3), inset 0 0 0 2px var(--sv-gold);
+}
+
+.btn-check:focus-visible + .btn {
+  box-shadow: 0 0 0 .25rem rgba(242, 179, 61, .6);
+}
+
+textarea.form-control, input.form-control, .form-select {
+  border-radius: .9rem;
+  border: 2px solid var(--sv-line);
+}
+
+textarea.form-control:focus, input.form-control:focus {
+  border-color: var(--sv-blue);
+}
+
+/* ---------- Receipt (Checkout Done + Permits Receipt) ---------- */
+
+.receipt-card {
+  background: #fff;
+  border: 1px solid var(--sv-line);
+  border-top: 10px solid var(--sv-green);
+  border-radius: var(--sv-radius);
+  box-shadow: 0 14px 34px rgba(10, 37, 64, .12);
+  padding: 1.8rem;
+  max-width: 46rem;
+}
+
+.receipt-card-pending { border-top-color: var(--sv-gold); }
+
+.receipt-number {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--sv-navy);
+  letter-spacing: .01em;
+  line-height: 1.15;
+  word-break: break-all;
+}
+
+.receipt-ids {
+  background: var(--sv-bg);
+  border: 1px dashed var(--sv-line);
+  border-radius: .8rem;
+  padding: 1rem 1.2rem;
+  font-size: 1rem;
+}
+
+.receipt-ids code {
+  color: var(--sv-navy);
+  word-break: break-all;
+}
+
+/* ---------- Verify cards ---------- */
+
+.verify-card {
+  border-radius: 1.4rem;
+  padding: 2.2rem 1.6rem;
+  text-align: center;
+  box-shadow: 0 14px 34px rgba(10, 37, 64, .12);
+}
+
+.verify-valid {
+  background: var(--sv-green-soft);
+  border: 3px solid var(--sv-green);
+}
+
+.verify-valid h1 { color: var(--sv-green); }
+
+.verify-invalid {
+  background: #fff;
+  border: 3px solid var(--sv-line);
+}
+
+.verify-invalid h1 { color: var(--sv-navy); }
+
+/* ---------- College side: tables, rosters, dates ---------- */
+
+.fee-table {
+  font-size: 1.08rem;
+  background: #fff;
+}
+
+.fee-table thead th {
+  background: var(--sv-navy);
+  color: #fff;
+  border-color: var(--sv-navy);
+  padding: .9rem 1rem;
+}
+
+.fee-table td { padding: .8rem 1rem; }
+
+.ag-theme-quartz {
+  font-size: 1.05rem;
+  --ag-row-height: 54px;
+  --ag-header-height: 58px;
+  --ag-header-background-color: #0a2540;
+  --ag-header-foreground-color: #ffffff;
+  --ag-font-family: "Segoe UI", system-ui, sans-serif;
+  border-radius: .8rem;
+  overflow: hidden;
+}
+
+.roster-card, .permit-card {
+  background: #fff;
+  border: 1px solid var(--sv-line) !important;
+  border-radius: var(--sv-radius) !important;
+  box-shadow: 0 6px 18px rgba(10, 37, 64, .06);
+  margin-bottom: .8rem;
+}
+
+.list-group { gap: 0; }
+.list-group .roster-card + .roster-card { margin-top: 0; }
+
+.badge { border-radius: 999px; padding: .5em .9em; }
+
+/* Alerts keep their honest words; just rounder and roomier */
+.alert { border-radius: 1rem; padding: 1.1rem 1.3rem; }
+
+/* ---------- Small screens (the video is shot on a phone) ---------- */
+
+@media (max-width: 576px) {
+  .sv-hero h1 { font-size: 2.5rem; }
+  .sv-logo { height: 44px; }
+  .sv-wordmark { font-size: 1.45rem; }
+  .sv-nav { margin-left: 0; }
+  .receipt-number { font-size: 2.2rem; }
+  .price-panel .price-total { font-size: 2.3rem; }
+  .choice-cards .btn { min-width: 0; flex: 1 1 42%; }
+  .sv-card, .receipt-card { padding: 1.2rem; }
 }

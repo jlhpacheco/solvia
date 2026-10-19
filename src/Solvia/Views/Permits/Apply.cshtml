@@ -27,30 +27,30 @@
     @if (Model.Campuses.Count == 0)
     {
         <p class="fs-4">No college matched. Try the town or part of the college name —
-            or <a href="/Permits/Apply">see all 25 colleges</a>.</p>
+            or <a href="/Permits/Apply">see all 10 colleges</a>.</p>
     }
 }
 
 <div class="list-group" id="collegeList">
     @foreach (var campus in Model.Campuses)
     {
-        <a class="list-group-item list-group-item-action py-3 campus-item"
+        <a class="list-group-item list-group-item-action py-3 campus-item college-card"
            href="/Permits/Questions?college=@Uri.EscapeDataString(campus.Name)">
             <span class="fs-3 fw-semibold d-block">@campus.Name</span>
             @if (campus.HasPublishedPrice)
             {
-                <span class="fs-4">@campus.PriceLabel</span>
+                <span class="price-chip @(campus.PriceLabel.Contains("FREE") ? "price-chip-free" : "")">@campus.PriceLabel</span>
             }
             else
             {
-                <span class="fs-4 text-danger">@campus.PriceLabel</span>
+                <span class="price-chip price-chip-none">@campus.PriceLabel</span>
             }
         </a>
     }
 </div>
 
 <p class="mt-4">
-    <a class="fs-5" href="/College/Fees">See the full fee table for all 25 colleges</a>
+    <a class="fs-5" href="/College/Fees">See the full fee table for all 10 colleges</a>
 </p>
 
 <script>

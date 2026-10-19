@@ -14,8 +14,9 @@ else
     <a class="btn btn-success btn-lg w-100 py-3 fs-3 mb-3" href="/Checkout/@Model.Id">Finish paying</a>
 }
 
+<div class="receipt-card">
 <p class="fs-4 mb-1">Permit number</p>
-<p class="display-3 fw-bold">@(Model.ReceiptNumber ?? "—")</p>
+<p class="receipt-number">@(Model.ReceiptNumber ?? "—")</p>
 
 <dl class="fs-3">
     <dt>College</dt>
@@ -34,14 +35,19 @@ else
     <dd>@Model.TotalDisplay</dd>
 </dl>
 
-@if (Model.PayPalOrderId is not null)
+@if (Model.PayPalOrderId is not null || Model.PayPalCaptureId is not null)
 {
-    <p class="fs-5 mb-1">Paid with PayPal (sandbox)</p>
-    <p class="fs-5 mb-1">PayPal order ID: <span class="text-break">@Model.PayPalOrderId</span></p>
-}
-@if (Model.PayPalCaptureId is not null)
-{
-    <p class="fs-5">PayPal capture ID: <span class="text-break">@Model.PayPalCaptureId</span></p>
+    <div class="receipt-ids mt-3">
+        <p class="fs-5 fw-semibold mb-2">Paid with PayPal (sandbox)</p>
+        @if (Model.PayPalOrderId is not null)
+        {
+            <p class="mb-1">PayPal order ID<br /><code>@Model.PayPalOrderId</code></p>
+        }
+        @if (Model.PayPalCaptureId is not null)
+        {
+            <p class="mb-0">PayPal capture ID<br /><code>@Model.PayPalCaptureId</code></p>
+        }
+    </div>
 }
 @if (Model.IsFree)
 {
@@ -50,10 +56,10 @@ else
 
 @if (Model.VerifyUrl is not null)
 {
-    <div class="border rounded p-3 mt-3">
-        <p class="fs-4 mb-1">Anyone can check this permit:</p>
-        <a class="fs-4 text-break" href="@Model.VerifyUrl">@Model.VerifyUrl</a>
-    </div>
+    <p class="fs-4 mt-4 mb-2">Anyone can check this permit:</p>
+    <a class="btn btn-primary btn-lg w-100 py-3 fs-4" href="@Model.VerifyUrl">Check this permit</a>
+    <p class="fs-6 text-muted text-break mt-2 mb-0">@Model.VerifyUrl</p>
 }
+</div>
 
 <a class="btn btn-outline-primary btn-lg w-100 py-3 fs-3 mt-4" href="/Permits/My">Back to my permits</a>

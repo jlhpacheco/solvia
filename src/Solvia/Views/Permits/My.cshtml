@@ -16,7 +16,7 @@ else
     <div class="list-group">
         @foreach (var permit in Model.Permits)
         {
-            <div class="list-group-item py-3">
+            <div class="list-group-item py-3 permit-card">
                 <p class="fs-3 fw-semibold mb-1">@permit.Campus</p>
                 <p class="fs-4 mb-1">@permit.TypeName — @permit.StartDate.ToString("MMM d, yyyy") to @permit.EndDate.ToString("MMM d, yyyy")</p>
                 <p class="fs-4 mb-2">@permit.PriceDisplay</p>
