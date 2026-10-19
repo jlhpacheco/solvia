@@ -79,6 +79,11 @@ else
             @Model.PaymentStatus). A permit only goes live when a PayPal
             capture returns COMPLETED.
         </p>
+        <dl>
+            <dt>Fee</dt><dd>$@amount USD</dd>
+            <dt>PayPal order ID</dt><dd class="text-break">@(Model.PayPalOrderId ?? "Not created yet")</dd>
+            <dt>PayPal capture ID</dt><dd class="text-break">@(Model.PayPalCaptureId ?? "Not issued yet — payment is not confirmed.")</dd>
+        </dl>
         <p><a class="btn btn-primary btn-lg fs-4" href="/Checkout/@Model.Id">Back to checkout</a></p>
     </div>
 }

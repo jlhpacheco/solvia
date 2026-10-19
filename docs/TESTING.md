@@ -50,9 +50,15 @@ Testing loads the source build's static-asset manifest explicitly. Report
 and failure traces are ignored by Git.
 
 The real AG Grid 34.3.1 library is delivered from the pinned npm package to
-the page's CDN request in tests. Application routes and business outcomes
-are not mocked. The separate fallback test deliberately blocks that request.
+the page's CDN request in tests. The main journey suite uses real application
+routes and business outcomes. The separate fallback test deliberately blocks that request.
 An actual CDN-loaded grid was also checked in the local preview browser.
+
+`checkout-errors.spec.ts` separately simulates the PayPal SDK callbacks and
+HTTP failure/pending responses, while using real permit and checkout pages.
+It verifies that order IDs appear immediately and that failed, pending, or
+unreadable capture responses stay on checkout with a visible message. These
+contract tests are not evidence of a live PayPal capture.
 
 ## Live integration boundary
 
@@ -61,6 +67,15 @@ PayPal capture or a real AI inference. On October 19, the running app
 successfully authenticated with PayPal Sandbox, created a $30 USD order,
 and reused that order on a repeated request. Buyer approval/capture remains
 pending until the Personal sandbox buyer completes it.
+
+The follow-up real-provider check returned `CREATED` with the expected
+$30 USD amount. Calling the app's capture endpoint returned HTTP 409 with
+`ORDER_NOT_APPROVED`; retrying the redirect start returned 302 to the same
+provider approval URL. No capture ID or completed payment was claimed.
+
+Latest validation: 244 backend tests, 56 desktop/mobile checks in the full
+browser run, followed by the four added receipt-navigation checks (two on
+each viewport), all passing. TypeScript checking and the app build pass.
 
 Use the **Personal** test account as the buyer and the app's **Business**
 test account as the seller. Never put credentials in test source, reports,

@@ -81,8 +81,8 @@ public sealed class PayPalController : DemoControllerBase
         {
             var result = await _checkout.StartAsync(
                 request.PermitApplicationId,
-                returnUrl: null,
-                cancelUrl: null,
+                returnUrl: $"{Request.Scheme}://{Request.Host}/Checkout/Return",
+                cancelUrl: $"{Request.Scheme}://{Request.Host}/Checkout/Cancel",
                 cancellationToken);
             return result.Kind switch
             {
@@ -112,6 +112,10 @@ public sealed class PayPalController : DemoControllerBase
             _logger.LogWarning(ex, "PayPal sandbox connection failed.");
             return StatusCode(503, new { error = "PayPal sandbox is temporarily unavailable. Check your permit status before retrying." });
         }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return StatusCode(503, new { error = "PayPal sandbox timed out. Check your permit status before retrying." });
+        }
         catch (PayPalNotConfiguredException ex)
         {
             return StatusCode(
@@ -130,7 +134,7 @@ public sealed class PayPalController : DemoControllerBase
             _logger.LogWarning(ex, "PayPal create-order failed.");
             return StatusCode(
                 StatusCodes.Status502BadGateway,
-                new { error = "PayPal sandbox could not create the order. The permit is not paid." });
+                new { error = "PayPal sandbox could not prepare this payment. Check its status before retrying.", code = ex.PayPalIssue ?? ex.PayPalErrorName, debugId = ex.DebugId });
         }
     }
 
@@ -171,6 +175,7 @@ public sealed class PayPalController : DemoControllerBase
             return Ok(new
             {
                 status = result.Status,
+                orderId = request.OrderId,
                 completed = result.Completed,
                 captureId = result.CaptureId,
                 receiptNumber = result.ReceiptNumber,
@@ -184,6 +189,10 @@ public sealed class PayPalController : DemoControllerBase
         {
             _logger.LogWarning(ex, "PayPal sandbox connection failed.");
             return StatusCode(503, new { error = "PayPal sandbox is temporarily unavailable. Check your permit status before retrying." });
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return StatusCode(503, new { error = "PayPal sandbox timed out. Check your permit status before retrying." });
         }
         catch (PayPalNotConfiguredException ex)
         {
@@ -201,9 +210,11 @@ public sealed class PayPalController : DemoControllerBase
         catch (PayPalApiException ex)
         {
             _logger.LogWarning(ex, "PayPal capture failed.");
+            if (ex.PayPalIssue == "ORDER_NOT_APPROVED")
+                return Conflict(new { error = "Approve this order in PayPal Sandbox with a Personal buyer test account first. The Business account is the seller.", code = ex.PayPalIssue, debugId = ex.DebugId });
             return StatusCode(
                 StatusCodes.Status502BadGateway,
-                new { error = "PayPal sandbox could not capture the order. The permit is not paid." });
+                new { error = "PayPal sandbox could not confirm the payment. Check its status before retrying.", code = ex.PayPalIssue ?? ex.PayPalErrorName, debugId = ex.DebugId });
         }
     }
 }

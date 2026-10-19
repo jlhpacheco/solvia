@@ -12,6 +12,7 @@
 }
 
 <h1 class="mt-4">Checkout</h1>
+<div id="checkout-feedback" class="alert alert-info mt-3" role="status" aria-live="polite" tabindex="-1" hidden></div>
 
 @if (error is not null)
 {
@@ -45,8 +46,20 @@
     </div>
 </div>
 
+<section class="sv-card mt-3" aria-labelledby="payment-status-heading">
+    <h2 class="fs-3" id="payment-status-heading">Payment status</h2>
+    <p id="payment-state">Payment not confirmed — this permit is not active.</p>
+    <dl class="mb-0">
+        <dt>PayPal order ID</dt>
+        <dd id="paypal-order-id" class="text-break">@(Model.PayPalOrderId ?? "Not created yet — choose PayPal below.")</dd>
+        <dt>PayPal capture ID</dt>
+        <dd id="paypal-capture-id" class="text-break">@(Model.PayPalCaptureId ?? "Not issued yet — buyer approval and capture are required.")</dd>
+    </dl>
+    <p class="text-muted mt-3 mb-0">An order ID records the payment request. A completed capture confirms payment of the $@amount @currency fee.</p>
+</section>
+
 @* The full detail list (item 20) — campus and category included. *@
-<div class="sv-card mt-3">
+<div class="sv-card mt-3" id="checkout-payment" data-application-id="@Model.Id">
     <dl class="fs-4 mb-0">
         <dt>College</dt>
         <dd>@Model.Campus</dd>
@@ -112,52 +125,11 @@
         <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fs-4">Pay $@amount with PayPal</button>
     </form>
     <p class="text-muted mt-2 mb-0">Sandbox only — a test account, never real money.</p>
+    <p class="mt-2 mb-0">Sign in at PayPal with a <strong>Sandbox Personal buyer</strong> account. The Sandbox Business account receives the payment. Use test funds; no real card is needed.</p>
 </div>
 
 @if (!string.IsNullOrWhiteSpace(clientId))
 {
     <script src="https://www.paypal.com/sdk/js?client-id=@clientId&currency=@currency&intent=capture"></script>
-    <script>
-        (function () {
-            var tokenInput = document.querySelector(
-                '#plain-pay-form input[name="__RequestVerificationToken"]');
-            var afToken = tokenInput ? tokenInput.value : '';
-            function apiHeaders() {
-                return {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': afToken
-                };
-            }
-            paypal.Buttons({
-                createOrder: function () {
-                    return fetch('/api/paypal/orders', {
-                        method: 'POST',
-                        headers: apiHeaders(),
-                        body: JSON.stringify({ permitApplicationId: '@Model.Id' })
-                    }).then(function (res) { return res.json(); })
-                      .then(function (data) {
-                          if (data.status === 'not-required' || data.status === 'already-paid') {
-                              window.location = '/Checkout/Done/@Model.Id';
-                              return null;
-                          }
-                          return data.id;
-                      });
-                },
-                onApprove: function (data) {
-                    return fetch('/api/paypal/capture', {
-                        method: 'POST',
-                        headers: apiHeaders(),
-                        body: JSON.stringify({ orderId: data.orderID })
-                    }).then(function (res) { return res.json(); })
-                      .then(function () { window.location = '/Checkout/Done/@Model.Id'; });
-                },
-                onCancel: function () {
-                    window.location = '/Checkout/Cancel';
-                },
-                onError: function () {
-                    window.location = '/Checkout/@Model.Id';
-                }
-            }).render('#paypal-button-container');
-        })();
-    </script>
 }
+<script src="~/js/checkout.js" asp-append-version="true" defer></script>

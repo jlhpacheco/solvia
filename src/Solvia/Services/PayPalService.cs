@@ -123,7 +123,7 @@ public sealed class PayPalService : IPayPalService
             },
         };
 
-        if (returnUrl is not null || cancelUrl is not null)
+        // A parking permit never needs a shipping address, including SDK orders.
         {
             var context = new JsonObject
             {
@@ -190,10 +190,21 @@ public sealed class PayPalService : IPayPalService
         request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
 
         using var response = await _http.SendAsync(request, cancellationToken);
-        var body = await ReadBodyOrThrowAsync(response, "capture order", cancellationToken);
+        string body;
+        try
+        {
+            body = await ReadBodyOrThrowAsync(response, "capture order", cancellationToken);
+        }
+        catch (PayPalApiException ex) when (ex.PayPalIssue == "ORDER_ALREADY_CAPTURED")
+        {
+            // A previous capture may have succeeded before its response or our
+            // database save was lost. Reconcile the provider's actual capture.
+            body = await ReadOrderBodyAsync(orderId, token, cancellationToken);
+        }
 
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
+        EnsureOrderId(root, orderId);
         var status = "";
         int? amountCents = null;
         string? currency = null;
@@ -224,6 +235,40 @@ public sealed class PayPalService : IPayPalService
             "Captured PayPal sandbox order {OrderId}: status {Status}, capture {CaptureId}.",
             orderId, status, captureId ?? "(none)");
         return new PayPalCaptureResult(status, captureId, amountCents, currency);
+    }
+
+    public async Task<PayPalOrderResult> GetOrderAsync(
+        string orderId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(orderId);
+        var token = await GetAccessTokenAsync(cancellationToken);
+        using var doc = JsonDocument.Parse(await ReadOrderBodyAsync(orderId, token, cancellationToken));
+        var root = doc.RootElement;
+        var approval = FindLink(root, "approve") ?? FindLink(root, "payer-action");
+        if (approval is not null &&
+            (!Uri.TryCreate(approval, UriKind.Absolute, out var uri) ||
+             uri.Scheme != "https" || uri.Host != "www.sandbox.paypal.com" || uri.Port != 443))
+            throw new PayPalApiException("get order", System.Net.HttpStatusCode.BadGateway, null,
+                "PayPal returned an unexpected sandbox approval address.");
+        return new PayPalOrderResult(orderId, root.GetProperty("status").GetString() ?? "", approval);
+    }
+
+    private async Task<string> ReadOrderBodyAsync(string orderId, string token, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"v2/checkout/orders/{Uri.EscapeDataString(orderId)}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await _http.SendAsync(request, cancellationToken);
+        var body = await ReadBodyOrThrowAsync(response, "get order", cancellationToken);
+        using var doc = JsonDocument.Parse(body);
+        EnsureOrderId(doc.RootElement, orderId);
+        return body;
+    }
+
+    private static void EnsureOrderId(JsonElement root, string expected)
+    {
+        if (!root.TryGetProperty("id", out var id) || id.GetString() != expected)
+            throw new PayPalApiException("read order", System.Net.HttpStatusCode.BadGateway, null,
+                "PayPal's response did not match the requested order.");
     }
 
     public async Task<bool> VerifyWebhookSignatureAsync(
@@ -341,6 +386,8 @@ public sealed class PayPalService : IPayPalService
 
         string? name = null;
         string? message = null;
+        string? issue = null;
+        string? debugId = null;
         try
         {
             using var doc = JsonDocument.Parse(body);
@@ -353,6 +400,12 @@ public sealed class PayPalService : IPayPalService
             {
                 message = messageEl.GetString();
             }
+            if (doc.RootElement.TryGetProperty("debug_id", out var debugEl))
+                debugId = debugEl.GetString();
+            if (doc.RootElement.TryGetProperty("details", out var details) &&
+                details.ValueKind == JsonValueKind.Array && details.GetArrayLength() > 0 &&
+                details[0].TryGetProperty("issue", out var issueEl))
+                issue = issueEl.GetString();
         }
         catch (JsonException)
         {
@@ -363,7 +416,7 @@ public sealed class PayPalService : IPayPalService
         _logger.LogWarning(
             "PayPal sandbox {Operation} failed: HTTP {StatusCode} {ErrorName}.",
             operation, (int)response.StatusCode, name ?? "(no error name)");
-        throw new PayPalApiException(operation, response.StatusCode, name, message);
+        throw new PayPalApiException(operation, response.StatusCode, name, message, issue, debugId);
     }
 
     private static string? FindLink(JsonElement root, string rel)

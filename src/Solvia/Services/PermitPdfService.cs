@@ -69,6 +69,7 @@ public sealed class PermitPdfService
         Text($"STATE: {app.Vehicle?.State}", 447, 249, bold, ink);
         Text($"Valid: {Date(app.StartDate)} to {Date(app.EndDate)}", 57, 287, new XFont("Solvia Sans", 12, XFontStyleEx.Bold), ink);
         var employee = app.Category == UserCategory.Employee;
+        var notRequired = app.PaymentStatus == PaymentStatus.NotRequired;
         var payment = app.PaymentStatus == PaymentStatus.Paid ? $"PAID {Money(app.PriceCents)} USD"
             : employee ? "EXEMPT (Employee)" : "FREE - ISSUED";
         Text($"Payment: {payment}", 57, 313, bold, new XSolidBrush(Teal));
@@ -85,9 +86,9 @@ public sealed class PermitPdfService
             ("Vehicle", $"{vehicle} ({app.Vehicle?.State})"),
             ("Category", app.Category.ToString()),
             ("Issued", app.ReceiptIssuedAtUtc is { } issued ? Pacific(issued) + " PT" : "(pending)"),
-            ("Paid at (UTC)", app.PaidAtUtc?.ToString("u", CultureInfo.InvariantCulture) ?? "Not required"),
-            ("PayPal order ID", app.PayPalOrderId ?? "Not required"),
-            ("PayPal capture ID", app.PayPalCaptureId ?? "Not required")
+            ("Paid at (UTC)", app.PaidAtUtc?.ToString("u", CultureInfo.InvariantCulture) ?? (notRequired ? "Not required ($0 fee / exempt)" : "Unavailable — contact support")),
+            ("PayPal order ID", app.PayPalOrderId ?? (notRequired ? "Not required ($0 fee / exempt)" : "Unavailable — contact support")),
+            ("PayPal capture ID", app.PayPalCaptureId ?? (notRequired ? "Not required ($0 fee / exempt)" : "Unavailable — contact support"))
         };
         double y = 370;
         foreach (var (label, value) in details)

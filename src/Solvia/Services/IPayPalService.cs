@@ -54,6 +54,10 @@ public interface IPayPalService
         string orderId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Retrieves the existing order and its current buyer approval link.</summary>
+    Task<PayPalOrderResult> GetOrderAsync(
+        string orderId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Verifies an inbound webhook delivery's signature with PayPal
     /// (the <c>verify-webhook-signature</c> call; REDO-PLAN item 32,
@@ -74,7 +78,7 @@ public interface IPayPalService
 }
 
 /// <summary>A created PayPal order: its id, PayPal's status, and the buyer approval URL.</summary>
-public sealed record PayPalOrderResult(string OrderId, string Status, string ApproveUrl);
+public sealed record PayPalOrderResult(string OrderId, string Status, string? ApproveUrl);
 
 /// <summary>
 /// A capture attempt's outcome: PayPal's order status (Paid requires
@@ -108,12 +112,16 @@ public sealed class PayPalApiException : Exception
         string operation,
         HttpStatusCode statusCode,
         string? payPalErrorName,
-        string? payPalMessage)
+        string? payPalMessage,
+        string? payPalIssue = null,
+        string? debugId = null)
         : base(BuildMessage(operation, statusCode, payPalErrorName, payPalMessage))
     {
         Operation = operation;
         StatusCode = statusCode;
         PayPalErrorName = payPalErrorName;
+        PayPalIssue = payPalIssue;
+        DebugId = debugId;
     }
 
     public string Operation { get; }
@@ -121,6 +129,10 @@ public sealed class PayPalApiException : Exception
     public HttpStatusCode StatusCode { get; }
 
     public string? PayPalErrorName { get; }
+
+    public string? PayPalIssue { get; }
+
+    public string? DebugId { get; }
 
     private static string BuildMessage(
         string operation,

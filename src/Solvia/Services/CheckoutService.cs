@@ -29,9 +29,8 @@ public enum CheckoutStartKind
 
 /// <summary>
 /// The outcome of <see cref="CheckoutService.StartAsync"/>.
-/// <see cref="ApproveUrl"/> is null when the order is the stored one
-/// from an earlier start — the order id is the durable handle (the
-/// JS SDK path needs only the id).
+/// The SDK needs only the durable order id. Redirect starts also retrieve
+/// the existing order's approval link so an interrupted payment can resume.
 /// </summary>
 public sealed record CheckoutStartResult(
     CheckoutStartKind Kind,
@@ -200,6 +199,25 @@ public sealed class CheckoutService
         // second order is never created for the same application.
         if (!string.IsNullOrWhiteSpace(application.PayPalOrderId))
         {
+            if (returnUrl is not null || cancelUrl is not null)
+            {
+                var existing = await _payPal.GetOrderAsync(application.PayPalOrderId, cancellationToken);
+                if (existing.Status is "APPROVED" or "COMPLETED")
+                {
+                    var capture = await CaptureAsync(application.Id, cancellationToken);
+                    if (capture.Completed)
+                        return new CheckoutStartResult(CheckoutStartKind.AlreadyPaid, application.Id,
+                            application.PayPalOrderId, null);
+                    throw new CheckoutPricingException(
+                        $"PayPal payment is {capture.Status}. This permit is not confirmed paid. Check its status before retrying.");
+                }
+                if (existing.Status is not ("CREATED" or "PAYER_ACTION_REQUIRED") ||
+                    string.IsNullOrWhiteSpace(existing.ApproveUrl))
+                    throw new CheckoutPricingException(
+                        $"PayPal order status is {existing.Status}. This order cannot resume buyer approval; no new order was created.");
+                return new CheckoutStartResult(CheckoutStartKind.OrderReady, application.Id,
+                    existing.OrderId, existing.ApproveUrl);
+            }
             return new CheckoutStartResult(
                 CheckoutStartKind.OrderReady, application.Id,
                 application.PayPalOrderId, null);

@@ -217,6 +217,8 @@ Sandbox authentication and a $30 order creation/reuse have been verified
 through the running app. Buyer approval and capture are still pending. The
 recorded demo must show those steps completing rather than relying on test
 doubles. See [the testing record](docs/TESTING.md).
+For pending order IDs, buyer approval errors, or resuming payment, see
+[Sandbox payment troubleshooting](docs/PAYPAL-TROUBLESHOOTING.md).
 
 ## Data note
 

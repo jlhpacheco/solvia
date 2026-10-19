@@ -30,6 +30,8 @@ public sealed partial class WebhookTests
         public bool VerifyResult = true;
         public bool ThrowNotConfigured;
         public int VerifyCalls;
+        public Task<PayPalOrderResult> GetOrderAsync(string orderId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("The webhook path does not resume orders.");
 
         public Task<string> GetAccessTokenAsync(
             CancellationToken cancellationToken = default) =>

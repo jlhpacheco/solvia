@@ -47,7 +47,7 @@ else
     @if (Model.PayPalOrderId is not null || Model.PayPalCaptureId is not null)
     {
         <div class="mt-3">
-            <p class="fs-5 fw-semibold mb-2">Paid with PayPal (sandbox)</p>
+            <p class="fs-5 fw-semibold mb-2">PayPal payment references (sandbox)</p>
             @if (Model.PayPalOrderId is not null)
             {
                 <p class="mb-1">PayPal order ID<br /><code>@Model.PayPalOrderId</code></p>
@@ -55,6 +55,10 @@ else
             @if (Model.PayPalCaptureId is not null)
             {
                 <p class="mb-0">PayPal capture ID<br /><code>@Model.PayPalCaptureId</code></p>
+            }
+            else
+            {
+                <p class="mb-0">PayPal capture ID<br />Not issued yet — payment is not confirmed.</p>
             }
         </div>
     }

@@ -24,6 +24,16 @@ Every generated permit visibly states that it is a sandbox demo and does
 not authorize real campus parking. A printed URL works only while the
 corresponding app host is reachable; `localhost` links work on that computer.
 
+## Payment references
+
+The illustrative student layout uses YCCD's published $0 term fee. It is
+not evidence of a PayPal transaction: free and exempt permits need no order
+or capture ID. A paid Fresno term permit instead requires the $30 catalog
+fee to be captured. Checkout shows its order ID while approval is pending;
+the receipt and PDF retain the actual capture ID after payment verification.
+An order ID alone never proves payment. Missing references on a paid legacy
+record are labeled unavailable, not "Not required".
+
 ## Maintenance
 
 Fonts are embedded so generation is independent of installed OS fonts.

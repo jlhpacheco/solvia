@@ -105,10 +105,7 @@ public sealed class CheckoutController : DemoControllerBase
                 id, returnUrl, cancelUrl, cancellationToken);
             return result.Kind switch
             {
-                // A fresh order: off to PayPal's approval page. A
-                // re-returned (idempotent) order has no stored
-                // approve URL — the checkout page's buttons reuse
-                // the same order id, so the buyer goes back there.
+                // Both fresh and resumed orders use PayPal's approval link.
                 CheckoutStartKind.OrderReady when result.ApproveUrl is not null =>
                     Redirect(result.ApproveUrl),
                 CheckoutStartKind.OrderReady =>
@@ -131,6 +128,11 @@ public sealed class CheckoutController : DemoControllerBase
             TempData["CheckoutError"] = "PayPal sandbox is temporarily unavailable. Check your permit status before retrying.";
             return RedirectToAction(nameof(Index), new { id });
         }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            TempData["CheckoutError"] = "PayPal sandbox timed out. Check your permit status before retrying.";
+            return RedirectToAction(nameof(Index), new { id });
+        }
         catch (PayPalNotConfiguredException ex)
         {
             // Clear error state on the page — not a crash, not a loop.
@@ -147,8 +149,7 @@ public sealed class CheckoutController : DemoControllerBase
             _logger.LogWarning(
                 ex, "PayPal create-order failed for application {ApplicationId}.", id);
             TempData["CheckoutError"] =
-                "PayPal sandbox could not create the order. Nothing was charged " +
-                "and the permit is not paid.";
+                "PayPal sandbox could not prepare this payment. Check its status before retrying.";
             return RedirectToAction(nameof(Index), new { id });
         }
         catch (KeyNotFoundException)
@@ -199,6 +200,11 @@ public sealed class CheckoutController : DemoControllerBase
             TempData["ErrorMessage"] = "PayPal sandbox is temporarily unavailable. Check your permit status before retrying.";
             return Redirect("/Permits/My");
         }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            TempData["CheckoutError"] = "PayPal sandbox timed out. Check your permit status before retrying.";
+            return RedirectToAction(nameof(Index), new { id = application.Id });
+        }
         catch (InvalidOperationException ex) when (ex is not PayPalNotConfiguredException)
         {
             TempData["ErrorMessage"] = "This permit cannot accept a payment. Check its current status.";
@@ -214,7 +220,9 @@ public sealed class CheckoutController : DemoControllerBase
             _logger.LogWarning(
                 ex, "PayPal capture failed for application {ApplicationId}.", application.Id);
             TempData["CheckoutError"] =
-                "PayPal sandbox could not capture the payment. Your permit is not paid.";
+                ex.PayPalIssue == "ORDER_NOT_APPROVED"
+                ? "Approve this order in PayPal Sandbox with a Personal buyer test account first. The Business account is the seller."
+                : "PayPal sandbox could not confirm the payment. Check its status before retrying.";
             return RedirectToAction(nameof(Index), new { id = application.Id });
         }
     }

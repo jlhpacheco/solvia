@@ -37,6 +37,8 @@ public sealed class RosterVerifyTests
     private sealed class StubPayPal : IPayPalService
     {
         private int _amountCents;
+        public Task<PayPalOrderResult> GetOrderAsync(string orderId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("The roster path does not resume orders.");
         public Task<string> GetAccessTokenAsync(
             CancellationToken cancellationToken = default) =>
             Task.FromResult("test-token");

@@ -37,6 +37,16 @@ public sealed partial class CheckoutTests
         public PayPalCaptureResult CaptureResult = new("COMPLETED", "CAP-1", 3000, "USD");
         public bool ThrowNotConfigured;
         public Action? BeforeCapture;
+        public Exception? CaptureException;
+        public string OrderStatus = "CREATED";
+        public int GetCalls;
+
+        public Task<PayPalOrderResult> GetOrderAsync(string orderId, CancellationToken cancellationToken = default)
+        {
+            GetCalls++;
+            return Task.FromResult(new PayPalOrderResult(orderId, OrderStatus,
+                $"https://www.sandbox.paypal.com/checkoutnow?token={orderId}"));
+        }
 
         public Task<string> GetAccessTokenAsync(
             CancellationToken cancellationToken = default) =>
@@ -62,6 +72,7 @@ public sealed partial class CheckoutTests
             string orderId, CancellationToken cancellationToken = default)
         {
             CaptureCalls++;
+            if (CaptureException is not null) throw CaptureException;
             BeforeCapture?.Invoke();
             return Task.FromResult(CaptureResult);
         }
