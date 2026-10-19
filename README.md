@@ -35,7 +35,7 @@ Full flow: [docs/USE-CASE.md](docs/USE-CASE.md)
 | Part | Tool |
 |---|---|
 | Payments (central) | PayPal Sandbox — Orders API (create order → student approves → capture), called directly over HTTPS from the app |
-| AI (central) | **Phi-4-mini** — a simple open model, run locally via **Ollama** (MIT-licensed model; function calling for extracting school / car / term) |
+| AI (central) | **Phi-4-mini** — a simple open model, run locally via **Ollama** (MIT-licensed model; structured JSON extraction of school / car / term) |
 | Fee table | **AG Grid Community edition** (free, sponsor) — the 25-college fee table |
 | College search | Built-in deterministic search ships by default; an **Elastic** (sponsor) provider sits behind the same config seam — ELSER did not run and is not claimed — see [docs/SPONSORS.md](docs/SPONSORS.md) |
 | Term calendar | Native calendar list (built-in) — term start, permit end, renewal date. Bryntum is **not** used: it has no free edition, and its 45-day trial would expire during judging — see [docs/SPONSORS.md](docs/SPONSORS.md) |

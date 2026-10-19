@@ -20,13 +20,14 @@ MARIA — student, first day
 2. AI ASKS — 3 questions only
    School?  Car?  Term?
    (Phi-4-mini, a simple open model, runs locally via Ollama.
-    It extracts her answers as function arguments —
+    It extracts her answers as structured JSON —
     no free-text guessing.)
         |
         v
 3. AI CHECKS + SHOWS THE EXACT TOTAL
    The AI looks up her college + term in the fee table
-   (Elastic search) and shows the total BEFORE she pays.
+   (built-in college search — an Elastic provider sits behind
+    a config seam; see docs/SPONSORS.md) and shows the total BEFORE she pays.
    If her college does not publish a price, the app says so —
    it never invents a price.
         |
@@ -44,7 +45,7 @@ MARIA — student, first day
         |
         v
 6. DONE
-   Receipt sent (Zapier step: receipt + renewal reminder).
+   Receipt sent (Zapier step: receipt email + ledger row — see docs/zapier-recipe.md).
    Permit is live. Maria can park.
 ```
 
