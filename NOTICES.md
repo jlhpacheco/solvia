@@ -66,6 +66,8 @@ Copyright (c) 2026 Jose Luis Pacheco.
 - **coverlet.collector 6.0.4** — MIT License (test only).
 - **PdfPig 0.1.12** — Apache License 2.0 (test-only PDF text extraction).
 - **Microsoft.AspNetCore.Mvc.Testing 10.0.13** — MIT License (test-only application host).
+- **Playwright Test 1.64.1** and **TypeScript 7.0.2** — Apache License 2.0 (browser tests only).
+- **@types/node** — MIT License (browser test tooling only).
 
 ## Services used at runtime (not code, not bundled)
 

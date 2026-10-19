@@ -10,6 +10,7 @@ Latest review: [changes and verification](docs/REVIEW-2026-10-19.md),
 [hackathon readiness and judging](docs/HACKATHON-READINESS.md),
 [design direction](docs/DESIGN-SYSTEM.md), and
 [printable student and employee permits](docs/PRINTABLE-PERMITS.md).
+Repeatable smoke/browser checks: [TypeScript + Playwright testing](docs/TESTING.md).
 
 ## The name
 
@@ -206,15 +207,16 @@ says **EXEMPT (Employee)**.
 
 ## Why PayPal
 
-We love PayPal — and we show it by using it, not just by saying it.
+The Orders flow maps to a permit purchase: show the catalog total, let the
+buyer approve it, capture through PayPal, then issue the receipt. The server
+checks the capture status, amount, currency, and ID before marking it Paid.
+AI drafts permit details; the person approves payment and the catalog sets
+the price.
 
-PayPal is San Jose. We are San Jose. PayPal lets a student who has never bought a permit pay in seconds, safely, with proof in her hand: a receipt and a transaction ID she can show anyone.
-
-For this student, the payment is not a detail. The payment *is* the product. If the money step is slow, confusing, or has a surprise price, she may not park, may get a ticket, and may miss class. PayPal Sandbox let us build the whole money flow — show the total, get her approval, pay, prove it — with test money, before any real student is involved.
-
-Things we genuinely valued while building: the Sandbox behaves like live PayPal with fictitious accounts, and the Orders flow (create → approve → capture) maps exactly onto "show price → student says yes → pay" — so our small local AI guides the student to a real, safe money step instead of just talking about paying. Honest product feedback for the PayPal team will be in the Devpost submission text.
-
-Thank you, PayPal. Built with PayPal, in San Jose.
+Sandbox authentication and a $30 order creation/reuse have been verified
+through the running app. Buyer approval and capture are still pending. The
+recorded demo must show those steps completing rather than relying on test
+doubles. See [the testing record](docs/TESTING.md).
 
 ## Data note
 

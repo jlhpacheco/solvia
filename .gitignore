@@ -10,3 +10,7 @@
 .env.*
 !.env.example
 TestResults/
+node_modules/
+playwright-report/
+test-results/
+.playwright-data/

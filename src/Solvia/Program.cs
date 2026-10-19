@@ -6,6 +6,11 @@ using Solvia.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Browser tests run the compiled source tree in an isolated environment.
+// Load its development asset manifest; production uses published assets.
+if (builder.Environment.IsEnvironment("Testing"))
+    builder.WebHost.UseStaticWebAssets();
+
 // --- Configuration ------------------------------------------------------------
 // Secrets (the PayPal client id and secret) come ONLY from environment
 // variables or .NET user-secrets — never from files committed to this repo.
