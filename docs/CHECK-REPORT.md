@@ -278,3 +278,44 @@ Sub-checks inside this audit that **PASS**, stated explicitly:
    flips this report's verdict. (Separate standing items outside
    this audit's scope remain as recorded elsewhere: demo video,
    Render hosted copy if claimed, final-submit read-back.)
+
+---
+
+## T10 RE-VERIFICATION — 2026-10-18 (independent checker, fix commit e871a559)
+
+Method: fresh `git clone` of https://github.com/jlhpacheco/solvia at HEAD
+`e871a559cac0abd801a34f3635090a3925f318b6`; only the previously failed
+items were re-checked.
+
+1. **NOTICES.md (Check 3) — PASS.** No stub/"to be finalized"/TODO text
+   remains. All required entries present with license names: Phi-4-mini
+   (MIT, Microsoft), Ollama (MIT; external tool, NOT bundled, optional),
+   EF Core Sqlite 10.0.13 (MIT), Bootstrap 5.3.3 (MIT), jQuery 3.7.1
+   (MIT), jQuery Validation 1.21.0 (MIT), jQuery Validation Unobtrusive
+   (MIT), AG Grid Community 34.3.1 (MIT, CDN-loaded), and test-only deps
+   (xUnit 2.9.3 + runner — Apache License 2.0; Microsoft.NET.Test.Sdk
+   17.14.1 — MIT; coverlet.collector 6.0.4 — MIT). Spot-checks:
+   Bootstrap's in-tree LICENSE (`wwwroot/lib/bootstrap/LICENSE`) reads
+   "The MIT License (MIT)" exactly as NOTICES states; the code pins
+   `ag-grid-community@34.3.1` on the jsDelivr CDN
+   (`src/Solvia/Views/Shared/_FeeTable.cshtml:26-30`) exactly as NOTICES
+   states; jQuery's in-tree LICENSE.txt (OpenJS Foundation) is the file
+   NOTICES cites for its MIT entry.
+2. **USE-CASE.md claims (Check 4, items 1-2) — PASS.** "renewal reminder"
+   is gone; line 48 now reads "Receipt sent (Zapier step: receipt email
+   + ledger row — see docs/zapier-recipe.md)". "(Elastic search)" is
+   gone; line 29 now reads "(built-in college search — an Elastic
+   provider sits behind a config seam; see docs/SPONSORS.md)".
+3. **"Function calling" wording (Check 4, item 3) — PASS.** Zero hits in
+   README.md and docs/USE-CASE.md; USE-CASE.md:23 reads "extracts her
+   answers as structured JSON" and README.md:38 reads "structured JSON
+   extraction of school / car / term".
+4. **Fix scope sanity — PASS.** `git diff --name-only 7354020a e871a559`
+   = NOTICES.md, README.md, docs/CHECK-REPORT.md, docs/USE-CASE.md
+   only. No app code changed.
+
+**OVERALL RE-VERDICT: PASS.** Both original FAIL checks (3 Licenses,
+4 Claims) are cured on HEAD e871a559. The submission block from the
+original T10 audit is lifted. (Standing items outside this audit's
+scope remain as recorded: demo video, Render hosted copy if claimed,
+final-submit read-back — all gated on Jose Luis's word.)
