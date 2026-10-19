@@ -35,6 +35,21 @@ public sealed class PermitApplication
 
     public PermitType? PermitType { get; set; }
 
+    /// <summary>
+    /// The term the student picked (Fall / Spring / Summer) — stored on
+    /// the draft from the Understand step on, so the price can be
+    /// recomputed from the fee catalog at Confirm time without trusting
+    /// anything the browser posts.
+    /// </summary>
+    public TermKind Term { get; set; } = TermKind.Fall;
+
+    /// <summary>
+    /// Which reader produced the car facts ("ollama" or "fallback") —
+    /// the honest label shown on screen, kept with the draft so it
+    /// survives the Review redirect.
+    /// </summary>
+    public string Source { get; set; } = "fallback";
+
     /// <summary>First day the permit is valid.</summary>
     public DateOnly StartDate { get; set; }
 

@@ -68,6 +68,8 @@ public sealed class SolviaDbContext : DbContext
         {
             e.HasKey(a => a.Id);
             e.Property(a => a.Campus).IsRequired().HasMaxLength(200);
+            e.Property(a => a.Term).HasConversion<string>().IsRequired().HasMaxLength(20);
+            e.Property(a => a.Source).IsRequired().HasMaxLength(16);
             e.Property(a => a.Status).HasConversion<string>().IsRequired().HasMaxLength(20);
             e.Property(a => a.PaymentStatus).HasConversion<string>().IsRequired().HasMaxLength(20);
             e.Property(a => a.PayPalOrderId).HasMaxLength(64);

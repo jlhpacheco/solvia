@@ -21,7 +21,7 @@ public sealed record CampusPickItem(
     string PriceLabel,
     bool HasPublishedPrice);
 
-/// <summary>Pick-your-college screen: the searchable list of 25 campuses.</summary>
+/// <summary>Pick-your-college screen: the searchable list of 10 campuses.</summary>
 public sealed class CollegePickViewModel
 {
     public required IReadOnlyList<CampusPickItem> Campuses { get; init; }
@@ -41,6 +41,13 @@ public sealed class CollegePickViewModel
 /// <summary>The 3-questions screen (college prefilled, car in her own words, term taps).</summary>
 public sealed class QuestionsViewModel
 {
+    /// <summary>
+    /// The persisted draft application's id, when the student arrived
+    /// here via "Fix it" — carried so fixing answers UPDATES the same
+    /// draft instead of starting a second one.
+    /// </summary>
+    public Guid? ApplicationId { get; set; }
+
     public required string College { get; set; }
 
     public string? CarText { get; set; }
@@ -60,6 +67,21 @@ public sealed class QuestionsViewModel
 /// </summary>
 public sealed class PermitDraftViewModel
 {
+    /// <summary>
+    /// The persisted draft application's id, once the Understand step
+    /// has saved it. From Review on, ONLY this id travels between
+    /// screens — the server reloads the draft; the browser no longer
+    /// relays the car facts.
+    /// </summary>
+    public Guid? ApplicationId { get; set; }
+
+    /// <summary>
+    /// True when the Understand gate stopped the flow because the
+    /// plate is still blank — the Understood screen shows its big
+    /// "I still need your plate" prompt.
+    /// </summary>
+    public bool PlateMissing { get; set; }
+
     public string College { get; set; } = "";
 
     public string? CarText { get; set; }
@@ -108,6 +130,10 @@ public sealed class PermitDraftViewModel
 /// </summary>
 public sealed class ReviewViewModel
 {
+    /// <summary>The persisted draft application's id — the only thing
+    /// the Confirm form posts back.</summary>
+    public required Guid ApplicationId { get; init; }
+
     public required PermitDraftViewModel Draft { get; init; }
 
     /// <summary>Exact price in cents from the fee catalog, or null = not published.</summary>
@@ -119,9 +145,34 @@ public sealed class ReviewViewModel
 
     public DateOnly EndDate { get; init; }
 
+    /// <summary>
+    /// A big error banner for the screen (e.g. Confirm found the plate
+    /// still blank on a residual path) — shown INSTEAD of bouncing the
+    /// student backwards to an earlier screen.
+    /// </summary>
+    public string? Error { get; init; }
+
+    /// <summary>
+    /// When a DAY PASS is blocked because its price could not be read,
+    /// the same college's term-permit price in cents — the one-tap
+    /// alternative offered next to "Pick another college". Null when
+    /// no term price is published either.
+    /// </summary>
+    public int? TermAlternativePriceCents { get; init; }
+
+    /// <summary>The term-alternative price, formatted ("$30.00").</summary>
+    public string? TermAlternativeDisplay { get; init; }
+
     public bool Blocked => PriceCents is null;
 
     public bool IsFree => PriceCents == 0;
+
+    /// <summary>The block is a day-pass price that could not be read.</summary>
+    public bool IsDayPassBlock =>
+        Blocked && Draft.PermitType == PermitTypeCode.Daily;
+
+    /// <summary>A term permit at a known price can be offered instead.</summary>
+    public bool HasTermAlternative => TermAlternativePriceCents is not null;
 }
 
 /// <summary>One row on the My Permits screen.</summary>
