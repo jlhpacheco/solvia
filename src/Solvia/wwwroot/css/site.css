@@ -551,8 +551,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .sv-journey-footer > span:last-child { margin-left: 0; width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
-.sv-brand-icon { display: grid; place-items: center; position: relative; width: 44px; height: 44px; border-radius: 12px; background: var(--sv-navy); color: #fff; font-size: 27px; font-weight: 800; }
-.sv-brand-icon > span { position: absolute; right: -3px; top: -8px; color: #20b9a7; font-size: 25px; }
+.sv-brand-icon { display: block; width: 44px; height: 44px; border-radius: 50%; object-fit: contain; }
 .sv-fee-tools { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1.25rem; margin: 1.5rem 0 1rem; border: 1px solid var(--sv-line); border-radius: 1rem; background: #fff; }
 .sv-fee-tools > div { flex: 1 1 280px; max-width: 560px; }
 .sv-fee-grid { height: 620px; width: 100%; min-width: 0; }

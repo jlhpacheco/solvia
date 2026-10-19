@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Solvia</title>
+  <circle cx="256" cy="256" r="256" fill="#071b46"/>
+  <text x="245" y="376" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="342" font-weight="800" fill="#ffffff">S</text>
+  <path d="M304 197 391 110M326 110h65v65" fill="none" stroke="#20b9a7" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
