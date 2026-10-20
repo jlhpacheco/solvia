@@ -1,8 +1,11 @@
 # Solvia quality control process
 
-**Working draft - October 19, 2026**  
-**Scope:** our fictional campus-permit demonstration and PayPal Sandbox integration.  
-**Release owner:** Jose Luis Pacheco.  
+**Working draft - October 19, 2026**
+
+**Scope:** our fictional campus-permit demonstration and PayPal Sandbox integration.
+
+**Release owner:** Jose Luis Pacheco.
+
 **Tested application source:** `aa6781a1d17b42c778040bc1f834045977681bc4`.
 
 ## How we decide what to test
