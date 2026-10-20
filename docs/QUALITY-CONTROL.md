@@ -1,12 +1,12 @@
 # Solvia quality control process
 
-**Working draft - October 19, 2026**
+**Working draft - updated October 20, 2026**
 
 **Scope:** our fictional campus-permit demonstration and PayPal Sandbox integration.
 
-**Release owner:** Jose Luis Pacheco.
+**Release owner:** Solvia project maintainer.
 
-**Tested application source:** `aa6781a1d17b42c778040bc1f834045977681bc4`.
+**Final backend-tested application source:** `92cba2119af4c7d5be7b7b51e70c99f9f2aecb8e`.
 
 ## How we decide what to test
 
@@ -27,6 +27,8 @@ Our acceptance rules are concrete:
 | Rejected payments cannot issue permits | Unapproved and declined cases remain unpaid and cannot download a live permit PDF or obtain a live verification link. |
 | People can correct their vehicle | We preserve the plate and chosen college/permit, provide editable review fields, and validate submitted details before saving. |
 | AI status is visible | We label model versus rules output and preserve human review. We describe the configured endpoint accurately. |
+| Paid does not automatically mean currently valid | Receipt headings use the shared date/status validity rule. Stale cancel returns do not contradict a saved capture, and unknown return tokens do not prove that no charge occurred. |
+| Public extraction is bounded | Both extraction routes share request and in-flight quotas before calling a model; rejected requests receive 429/Retry-After and MVC answers remain available. |
 | Records remain usable | Receipts and PDFs carry matching identifiers; public verification works without the buyer cookie and avoids disclosing the full plate. |
 
 CSV pricing is our agreed hackathon scope. The catalog is a dated research
@@ -60,8 +62,9 @@ payment does not encourage a blind second charge.
 
 | Layer | Recorded result | Scope |
 |---|---|---|
-| Backend | 367 C#/xUnit checks passed, zero failures and none skipped | The final coordinated suite supersedes the earlier 244- and 308-test baselines. It includes pricing, ownership, payment validation/retries, routes/DI/Razor, antiforgery, PDFs, AI input/vehicle guards and offline Meta validation/selection. |
-| Browser | 82 distinct TypeScript/Playwright checks passed across recorded runs | The earlier 80 combined a full run and nine corrected reruns. Two new loading-feedback checks passed after harness corrections; the 46-check main journey subset passed again. A final clean 30-check smoke run passed in 2.6 minutes. Those smokes are included in the 82. |
+| Backend | 390/390 C#/xUnit checks passed in 12 seconds, zero failed/skipped | Final source `92cba211`; includes AI quotas/concurrency, stale cancel messaging and five rendered paid/free validity cases in addition to the prior contracts. Historical 371/382 runs remain separate. |
+| Browser | Full 84/84 desktop/phone TypeScript checks passed in 4.0 minutes, including 32 smokes; separate tablet 16/16 passed in 2.3 minutes | 100 distinct controlled checks across two suites, excluding live AI. Desktop/phone preceded the final receipt-view validity delta, covered by rendered backend cases. Tablet rerun on `eb488ab1` covers Chromium/WebKit portrait/landscape. |
+| Live AI | Eight distinct Together application cases passed twice | Final same-eight rerun on `e3a4993` followed key replacement/deadline hardening; every source was `together`. Separate from the 84 controlled browser checks; no new live suite on `92cba211` is claimed. |
 | Multi-college matrix | 20 checks passed | 16 Student/Public day/term cases across four campuses, plus two Employee exemptions and two unpublished-price guards. |
 | Negative provider cases | Two additional checks passed | Actual unapproved-order and official refused-card responses; no paid permit issued. |
 | Native payment options | Two separate smoke checks passed in 33.5 seconds | Actual remote SDK options and a JavaScript-disabled continuation; no PayPal order or capture created. |
@@ -97,30 +100,48 @@ actual remote SDK, and checked one protected continuation with JavaScript
 disabled. Rendering those options does not establish buyer login or approval.
 
 Our tests use fictional people, unique fake plates and published Sandbox test
-cards. We keep client secrets and bearer tokens in private configuration or
-process memory, exclude databases/raw evidence from Git, disable provider
+cards. We configure credentials server-side, exclude databases/raw evidence
+from Git, disable provider
 traces, and redact transport errors that could contain request headers. We
 review screenshots, logs and public artifacts before sharing. The demo person
 switcher exercises ownership scenarios; it is not production authentication.
 
+A setup inspection accidentally exposed a hosted API key. We revoked it,
+saved a replacement privately and repeated the same eight live cases
+successfully. This incident and correction are part of our record; repeating
+the suite does not create 16 distinct cases.
+
 ## Current release gates and known limits
 
-- **AI application path:** a direct warmed CPU Phi-4-mini request answered in
-  32.26 seconds. The app's 10-second budget falls back before that response.
-  The optional hosted Meta Standard Muse Spark 1.3 adapter is implemented and
-  tested offline. Its private key and live application verification remain
-  pending; no hosted API calls have been made. Standard mode excludes training
-  but does not establish zero retention or US-only processing. Use fictional
-  adult (18+) demo details. We retain the visible fallback and editable review.
-- **Hardening release check:** the final 367-test backend run passed in 34
-  seconds. It includes plate grounding/uncertainty, 1,000-character limits
+- **AI application path:** the default is Together AI with `Qwen/Qwen3.5-9B`,
+  constrained JSON, disabled reasoning, temperature 0, a 512-output-token cap
+  and shared validation. The final live eight-case run observed median 2.4
+  seconds from submit to review, range 1.6–5.3 seconds on this computer. These
+  are application observations, not model-only latency or a guarantee. People
+  review editable vehicle fields; the catalog supplies fees. Ollama is optional;
+  its earlier direct CPU response took 32.26 seconds and exceeded the app budget.
+  Provider privacy settings, ZDR and US-only residency remain unverified; see
+  [privacy](https://github.com/jlhpacheco/solvia/blob/main/docs/PRIVACY.md). Use fictional adult details.
+- **Hardening release check:** the final 390-test backend run passed in 12
+  seconds on `92cba211`. It includes plate grounding/uncertainty, 1,000-character limits
   before inference, 50-character vehicle fields, named state/color and exact
   term/type vocabulary, referenced vehicle-state protection and provider
-  selection without network calls. TypeScript checking passed. An earlier
-  coordinated run passed 331/332: a new case exposed `might` being read as a
-  plate. We fixed it and added uncertainty regressions. Independent review
-  also caught substring vocabulary acceptance. Earlier test-host and browser
+  selection without live provider calls. TypeScript checking passed. The
+  initial Together run passed 366/367: delayed timer cancellation under load
+  exposed a deadline failure. We added elapsed-time rejection and four
+  deterministic regressions before passing 371/371. The historical 367-test
+  checkpoint and earlier Meta 331/332 uncertainty failure are retained.
+  Agent review also caught substring vocabulary acceptance. Test-host/browser
   harness failures remain retained, with successful reruns recorded separately.
+- **Public AI admission:** the singleton guard shared by chat and the form
+  permits 20 requests/client/minute and 60 globally, with two concurrent/client
+  and four globally. It releases admissions on success, failure and cancellation.
+  It is process-local and resets on restart; hosting still needs suitable
+  provider spending controls and, for multiple instances, shared/gateway quotas.
+- **Payment versus validity:** a stale cancel on a Paid record shows payment
+  confirmation, not a new charge or an unconditional active permit. Receipt
+  headings use `PermitValidity.Check` for dates and denial state. Unknown
+  returns direct people to inspect records before trying another payment.
 - **External coverage:** Personal-buyer wallet approval, delivered verified
   webhooks, refunds and live-money processing remain unverified. Safari and
   physical-device testing are not covered by Chromium mobile viewports.
@@ -134,6 +155,7 @@ We keep reproducible instructions and dated evidence in the public repository:
 
 - [Setup and prerequisites](https://github.com/jlhpacheco/solvia/blob/main/README.md)
 - [Backend/browser test instructions](https://github.com/jlhpacheco/solvia/blob/main/docs/TESTING.md)
+- [Opt-in live model tests](https://github.com/jlhpacheco/solvia/tree/main/tests/ai)
 - [Opt-in Sandbox suites and boundaries](https://github.com/jlhpacheco/solvia/blob/main/docs/SANDBOX-MATRIX.md)
 - [Dated payment results and references](https://github.com/jlhpacheco/solvia/blob/main/docs/SANDBOX-RESULTS-2026-10-19.md)
 - [Reusable TypeScript Sandbox tests](https://github.com/jlhpacheco/solvia/tree/main/tests/sandbox)
@@ -146,14 +168,20 @@ For each material change, append an entry with failures and corrections and
 retain the tested source version with the evidence. A pass applies to that
 version and scope. This working log is the starting record for that process.
 
-| Record field | Current hardening entry |
+| Record field | Historical October 19 hardening checkpoint |
 |---|---|
 | Date | October 19, 2026 |
-| Tested source | `aa6781a1d17b42c778040bc1f834045977681bc4` (application code; documentation follows separately) |
-| Change / risk | AI input, plate grounding, enum and vehicle-history guards; optional hosted Meta reader. |
-| Observed checks | Backend 367/367 passed, zero skipped; TypeScript checking passed; 82 distinct browser checks across retained runs, including final 30/30 smoke checks in 2.6 minutes. |
-| Evidence / remaining gate | Local `meta-release-verified.trx` and separate browser HTML reports retained. Live hosted AI, wallet approval, judge access and video remain open. |
+| Tested source | `e3a49938bc08be6fc0d2fe11c695bf69adc8f9dc` (application code; documentation follows separately) |
+| Change / risk | Together/Qwen reader, input/plate/enum/history guards, elapsed-time deadline rejection and credential replacement. |
+| Observed checks | Backend 371/371 passed, zero skipped; TypeScript checking passed; 82 cumulative controlled browser cases, including fresh 30/30 smoke in 3.8 minutes. Eight distinct real Together cases passed twice, all `together`. |
+| Evidence / remaining gate | `together-release-verified.trx`, retained failed `together-release.trx`, separate browser reports and both live-AI JSON reports. Wallet approval, judge access, account privacy settings and video remain open. |
 | Review | Codex agent review; release-owner approval pending. |
 
 Copy these fields for the next material change, including the exact tested SHA,
 command, observed passes/failures, evidence link and remaining gate.
+
+### October 20 follow-up release
+
+Source `92cba211` passed 390/390 backend checks in 12 seconds. The desktop/phone suite passed 84/84 in 4.0 minutes, including 32 smokes. The tablet rerun on `eb488ab1` passed 16/16 in 2.3 minutes: 100 distinct controlled browser checks across two suites. The initial tablet 12/16 result exposed two navigation races and two real WebKit layout failures, corrected before the clean rerun. See TESTING for versioned evidence.
+
+The finished 156.1-second narrated/captioned video shows three actual Together calls and a separate $30 Sandbox capture, independently checked for one capture and followed by PDF retrieval/privacy checks. It is excluded from the historical $945 matrix. Public YouTube publication, interactive wallet approval and clean full-path judge access remain separate gates.

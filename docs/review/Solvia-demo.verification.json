@@ -1,0 +1,58 @@
+{
+  "output": "Solvia-demo.mp4",
+  "sha256": "76bc55e05a8d680be69a95629d2db873ad55ce8f35c20c280a7e2a9500d9359f",
+  "durationSeconds": 156.1,
+  "resolution": "1280x720",
+  "videoCodec": "h264",
+  "audioCodec": "aac",
+  "naturalVoiceTempoUnchanged": true,
+  "allSourceAudioIncludedOnce": true,
+  "allNormalizedNarrationTokensMatchedByASR": true,
+  "verbatimTranscriptionClaimed": false,
+  "disclosedTranscriptionVariants": [
+    "$30 versus thirty-dollar",
+    "back end versus backend",
+    "checking out versus checkout"
+  ],
+  "alignmentMethod": "Actual local faster-whisper tiny.en word timestamps, CPU int8",
+  "sourceVoiceSeconds": 88.8,
+  "sameCasePdfInsertedSeconds": 4,
+  "rawVideoSeconds": 167.12,
+  "postActionTailTrimmedSeconds": 11.033999999999992,
+  "walletUiApprovalDemonstrated": false,
+  "restTestCardApprovalDisclosed": true,
+  "paymentOrderId": "5CV7753505063622B",
+  "paymentCaptureId": "9AP215253S500404B",
+  "visualAndListeningReviewStillRequired": true,
+  "published": false,
+  "uiRecordingNote": "My permits was captured before the later 1400px desktop-table breakpoint change; this original take preserves that earlier UI.",
+  "editorialScreenHolds": [
+    {
+      "source": "student-entry.png",
+      "start": 26.024,
+      "end": 32.259
+    },
+    {
+      "source": "student-reviewed-fields.png",
+      "start": 32.259,
+      "end": 36.773999999999994
+    },
+    {
+      "source": "native-sdk.png",
+      "start": 49.036,
+      "end": 59.038
+    }
+  ],
+  "visualReviewComplete": true,
+  "visualReview": {
+    "status": "Passed sampled encoded frames",
+    "sampleCount": 14,
+    "method": "Contact sheet plus full-resolution review/SDK/PDF and other chapter frames",
+    "captionsAndSandboxLabelLegible": true,
+    "sameCasePdfReferencesChecked": true,
+    "credentialScreensObserved": false,
+    "contactSheet": "contact-sheet.png"
+  },
+  "qualitativeListeningReviewComplete": false,
+  "ownerListeningReviewRequired": true
+}

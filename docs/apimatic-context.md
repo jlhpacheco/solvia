@@ -23,7 +23,7 @@ they call), not aspirational.
 ## API overview
 
 - **Product:** Solvia — a fictional student picks her college, the
-  configured AI endpoint (Microsoft Phi-4-mini via Ollama) drafts her
+  configured AI endpoint (Together/Qwen3.5-9B by default, optional Ollama/Phi-4-mini) drafts her
   vehicle details for review, and the app quotes the exact total from
   the college's real published fee (`data/fees.csv`, 10 campuses),
   the student approves, and pays with **PayPal sandbox**. A paid (or
@@ -131,18 +131,27 @@ permit Paid **only** when PayPal's capture response says
 
 | Status | Body | Meaning |
 |---|---|---|
-| 200 | `{ "status": "COMPLETED", "completed": true, "captureId": "9XY…", "receiptNumber": "SOL-2026-483920" }` | Capture completed; the permit is Paid and issued. `receiptNumber` IS the permit number |
-| 200 | `{ "status": "<PayPal status>", "completed": false, "captureId": null, "receiptNumber": null }` | PayPal did not complete the capture; the application is marked Failed, **never** Paid |
+| 200 | `{ "status": "COMPLETED", "orderId": "8AB12C3DE456789F", "completed": true, "captureId": "9XY…", "receiptNumber": "SOL-2026-483920" }` | Capture passed status/amount/currency/ID checks; permit Paid and issued. `receiptNumber` IS the permit number |
+| 200 | `{ "status": "PENDING", "orderId": "8AB12C3DE456789F", "completed": false, "captureId": "<provider ID or null>", "receiptNumber": null }` | Application remains Pending, unissued; a capture ID alone is not payment proof |
+| 200 | `{ "status": "DECLINED", "orderId": "8AB12C3DE456789F", "completed": false, "captureId": "<provider ID or null>", "receiptNumber": null }` | Failed, unpaid and unissued; a declined capture may have its own provider ID |
+| 200 | `{ "status": "VERIFICATION_FAILED", "orderId": "8AB12C3DE456789F", "completed": false, "captureId": "<provider ID or null>", "receiptNumber": null }` | Provider reported COMPLETED but its capture failed local amount/currency/ID validation; application Failed, no issuance |
 | 400 | `{ "error": "An order id is required." }` | `orderId` was empty or missing |
 | 400 | `{ "error": "<plain-words message>" }` | The application has no order to capture, or another invalid state (`InvalidOperationException`) |
 | 403 | `{ "error": "That permit belongs to a different demo person." }` | The order's application belongs to another demo person |
 | 404 | `{ "error": "No permit application owns that PayPal order." }` | Unknown order id |
+| 409 | `{ "error": "<approval guidance>", "code": "ORDER_NOT_APPROVED", "debugId": "<provider reference or null>" }` | Order needs Sandbox buyer approval; no Paid transition |
+| 409 | `{ "error": "This permit changed during payment. Refresh its status before retrying." }` | Concurrency conflict; read durable status before retrying |
 | 503 | `{ "error": "...PAYPAL_CLIENT_ID (PayPal:ClientId)..." }` | Sandbox credentials not configured (see Error model) |
-| 502 | `{ "error": "PayPal sandbox could not capture the order. The permit is not paid." }` | PayPal's API errored; the permit is not paid |
+| 502 | `{ "error": "PayPal sandbox could not confirm the payment. Check its status before retrying.", "code": "<provider issue/name or null>", "debugId": "<provider reference or null>" }` | Provider error; status must be checked before retrying |
+| 503 | `{ "error": "<temporary-unavailability/timeout guidance>" }` | Transport failure or timeout; payment remains unconfirmed, so inspect status rather than blindly retry |
 
 Calling capture twice for the same order is safe: once Paid, the
 endpoint reports the standing truth (`COMPLETED`, same capture id
 and receipt number) without calling PayPal again or charging again.
+Other non-COMPLETED provider statuses return `completed: false`, their
+status/capture reference, and no receipt; only PENDING remains Pending,
+while the other unsuccessful outcomes become Failed. Error and response
+examples above are contract illustrations, not new transactions.
 
 ### GET /verify?t={token} — verify (HTML)
 
@@ -225,9 +234,9 @@ draft. Called by the student flow per message.
 
 | Field | Type | Notes |
 |---|---|---|
-| `text` | string, required | The student's message. Empty/missing text is a 400 |
+| `text` | string, required | The student's message, at most 1,000 characters. Empty/missing or oversized text returns 400 before any model request |
 
-**Response 200** (`application/json`) — every field may be `null`
+**Illustrative response 200** (`application/json`, not live-provider evidence) — every field may be `null`
 except `source`; missing information stays null and the flow asks
 only for what is missing (3 questions max):
 
@@ -241,7 +250,7 @@ only for what is missing (3 questions max):
   "carColor": "Blue",
   "plate": null,
   "carState": null,
-  "source": "ollama"
+  "source": "together"
 }
 ```
 
@@ -251,7 +260,7 @@ only for what is missing (3 questions max):
 | `permitType` | `"Daily"` \| `"Term"` \| null | Serialized from the `PermitTypeCode` enum name |
 | `term` | `"Fall"` \| `"Spring"` \| `"Summer"` \| null | Serialized from the `TermKind` enum name |
 | `carMake`, `carModel`, `carColor`, `plate`, `carState` | string \| null | Plate normalized to upper case with separators stripped; state is a 2-letter code |
-| `source` | `"ollama"` \| `"meta"` \| `"fallback"` | **Honest label of which path answered.** `"ollama"` or `"meta"`: the selected model answered and passed validation. `"fallback"`: the deterministic extractor answered because the selected model was unavailable, timed out, lacked configuration, or returned an unusable answer. Meta live verification remains pending. |
+| `source` | `"together"` \| `"ollama"` \| `"fallback"` | **Honest label of which path answered.** `"together"` or `"ollama"`: the selected model answered and passed validation. `"fallback"`: the deterministic extractor answered because the selected model was unavailable, timed out, lacked configuration, or returned an unusable answer. Eight real Together cases and the final same-eight release rerun passed with every source `together`; this example remains illustrative. |
 
 **There is deliberately NO price field** in this response, and none
 can appear: the extraction result type
@@ -263,7 +272,8 @@ server-side.
 | Status | Body | Meaning |
 |---|---|---|
 | 400 | `{ "error": "A student message is required." }` | `text` was empty or missing |
-| 200 (always otherwise) | draft above | Model failures are not API errors — they land in the fallback and `source` says so |
+| 400 | `{ "error": "<1,000-character limit guidance>" }` | `text` exceeded the server limit; the model was not called |
+| 200 (valid-sized input) | draft above | Model failures land in the fallback and `source` says so |
 
 ### POST /api/paypal/webhook — inbound PayPal webhook
 
@@ -335,20 +345,21 @@ the default; env var `WEBHOOK_URL` also feeds it);
 
 ## Error model
 
-JSON errors share one shape: `{ "error": "<plain-words message>" }` —
-with two stated exceptions: a tripped verify rate limit on the HTML
-door answers plain text, and the inbound PayPal webhook answers a
-status code with no JSON body.
+JSON errors include `{ "error": "<plain-words message>" }`; provider
+errors may also include `code` and `debugId` references. A tripped verify
+rate limit on the HTML door answers plain text, and the inbound PayPal
+webhook answers a status code with no documented JSON body.
 
 | Status | Where | Meaning |
 |---|---|---|
-| 400 | orders, capture, extract, webhook | The request itself is unusable (empty message, empty order id, unchargeable stored price, no order to capture, malformed / id-less webhook delivery) |
+| 400 | orders, capture, extract, webhook | The request itself is unusable (empty/oversized message, empty order id, unchargeable stored price, no order to capture, malformed / id-less webhook delivery) |
 | 401 | webhook | Unverifiable delivery (see that endpoint). Nothing is saved |
 | 403 | orders, capture | The named application/order belongs to a different demo person |
 | 404 | orders, capture | The named application/order does not exist |
+| 409 | orders, capture | Concurrent state changed; capture also uses this for `ORDER_NOT_APPROVED`. Read the message and current payment status before retrying |
 | 429 | verify, api/verify | **Rate limit:** more than 60 permit checks/minute from this connection. JSON door: `{ "error": "Too many permit checks from this connection — please wait a minute and try again." }`; HTML door: the same words as plain text |
-| 502 | orders, capture | PayPal's sandbox API errored. The permit is **not** paid; the message says exactly that |
-| 503 | orders, capture | **Not configured:** the sandbox client id/secret are not set on this machine. The message names the missing settings (`PAYPAL_CLIENT_ID (PayPal:ClientId)` / `PAYPAL_CLIENT_SECRET (PayPal:ClientSecret)`) and never contains a credential value. This is a designed, honest state — a fresh clone runs this way until the developer creates a free sandbox app and sets the keys (see the repo README) — not a crash |
+| 502 | orders, capture | PayPal's Sandbox API returned an error; this response does not confirm payment. Inspect current status before retrying |
+| 503 | orders, capture | Missing Sandbox configuration, temporary transport unavailability or timeout. A configuration message names missing settings without values; a transport/timeout message asks the caller to check payment status before retrying |
 
 ## Money rules (context any generated client must respect)
 

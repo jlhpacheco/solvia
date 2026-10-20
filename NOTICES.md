@@ -12,7 +12,7 @@ Copyright (c) 2026 Jose Luis Pacheco.
 ## Components the app ships or calls
 
 - **PDFsharp 6.2.3** — MIT License. Generates the student/employee
-  permit PDFs in `PermitPdfService`. [Upstream license](https://github.com/empira/PDFsharp/blob/master/LICENSE).
+  permit PDFs in `PermitPdfService`. [License for the pinned 6.2.3 release](https://github.com/empira/PDFsharp/blob/v6.2.3/LICENSE).
 - **Roboto Regular and Bold** — Apache License 2.0. Embedded fonts
   under `src/Solvia/Assets/Fonts/`; their complete license and pinned
   upstream provenance are retained there. These assets come from the
@@ -26,14 +26,14 @@ Copyright (c) 2026 Jose Luis Pacheco.
   Explicitly overrides PDFsharp's older transitive dependency with the
   patched version identified by Microsoft's October 2026 advisories.
 
-- **Microsoft Phi-4-mini** — MIT License. The AI model. It is NOT
-  bundled with this repo: the default endpoint runs on the app host,
+- **Microsoft Phi-4-mini** — MIT License. The optional Ollama AI model. It is NOT
+  bundled with this repo: Ollama's default endpoint runs on the app host,
   served by Ollama (`ollama pull phi4-mini`, about 2.5 GB).
   Microsoft is the model's author; the model card and license ship
   with the model, not with Solvia.
 
 - **Ollama** — MIT License. External runtime, NOT bundled. This is the
-  default AI adapter (`AI_PROVIDER=ollama`), with endpoint
+  optional local AI adapter (`AI_PROVIDER=ollama`), with endpoint
   `http://localhost:11434` local to the application host by default. Its
   endpoint is configurable. An unavailable runtime or unusable model
   answer uses the built-in deterministic reader.
@@ -73,15 +73,16 @@ Copyright (c) 2026 Jose Luis Pacheco.
 
 - **PayPal Sandbox** (Orders API + webhooks) — PayPal's developer
   terms. Sandbox only: fictitious accounts, no real money.
-- **Meta Model API — Standard Muse Spark** — optional proprietary hosted
-  service, not a bundled model or MIT-licensed component. The default
-  configured Standard model is `muse-spark-1.3`, selected only with
-  `AI_PROVIDER=meta` and a server-side API key. See the official
-  [API overview](https://dev.meta.ai/docs/overview) and
-  [Meta Model API Terms](https://dev.meta.ai/legal/terms-of-service).
-  This demo uses fictional adults (18+) when this provider is selected;
-  see [privacy](docs/PRIVACY.md) for age, retention, training, and credential
-  boundaries. No live Meta request has been verified.
+- **Together AI hosting Qwen3.5-9B** — the default hosted reader
+  (`AI_PROVIDER=together`, model `Qwen/Qwen3.5-9B`). Together's API service
+  is external and not bundled; service access is governed by its own
+  terms and account settings. Qwen's [model card](https://huggingface.co/Qwen/Qwen3.5-9B)
+  identifies the weights as Apache-2.0; no weights ship in this repository.
+  See the [provider catalog](https://docs.together.ai/docs/serverless/models)
+  and [privacy notes](docs/PRIVACY.md). Together's key is privately configured
+  in Development user-secrets. Eight live application cases and the final
+  same-eight rerun passed with every source `together`; account privacy
+  settings remain unverified.
 - **Elastic** — the app ships a config-selectable search provider
   that speaks to an Elastic node over HTTP; the built-in search is
   the shipped default and no Elastic code is bundled. The live

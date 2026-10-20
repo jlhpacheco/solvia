@@ -29,34 +29,63 @@ how the inputs are gathered.
   a payable one redirects to `/Checkout/{id}`. There is no Review
   step on this door.
 - **The AI door** — `/Permits/Ask` (Solvia's). The configured model
-  drafts vehicle details from the car sentence: Ollama/Phi-4-mini by
-  default, or the optional hosted Meta Standard `muse-spark-1.3` provider.
+  drafts vehicle details from the car sentence: Together AI's hosted
+  `Qwen/Qwen3.5-9B` by default, or optional Ollama/Phi-4-mini.
   College, permit type, and term remain UI selections. Both adapters use
   the same structured extraction contract and plate safeguards. The
   extraction result type has **no price field**; server pricing alone
   determines the amount. The person confirms the vehicle details on an
   editable review screen before the application is saved. An unavailable
   provider or unusable answer invokes the deterministic reader, with an
-  honest `Source` label: `ollama`, `meta`, or `fallback`.
+  honest `Source` label: `together`, `ollama`, or `fallback`.
 
-`AI_PROVIDER` selects `ollama` (default) or `meta`. The optional Meta adapter
-calls the fixed `https://api.meta.ai/v1/chat/completions` endpoint with a
-server-only API key, strict structured output, redirects disabled, and
-authorization-header redaction. `META_MODEL` selects a supported Standard
-model; `META_TIMEOUT_SECONDS` sets the total request budget (10 seconds by
-default, clamped to 1–90). Ollama has its own bounded request budget. Input
+`AI_PROVIDER` selects `together` (default) or `ollama`. The Together adapter
+calls the fixed `https://api.together.ai/v1/chat/completions` endpoint with a
+server-only API key, JSON Schema output with local contract validation,
+redirects disabled, and
+authorization-header redaction. `TOGETHER_MODEL` defaults to
+`Qwen/Qwen3.5-9B`; `TOGETHER_TIMEOUT_SECONDS` sets the total request budget
+(10 seconds by default, clamped to 1–90). Requests disable reasoning, set
+temperature 0, and cap output at 512 tokens. Ollama has its own bounded
+request budget. Input
 is limited before either model is called; human-reviewed make/model fields
 are limited to 50 characters, and state/color must be valid named values.
 The model cannot create orders or mark a payment Paid.
 
-For Development setup, `scripts/Set-MetaCredentials.ps1` prompts for the key
+For Development setup, `scripts/Set-TogetherCredentials.ps1` prompts for the key
 without echoing it and writes it through stdin to .NET user-secrets; these
 are per-user development settings, not an encrypted vault. See the
 [README](../README.md) for setup and [privacy](PRIVACY.md) for hosted data
-processing and the adult-only Meta demo boundary. No live Meta request has
-been verified. A direct warm Phi-4-mini CPU response took 32.26 seconds;
+processing boundaries. Together's key is privately configured in Development
+user-secrets; eight distinct live application cases passed, including a final
+rerun on `e3a4993` after credential replacement and deadline hardening, with
+every source labeled `together`.
+The final backend suite passed 390/390 tests in 12 seconds, zero failed/skipped,
+on `92cba211`; the historical 371-test checkpoint includes four deterministic
+deadline guards that reject late answers even when timer cancellation is delayed.
+The full desktop/phone suite passed 84/84 in 4.0 minutes, including 32 smokes,
+before the last receipt-view validity delta; rendered backend cases cover that
+delta. A separate 16/16 Chromium/WebKit tablet run passed in 2.3 minutes on
+`eb488ab1`, giving 100 distinct controlled browser checks across the two
+suites. The eight live model cases above remain separate. The tablet delta
+adjusted the My permits table/card breakpoint and the person-selection test
+wait; the 390-case backend run is specifically tied to `92cba211`.
+Historically,
+a direct warm Phi-4-mini CPU response took 32.26 seconds;
 the application's 10-second budget fell back, so that direct response is
 not proof of model inference through the app.
+
+### Shared AI admission boundary
+
+`AiRequestLimiter` is a singleton used by both `POST /api/chat/extract` and
+`POST /Permits/Understand` before inference: 20 admitted requests per client
+and 60 globally per minute, with two concurrent per client and four globally.
+It bounds tracked client records, uses monotonic windows and releases a lease
+on success, failure or cancellation. Rejections return 429/Retry-After; the
+MVC route retains the person's answers. This is process-local, resets on
+restart and uses connection IPs; it is not authentication, a distributed
+quota or a provider billing cap. A hosted deployment needs appropriate
+provider spending controls and trusted proxy/gateway configuration.
 
 ## Price truth: the college's published fee
 
@@ -99,7 +128,7 @@ term's window is a same-form error that names the window.
 A permit number (`SOL-YYYY-NNNNNN`), its public verify token, and
 its `ReceiptIssuedAtUtc` stamp are minted only inside
 `IssuanceService.IssueIfAbsentAsync`, which has exactly three call
-sites — the moments an application becomes live:
+sites — the moments a permit is issued (current validity is checked separately):
 
 1. **Free at Apply** — price resolves to $0 (a FREE campus, or the
    Employee category).
@@ -119,8 +148,13 @@ verification. `CheckoutService` owns the rules around it:
 
 - **Paid lands only from a COMPLETED capture** (directly, or via the
   verified webhook acting on one) — never from a buyer return page.
-  The Return/Cancel endpoints are capture-or-release plumbing that
-  redirect with a banner and render no success state.
+  Return performs capture/recovery checks; Cancel reads saved status.
+  Both redirect with a banner rather than supplying payment truth themselves.
+- **Paid and currently valid are different facts.** A stale Cancel for a saved
+  Paid application opens its receipt with neutral payment confirmation.
+  Unknown returns/cancels do not prove no charge occurred. The receipt uses
+  `PermitValidity.Check` for denial and date-window status; only an active
+  permit is headed "Permit live." Paid inactive receipts retain payment IDs.
 - **Create-order is idempotent**: a Pending application that already
   holds an order id returns that id; a second click never mints a
   second order.
@@ -206,7 +240,7 @@ contracts (details and honesty limits in `docs/SPONSORS.md`):
   published campus fees offline against `data/fees.csv`.
 - **AI data path** — the browser sends the sentence to Solvia; the app
   calls the selected provider. Ollama is local to the app host by default
-  but its endpoint is configurable. Selecting Meta sends the sentence and
-  extraction context to Meta's hosted API. Standard mode excludes content
-  from model training; this is not a zero-retention or US-only-residency
-  guarantee. See [PRIVACY.md](PRIVACY.md) for current terms and boundaries.
+  but its endpoint is configurable. Default Together mode sends the sentence
+  and extraction context to its hosted API. Account privacy settings have
+  not been verified; no zero-retention or US-only-residency guarantee is
+  claimed. See [PRIVACY.md](PRIVACY.md) for current policies and boundaries.

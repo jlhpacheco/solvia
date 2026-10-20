@@ -1,0 +1,119 @@
+1
+00:00:00,401 --> 00:00:04,241
+Campus parking should start with a clear price and a clear next step.
+
+2
+00:00:04,761 --> 00:00:08,361
+This is Solvia, a hackathon demo using fictional adults and PayPal
+
+3
+00:00:08,361 --> 00:00:09,481
+sandbox funds.
+
+4
+00:00:12,704 --> 00:00:14,684
+Maria is a student at Fresno City College.
+
+5
+00:00:14,984 --> 00:00:18,424
+She describes her vehicle in one sentence and chooses a term permit.
+
+6
+00:00:26,734 --> 00:00:30,354
+Together's Qwen model reads the vehicle details, but Maria reviews
+
+7
+00:00:30,354 --> 00:00:31,974
+every field before saving.
+
+8
+00:00:32,674 --> 00:00:36,134
+The AI never chooses her college, permit type, or price.
+
+9
+00:00:40,675 --> 00:00:44,775
+Solvia shows the published $30 fee and the permit dates before checking
+
+10
+00:00:44,775 --> 00:00:45,315
+out.
+
+11
+00:00:49,576 --> 00:00:51,876
+Here are the actual PayPal checkout options.
+
+12
+00:00:59,808 --> 00:01:03,388
+For this recording, an automated test harness approves an official
+
+13
+00:01:03,388 --> 00:01:06,488
+sandbox test card through PayPal's REST API.
+
+14
+00:01:07,108 --> 00:01:09,108
+This does not demonstrate a wallet login.
+
+15
+00:01:09,928 --> 00:01:12,608
+Solvia then captures the payment through its own back end.
+
+16
+00:01:17,839 --> 00:01:21,679
+The permit becomes live only after PayPal confirms a completed capture.
+
+17
+00:01:22,399 --> 00:01:25,359
+The receipt shows the real order and capture references.
+
+18
+00:01:28,780 --> 00:01:31,960
+Maria downloads her printable permit and can find it again in my
+
+19
+00:01:31,960 --> 00:01:32,360
+permits.
+
+20
+00:01:41,463 --> 00:01:45,663
+Its public verification link confirms validity without exposing her
+
+21
+00:01:45,663 --> 00:01:46,123
+plate.
+
+22
+00:01:49,847 --> 00:01:51,347
+Visitors can choose a day pass.
+
+23
+00:01:51,807 --> 00:01:55,527
+The form hides semester choices and the review shows the actual daily
+
+24
+00:01:55,527 --> 00:01:57,187
+price and one day dates.
+
+25
+00:02:06,837 --> 00:02:08,557
+Elena is an employee in this demo.
+
+26
+00:02:09,077 --> 00:02:12,637
+Her exempt permit is issued without a PayPal charge and it has its
+
+27
+00:02:12,637 --> 00:02:13,677
+own printable proof.
+
+28
+00:02:25,859 --> 00:02:29,779
+Solvia combines AI assisted entry with human review, deterministic
+
+29
+00:02:29,779 --> 00:02:31,699
+pricing, and verified payment records.
+
+30
+00:02:32,239 --> 00:02:34,159
+Clear prices, confident next steps.

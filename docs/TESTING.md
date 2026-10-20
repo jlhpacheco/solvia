@@ -3,16 +3,31 @@
 The backend suite uses C#/xUnit. Browser smoke and journey tests use
 **TypeScript and Playwright Test** with desktop Chrome and Pixel 7-sized
 Chromium contexts. Tests use fictional data only.
-The latest recorded validation covers **82 distinct desktop/mobile checks**,
-including **30 smoke checks** and **34 SDK/error contract checks**. The earlier full run
-passed 71 checks; nine targeted reruns passed after correcting test harness
-expectations (eight stale copy assertions and one cold-start timeout budget).
-Two new loading-feedback checks subsequently passed a targeted run in 56.8
-seconds after two further harness corrections; both failed attempts are
-retained. The latest 46-check main journey subset also passed. This is
-aggregate coverage, not one clean 82/82 attempt. Reports remain separate.
-A final clean run of all **30 smoke checks passed in 2.6 minutes** against
-application source `aa6781a`. These reruns add confidence, not distinct tests.
+The latest complete desktop/phone TypeScript run passed **84/84 checks** in
+**4.0 minutes**, including **32 smoke checks** and the existing SDK/error
+contracts. Report: `.playwright-data/reports/final-browser`. This clean full
+run supersedes the earlier 82-case aggregate checkpoint. It preceded the
+last receipt-view validity correction; five rendered-receipt cases in the
+final backend suite cover that final delta. A full browser rerun of that
+view delta is not claimed. A separate tablet run passed 16/16 in 2.3 minutes
+on `eb488ab136a6f0438ed31a8037c947981846dd84`, covering Chromium and WebKit
+in portrait/landscape. Report: `.playwright-data/tablet-report`.
+Together these suites cover 100 distinct controlled browser checks: 84
+desktop/phone (including 32 smokes) plus 16 tablet cases, excluding live AI.
+
+The initial tablet run passed 12/16. Two failures were harness navigation
+races before person selection completed; two exposed real WebKit overflow
+on My permits. A person-selection heading wait and the responsive table/card
+breakpoint correction preceded the clean 16/16 rerun. This records the
+failure and its correction rather than treating the first run as passed.
+
+History remains separate: the earlier full run passed 71 checks, nine
+targeted reruns corrected harness expectations, and two later loading-feedback
+cases brought aggregate coverage to 82. Retained failures include stale copy
+assertions, cold-start timing and loading-feedback harness expectations.
+The 30/30 smoke run in 3.8 minutes on `e3a4993` and the earlier 2.6-minute
+run on `aa6781a` are historical checkpoints; rerunning cases does not add
+distinct tests.
 TypeScript type checking passed; the app build completed with zero warnings
 and errors.
 
@@ -22,21 +37,44 @@ and errors.
 dotnet test tests/Solvia.Tests
 ```
 
-The latest coordinated backend run passed **367/367 tests**, with no failures
-or skips, in 34 seconds. It covers domain pricing, ownership, checkout/capture
+The final coordinated backend run passed **390/390 tests**, zero failed or
+skipped, in **12 seconds**, against application source
+`92cba2119af4c7d5be7b7b51e70c99f9f2aecb8e`. It covers domain pricing, ownership, checkout/capture
 verification, webhooks, PDF contents, actual Program.cs dependency injection,
-routing, Razor rendering, antiforgery, both AI adapters, and input boundaries.
-This supersedes the historical 244-test baseline and the earlier 308-test
-passing run. The first expanded Meta run passed 331/332: an ambiguous
+routing, Razor rendering, antiforgery, Together/Ollama validation and input
+boundaries, shared AI admission quotas/concurrency and stale-payment/permit
+validity messaging. Five real-rendered receipt cases distinguish active,
+denied, future and expired paid permits, plus a future free permit. Payment
+confirmation alone must not label an inactive permit live.
+
+The initial Together run passed 366/367: under load, late timer
+cancellation allowed an over-budget answer to reach validation. The fix
+rejects answers after the measured deadline, and four deterministic deadline
+guards were added. The failure and the final passing run are separate records.
+
+This supersedes the historical 244-, 308-, 367-, 371- and 382-test checkpoints. The earlier
+expanded Meta run passed 331/332: an ambiguous
 `plate might be...` sentence exposed a false plate extraction. That failure
-is retained; the fix and regression, an independent review of exact vehicle
-vocabulary matching, and Meta dependency-injection coverage are included in
-the final passing run.
+is retained. Its fix/regression and the vocabulary checks identified in a
+separate agent review were covered by the historical 367-test passing run.
+That earlier provider configuration is not the current hosted reader.
 
 The final TRX is retained locally under ignored
-`.playwright-data/backend-validation/meta-release-verified.trx`; earlier runs
-remain separate. The [quality-control record](QUALITY-CONTROL.md) describes
+`.playwright-data/backend-validation/final-validity-release.trx`.
+The historical 371-test result is `together-release-verified.trx`; the failed
+Together run is `together-release.trx`. The historical pre-switch result is
+`meta-release-verified.trx`. The fresh smoke report is under
+`.playwright-data/reports/together-smoke`. These records remain separate.
+The [quality-control record](QUALITY-CONTROL.md) describes
 the review, correction, and retest process and its limits.
+
+The shared AI limiter admits at most 20 requests per client and 60 globally
+per minute, with at most two in-flight requests per client and four globally.
+Both extraction routes share it; rejections return HTTP 429 with Retry-After
+before model invocation. MVC rejection retains the answers. Offline checks
+cover shared real-route quotas, window recovery, concurrency, exception and
+cancellation release. These are per-process guards that reset on restart,
+not authentication, distributed quotas or a provider billing cap.
 
 ## TypeScript browser tests
 
@@ -49,6 +87,19 @@ npm run typecheck
 npm run test:smoke
 npm run test:e2e
 ```
+
+For the separate emulated-tablet suite, install matching browsers and opt in
+to both engines. These are touch/viewport checks, not physical iPad testing:
+
+```powershell
+npx playwright install chromium webkit
+$env:SOLVIA_TABLET_WEBKIT = '1'
+npx tsc --noEmit -p tsconfig.tablet.json
+npx playwright test --config playwright.tablet.config.ts
+```
+
+The suite inherits the isolated base server, with hosted AI credentials
+blanked. Its 16 checks are additional to the 84 desktop/phone checks.
 
 On Linux CI, use `npx playwright install --with-deps chromium` for browser
 system dependencies. To inspect failures or run interactively:
@@ -66,13 +117,14 @@ PDF download, and missing-antiforgery rejection.
 
 The suite starts its own app on **127.0.0.1:5157** with a fresh SQLite file
 under ignored `.playwright-data/`. It uses the `Testing` environment, no
-user-secrets, no usable PayPal or Meta credentials, an unreachable Ollama
+user-secrets, no usable PayPal or hosted-model credentials, an unreachable Ollama
 endpoint with `AI_PROVIDER=ollama`, and a
 separate build output. It does not stop or edit the user's preview at 5156.
 Testing loads the source build's static-asset manifest explicitly. Report
 and failure traces are ignored by Git.
-Controlled test hosts explicitly clear provider credentials, including both
-`META_API_KEY` and `Meta__ApiKey`; they never inherit a hosted model secret.
+Controlled test hosts explicitly clear hosted-provider credentials, including
+`TOGETHER_API_KEY` and `Together__ApiKey`; they must not inherit a hosted
+model secret. Historical provider settings are also excluded from the host.
 
 The real AG Grid 34.3.1 library is delivered from the pinned npm package to
 the page's CDN request in tests. The main journey suite uses real application
@@ -125,8 +177,8 @@ sandbox seller cannot buy from itself; use a separate **Personal** sandbox
 buyer when testing that UI path. Never put credentials in test source,
 reports, or commits. See [PayPal's sandbox account guide](https://developer.paypal.com/sandbox-testing/accounts).
 
-Real application AI verification requires the selected provider's `ollama`
-or `meta` source label. The demo person switcher tests fictional ownership flows and is not
+Real application AI verification requires the selected provider's `together`
+or `ollama` source label. The demo person switcher tests fictional ownership flows and is not
 production authentication. CSV pricing is the accepted hackathon scope;
 no real-time college fee feed is claimed.
 
@@ -152,7 +204,7 @@ captures do not establish that interactive PayPal wallet checkout was tested.
 
 ## Opt-in live AI checks
 
-`tests/ai/model-live.spec.ts` contains **eight intended live-provider cases**,
+`tests/ai/model-live.spec.ts` contains **eight live-provider cases**,
 separate from the controlled browser counts above. It uses the already-running
 loopback app (default port 5156), creates fictional vehicle/application drafts,
 and stops before any PayPal order/payment. It does not start or reconfigure
@@ -160,14 +212,15 @@ the app. Positive extraction cases require the actual selected source;
 negative/ambiguous inputs may safely produce a labeled fallback.
 
 Configure the app first using [README provider setup](../README.md#step-4--select-an-optional-ai-provider).
-For Meta, the simplest route is `scripts/Set-MetaCredentials.ps1`, which reads
-the key through a hidden prompt into .NET Development user-secrets. The
-browser runner never receives the Meta key. Use adult (18+) fictional details
-under the [provider restrictions](PRIVACY.md).
+Configure Together's server-only credential privately, then restart the app
+with `AI_PROVIDER=together`. The browser runner never receives that key. Use
+fictional adult details and review the [hosted data boundaries](PRIVACY.md).
+`scripts/Set-TogetherCredentials.ps1` provides the hidden-prompt Development
+setup; its user-secrets store is local configuration, not an encrypted vault.
 
 ```powershell
 $env:SOLVIA_RUN_LIVE_AI = '1'
-$env:SOLVIA_AI_PROVIDER = 'meta'
+$env:SOLVIA_AI_PROVIDER = 'together'
 npx playwright test --config=playwright.ai.config.ts
 Remove-Item Env:SOLVIA_RUN_LIVE_AI,Env:SOLVIA_AI_PROVIDER
 ```
@@ -175,12 +228,27 @@ Remove-Item Env:SOLVIA_RUN_LIVE_AI,Env:SOLVIA_AI_PROVIDER
 For Ollama, set `SOLVIA_AI_PROVIDER=ollama` instead and ensure the app itself
 uses `AI_PROVIDER=ollama` with Phi-4-mini available. The flags identify and
 authorize the test; they do not switch the app's server provider. Optional
-`SOLVIA_AI_BASE_URL` must remain loopback. Meta calls may incur charges.
+`SOLVIA_AI_BASE_URL` must remain loopback. Together calls are metered.
 
 Evidence is written under ignored `.playwright-data/ai-evidence/{provider}/`;
-traces are off. Retain failures and source labels. The eight-case suite is
-prepared, **not a claim of eight passing live tests**. A warmed direct CPU
-Phi-4-mini response took 32.26 seconds while the 10-second app budget fell
-back. Meta has no configured key or verified live request at this checkpoint.
-See [Meta's primary API reference](https://dev.meta.ai/docs/api-reference/chat-completions/schemas)
+traces are off. Retain failures and source labels. The same eight real Together
+application cases passed twice, including a final **8/8** run against
+`e3a49938bc08be6fc0d2fe11c695bf69adc8f9dc` after deadline hardening and
+credential replacement. Every case returned `source=together`; this is
+**eight distinct live cases**, separate from the 84 controlled browser checks.
+The full final eight-case run took 1.3 minutes. Its submit-to-review values
+were 5,314, 3,898, 2,109, 2,538, 2,221, 1,741, 2,660 and 1,582 ms: median
+2,379.5 ms, range 1,582–5,314 ms on this computer/run. This includes app and
+review navigation time, not just model latency, and is not a service guarantee.
+The fresh 30-check controlled smoke run also passed in 3.8 minutes.
+
+The first live report is `results-first-pass.json`; the final is `results.json`,
+both under `.playwright-data/ai-evidence/together/`. Repeating cases does not
+double the distinct-case count.
+
+Historically, a warmed direct CPU Phi-4-mini response took 32.26 seconds
+while the 10-second app budget fell back. That observation is separate from
+the actual Together application proof. Together's key remains private in
+Development user-secrets.
+See [Together's structured-output reference](https://docs.together.ai/docs/inference/chat/structured-outputs)
 for the hosted request contract.

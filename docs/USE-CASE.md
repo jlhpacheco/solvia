@@ -83,8 +83,8 @@ MARIA — student, first day
    College?  Car?  Permit choice?
    (College, permit type, and term are UI selections.
     The configured reader drafts vehicle fields only:
-    Ollama/Phi-4-mini by default, or optional hosted
-    Meta Standard. An unavailable or unusable model
+    Together/Qwen3.5-9B by default, or optional Ollama.
+    An unavailable or unusable model
     answer uses the clearly labeled built-in reader.)
         |
         v
@@ -140,18 +140,21 @@ same doors and pays the college's full published fee, like any student.
 
 ## AI model choice — the honest framing
 
-**Ollama/Phi-4-mini is the default; hosted Meta Standard `muse-spark-1.3`
+**Together AI with hosted `Qwen/Qwen3.5-9B` is the default; Ollama/Phi-4-mini
 is optional.** `AI_PROVIDER` selects the adapter. The browser sends the
 vehicle sentence to Solvia, which calls that provider on the server.
-Ollama's default endpoint is local to the application host, which can be a
-server; selecting Meta sends the sentence to its hosted API. Both adapters
+Together sends the sentence to its hosted API; Ollama's default endpoint is
+local to the application host, which can be a server. Both adapters
 use the same schema and plate safeguards. Use fictional adult details and
-read [privacy](PRIVACY.md), including Meta's 18+ restriction and data-handling
-limits. [README setup](../README.md) documents the hidden-prompt Meta
+read [privacy](PRIVACY.md), including storage/training settings and residency
+limits. [README setup](../README.md) documents the hidden-prompt Together
 credential helper and the 10-second default timeout (clamped to 1–90).
 
-No Meta key is configured and no live Meta request is verified. A direct
-warm CPU Phi-4-mini response took 32.26 seconds; the application fell back
+Together's key is privately configured in Development user-secrets. The first
+live application suite passed eight distinct cases with every source labeled
+`together`, including the final release rerun after credential replacement and
+deadline hardening. Historically,
+a direct warm CPU Phi-4-mini response took 32.26 seconds; the application fell back
 at its 10-second budget. The optional [live TypeScript checks](TESTING.md#opt-in-live-ai-checks)
 require an actual selected-provider response; fallback is not presented as
 a successful model demonstration.
@@ -164,7 +167,7 @@ What the AI does — and does not — do:
 - Every price comes from the **catalog** (`data/fees.csv`), using the selected
   canonical campus and permit choice. The model cannot set the total.
 - The honest source stamp travels with the application (`Source`):
-  `"ollama"` or `"meta"` when that configured model answered and passed
+  `"together"` or `"ollama"` when that configured model answered and passed
   validation, `"fallback"` when the deterministic reader answered instead
   (either provider unavailable, timed out, or unusable), and `"form"` for
   the form door. The review screen lets the person correct missing or

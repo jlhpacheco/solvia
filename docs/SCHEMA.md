@@ -105,7 +105,7 @@ by it — a person only ever sees their own vehicles.
 | `PermitTypeId` | `int` | Which catalog type was bought (Daily / Term). Foreign key → `PermitType.Id`, delete behavior Restrict. Part of the composite unique index. |
 | `PermitType` | `PermitType?` | Navigation property. |
 | `Term` | `TermKind`, stored as TEXT | The term the buyer picked (Fall / Spring / Summer) — stored on the row so the price can be recomputed from the fee catalog without trusting anything the browser posts. Default `Fall`. Required (conversion), max length 20. |
-| `Source` | `string` | Which door/reader produced the application — the honest source label, kept with the row so it survives redirects: `"form"` (form door), `"ollama"` (configured Ollama model passed validation), `"meta"` (hosted Meta model passed validation), or `"fallback"` (deterministic reader answered). Default `"form"`. Required, max length 16. |
+| `Source` | `string` | Which door/reader produced the application — the honest source label, kept with the row so it survives redirects: `"form"` (form door), `"together"` (hosted Together model passed validation), `"ollama"` (configured Ollama model passed validation), or `"fallback"` (deterministic reader answered). Historical rows may retain their earlier reader label. Default `"form"`. Required, max length 16. |
 | `StartDate` | `DateOnly` | First day the permit is valid. Part of the composite unique index. |
 | `EndDate` | `DateOnly` | Last day the permit is valid (always computed, never typed). Part of the composite unique index. |
 | `Status` | `ApplicationStatus`, stored as TEXT | Application standing. Default `Pending`. Required (conversion), max length 20. |
@@ -198,9 +198,9 @@ All 50 states plus `DC` (51 values). Default `CA`.
 
 ### Service-layer enums (not stored columns)
 
-- `ExtractionSource` (`IAiExtractor.cs`): `Ollama`, `Meta`, `Fallback` — which
-  path produced an extraction. Serialized on the wire as `"ollama"`,
-  `"meta"`, or `"fallback"`; these are the AI-door values stamped onto
+- `ExtractionSource` (`IAiExtractor.cs`): active readers are `Together`,
+  `Ollama`, and `Fallback`. Their wire labels are `"together"`, `"ollama"`,
+  and `"fallback"`; these are the AI-door values stamped onto
   `PermitApplication.Source` (the form door stamps `"form"`).
 - `RosterPermitState` (`PermitValidity.cs`): `Paid`, `FreeIssued`,
   `Pending`, `NoPermit` — a student's computed standing at one campus on
@@ -211,7 +211,7 @@ set and plate safeguards. The extraction has no price field; college,
 permit type, and term remain the person's UI choices. The server rejects
 vehicle text longer than 1,000 characters before model invocation, limits
 reviewed make/model values to 50 characters, and accepts valid named
-state/color values rather than numeric enum coercion. Adding the `meta`
+state/color values rather than numeric enum coercion. Adding the `together`
 source does not add a table or a database column. Provider setup and data
 processing boundaries are in [README](../README.md) and [PRIVACY.md](PRIVACY.md).
 
@@ -358,16 +358,16 @@ no-op duplicate instead of a second action.
 ## Configuration surface (`src/Solvia/Config/AppOptions.cs`)
 
 Not tables — the typed options the schema's behavior depends on. Secrets
-(`PayPal.ClientId`, `PayPal.ClientSecret`, and optional `Meta.ApiKey`) are
+(`PayPal.ClientId`, `PayPal.ClientSecret`, and `Together.ApiKey`) are
 supplied through server environment configuration or Development .NET
 user-secrets, never through the database, browser code, or committed files.
 
 | Section / class | Members (defaults) |
 |---|---|
 | `PayPal` / `PayPalOptions` | `ClientId` (`""`), `ClientSecret` (`""`), `Environment` (`"sandbox"`), `BaseUrl` (`"https://api-m.sandbox.paypal.com"`), `Currency` (`"USD"`), `WebhookId` (`""` — id of the registered PayPal webhook, used by verify-webhook-signature; an identifier, not a credential) |
-| `AI` / `AiOptions` | `Provider` (`"ollama"`; optional `"meta"`) |
+| `AI` / `AiOptions` | `Provider` (`"together"`; optional `"ollama"`) |
 | `Ollama` / `OllamaOptions` | `BaseUrl` (`"http://localhost:11434"`), `Model` (`"phi4-mini"`), `TimeoutSeconds` (`10`, clamped to 1–90) |
-| `Meta` / `MetaOptions` | `ApiKey` (`""`, server-only), `Model` (`"muse-spark-1.3"`, Standard mode), `TimeoutSeconds` (`10`, clamped to 1–90) |
+| `Together` / `TogetherOptions` | `ApiKey` (`""`, server-only), `Model` (`"Qwen/Qwen3.5-9B"`), `TimeoutSeconds` (`10`, clamped to 1–90) |
 | `Category` / `CategoryOptions` | `EmployeeDomains` (`["college.example"]`), `StudentDomains` (`["student.example"]`) |
 | `FeeTable` / `FeeTableOptions` | `Renderer` (`"native"`; `"aggrid"` is the AG Grid Community seam) |
 | `Calendar` / `CalendarOptions` | `Renderer` (`"native"`; `"bryntum"` is the licensed-build drop-in point) |
@@ -376,14 +376,18 @@ user-secrets, never through the database, browser code, or committed files.
 | `Webhook` / `WebhookOptions` | `Url` (`""` = disabled — the outbound payment-complete / Zapier seam; events carry no student PII), `PublicBaseUrl` (`""` = no fallback origin; an origin is never invented) |
 | Root / `SolviaOptions` | `FeesCsvPath` (`"data/fees.csv"`) |
 
-Environment aliases are `AI_PROVIDER`, `META_API_KEY`, `META_MODEL`, and
-`META_TIMEOUT_SECONDS`. `scripts/Set-MetaCredentials.ps1` is the Development
+Environment aliases are `AI_PROVIDER`, `TOGETHER_API_KEY`, `TOGETHER_MODEL`,
+and `TOGETHER_TIMEOUT_SECONDS`. `scripts/Set-TogetherCredentials.ps1` is the Development
 setup path: a hidden prompt writes the key through stdin to .NET
-user-secrets and selects the Meta provider/model/timeout. User-secrets are
-per-user settings, not an encrypted vault. The Meta adapter accepts only
-the supported Standard model allowlist, uses a fixed hosted API endpoint,
-and falls back if its key or a usable response is absent. No key is
-configured and no live Meta request is verified in the current evidence.
+user-secrets and selects the Together provider/model/timeout. User-secrets are
+per-user settings, not an encrypted vault. The Together adapter uses a fixed
+hosted API endpoint, structured JSON, disabled reasoning, temperature 0 and a
+512-output-token cap. Only the pinned `Qwen/Qwen3.5-9B` model is accepted.
+It falls back if its key or a usable response is absent.
+The key is privately configured in Development user-secrets. The first live
+eight-case application suite and its final release rerun passed with every
+source labeled `together` (eight distinct cases);
+this does not change the data schema or verify account privacy settings.
 
 ## Out of scope — by design
 
