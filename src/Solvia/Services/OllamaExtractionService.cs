@@ -37,6 +37,7 @@ public sealed class OllamaExtractionService : IAiExtractor
     private readonly FallbackExtractor _fallback;
     private readonly ILogger<OllamaExtractionService> _logger;
     private readonly TimeSpan _timeout;
+    private readonly TimeProvider _clock;
     private readonly string _systemPrompt;
 
     public OllamaExtractionService(
@@ -45,7 +46,8 @@ public sealed class OllamaExtractionService : IAiExtractor
         IFeeCatalog catalog,
         FallbackExtractor fallback,
         ILogger<OllamaExtractionService> logger,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        TimeProvider? timeProvider = null)
     {
         _http = http;
         _options = options.Value;
@@ -55,6 +57,7 @@ public sealed class OllamaExtractionService : IAiExtractor
         // The optional constructor override remains available to offline tests.
         // Runtime configuration is bounded by OllamaOptions.TimeoutSeconds.
         _timeout = timeout ?? TimeSpan.FromSeconds(_options.TimeoutSeconds);
+        _clock = timeProvider ?? TimeProvider.System;
 
         // DI sets the base address from OllamaOptions when the client
         // is registered; when the client was built by hand (tests),
@@ -71,6 +74,7 @@ public sealed class OllamaExtractionService : IAiExtractor
         string studentText,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             var ai = await TryModelAsync(studentText, cancellationToken);
@@ -103,6 +107,7 @@ public sealed class OllamaExtractionService : IAiExtractor
         string studentText,
         CancellationToken cancellationToken)
     {
+        var started = _clock.GetTimestamp();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_timeout);
 
@@ -126,6 +131,10 @@ public sealed class OllamaExtractionService : IAiExtractor
         };
 
         using var response = await _http.SendAsync(request, timeout.Token);
+        cancellationToken.ThrowIfCancellationRequested();
+        // Timer cancellation can be dispatched late when the host is busy.
+        // Independently reject output observed after the monotonic deadline.
+        if (_clock.GetElapsedTime(started) >= _timeout) return null;
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogInformation(
@@ -135,6 +144,8 @@ public sealed class OllamaExtractionService : IAiExtractor
         }
 
         var body = await response.Content.ReadAsStringAsync(timeout.Token);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_clock.GetElapsedTime(started) >= _timeout) return null;
         using var doc = JsonDocument.Parse(body);
         if (!doc.RootElement.TryGetProperty("message", out var message) ||
             !message.TryGetProperty("content", out var contentEl) ||
@@ -143,7 +154,9 @@ public sealed class OllamaExtractionService : IAiExtractor
             return null;
         }
 
-        return _contract.Parse(content, studentText, ExtractionSource.Ollama);
+        var result = _contract.Parse(content, studentText, ExtractionSource.Ollama);
+        cancellationToken.ThrowIfCancellationRequested();
+        return _clock.GetElapsedTime(started) < _timeout ? result : null;
     }
 
 }

@@ -19,8 +19,8 @@ public enum ExtractionSource
     /// </summary>
     Fallback,
 
-    /// <summary>The hosted Meta model answered and passed the shared validation.</summary>
-    Meta,
+    /// <summary>The Together-hosted model answered and passed the shared validation.</summary>
+    Together,
 }
 
 public static class ExtractionSourceExtensions
@@ -28,7 +28,7 @@ public static class ExtractionSourceExtensions
     public static string ToWireName(this ExtractionSource source) => source switch
     {
         ExtractionSource.Ollama => "ollama",
-        ExtractionSource.Meta => "meta",
+        ExtractionSource.Together => "together",
         _ => "fallback"
     };
 }
@@ -81,7 +81,7 @@ public sealed record ExtractionResult
 /// <summary>
 /// Reads a permit draft out of one student message. The primary
 /// implementation is selected explicitly: Ollama (local to the application
-/// host by default) or the hosted Meta Model API. The configured provider
+/// host by default) or the hosted Together AI API. The configured provider
 /// receives extraction inputs. Model failures use the deterministic fallback.
 /// </summary>
 public interface IAiExtractor

@@ -3,11 +3,11 @@ import { defineConfig, devices } from '@playwright/test';
 // This suite uses the real running app and an explicitly selected real provider.
 // It is separate from the isolated, provider-free browser test suite.
 if (process.env.SOLVIA_RUN_LIVE_AI !== '1') {
-  throw new Error('Set SOLVIA_RUN_LIVE_AI=1 to opt in to real-model tests. Meta requests may incur charges.');
+  throw new Error('Set SOLVIA_RUN_LIVE_AI=1 to opt in to real-model tests. Together requests may incur charges.');
 }
 const provider = process.env.SOLVIA_AI_PROVIDER;
-if (provider !== 'ollama' && provider !== 'meta') {
-  throw new Error('Set SOLVIA_AI_PROVIDER explicitly to ollama or meta.');
+if (provider !== 'ollama' && provider !== 'together') {
+  throw new Error('Set SOLVIA_AI_PROVIDER explicitly to ollama or together.');
 }
 
 const baseURL = process.env.SOLVIA_AI_BASE_URL ?? 'http://localhost:5156';
@@ -35,6 +35,7 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     baseURL,
     trace: 'off',
-    screenshot: 'only-on-failure'
+    screenshot: 'off',
+    video: 'off'
   }
 });

@@ -799,7 +799,7 @@ public sealed class PermitsController : DemoControllerBase
     private static string SourceNote(string source) => source switch
     {
         "ollama" => "Read by Solvia's configured AI reader via Ollama. Check the draft before continuing.",
-        "meta" => "Read by Solvia's hosted Meta AI reader. Check the draft before continuing.",
+        "together" => "Read by Solvia's hosted AI reader via Together AI. Check the draft before continuing.",
         _ => "Read by the built-in reader because the configured AI was unavailable " +
              "or returned an unusable answer. Check the draft before continuing."
     };

@@ -1,20 +1,20 @@
 namespace Solvia.Config;
 
-/// <summary>Choose one model provider explicitly; the default remains Ollama.</summary>
+/// <summary>Together is the default hosted reader; Ollama is an explicit local option.</summary>
 public sealed class AiOptions
 {
     public const string SectionName = "AI";
-    public string Provider { get; set; } = "ollama";
+    public string Provider { get; set; } = "together";
 }
 
-/// <summary>Server-only Meta Model API settings. Never send ApiKey to the browser.</summary>
-public sealed class MetaOptions
+/// <summary>Server-only Together AI settings. Never send ApiKey to the browser.</summary>
+public sealed class TogetherOptions
 {
-    public const string SectionName = "Meta";
+    public const string SectionName = "Together";
     private int _timeoutSeconds = 10;
 
     public string ApiKey { get; set; } = "";
-    public string Model { get; set; } = "muse-spark-1.3";
+    public string Model { get; set; } = "Qwen/Qwen3.5-9B";
 
     /// <summary>Complete model response budget; configured values clamp to 1–90 seconds.</summary>
     public int TimeoutSeconds

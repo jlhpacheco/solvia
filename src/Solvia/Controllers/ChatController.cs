@@ -12,7 +12,7 @@ namespace Solvia.Controllers;
 /// The draft carries NO price — the AI never sets the price; the
 /// flow takes the price from the fee catalog for the resolved
 /// campus. The <c>source</c> field is honest about which path
-/// answered: "ollama" or "meta" when the selected model answered and
+/// answered: "ollama" or "together" when the selected model answered and
 /// passed validation, "fallback" when the deterministic extractor
 /// answered because the model was down or its answer failed
 /// validation.

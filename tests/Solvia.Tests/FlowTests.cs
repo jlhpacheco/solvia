@@ -473,7 +473,7 @@ public sealed class FlowTests
 
     [Theory]
     [InlineData(ExtractionSource.Ollama, "configured AI reader")]
-    [InlineData(ExtractionSource.Meta, "hosted Meta AI reader")]
+    [InlineData(ExtractionSource.Together, "hosted AI reader via Together AI")]
     [InlineData(ExtractionSource.Fallback, "unavailable or returned an unusable answer")]
     public async Task AiDoor_ReaderNote_DescribesConfiguredReaderWithoutDeviceClaims(
         ExtractionSource source, string expectedNote)

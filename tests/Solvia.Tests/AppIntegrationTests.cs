@@ -65,7 +65,7 @@ public sealed class AppIntegrationTests : IClassFixture<AppIntegrationTests.Demo
                 ["PayPal:ClientId"] = "",
                 ["PayPal:ClientSecret"] = "",
                 ["AI:Provider"] = "ollama",
-                ["Meta:ApiKey"] = "",
+                ["Together:ApiKey"] = "",
                 ["Ollama:BaseUrl"] = "http://127.0.0.1:1/",
                 ["Webhook:Url"] = "",
                 ["Logging:LogLevel:Default"] = "Error"

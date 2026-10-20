@@ -7,30 +7,36 @@ using Solvia.Config;
 namespace Solvia.Services;
 
 /// <summary>
-/// Server-side Meta Model API adapter. Hosted inputs leave the app host.
-/// Only Standard Muse Spark model IDs are permitted; no tools or payments
+/// Server-side Together AI API adapter. Hosted inputs leave the app host.
+/// Only the selected Qwen3.5 9B model is permitted; no tools or payments
 /// are exposed to the model. Failures use the clearly labeled fallback.
-/// Contract: https://dev.meta.ai/docs/api-reference/chat-completions/schemas
+/// Contract: https://docs.together.ai/docs/inference/chat/structured-outputs
 /// </summary>
-public sealed class MetaExtractionService : IAiExtractor
+public sealed class TogetherExtractionService : IAiExtractor
 {
-    private static readonly Uri Endpoint = new("https://api.meta.ai/v1/chat/completions");
+    private static readonly Uri Endpoint = new("https://api.together.ai/v1/chat/completions");
     private readonly HttpClient _http;
-    private readonly MetaOptions _options;
+    private readonly TogetherOptions _options;
     private readonly FallbackExtractor _fallback;
-    private readonly ILogger<MetaExtractionService> _logger;
+    private readonly ILogger<TogetherExtractionService> _logger;
     private readonly ModelExtractionContract _contract;
+    private readonly object _schema;
     private readonly string _systemPrompt;
+    private readonly TimeProvider _clock;
 
-    public MetaExtractionService(HttpClient http, IOptions<MetaOptions> options,
-        IFeeCatalog catalog, FallbackExtractor fallback, ILogger<MetaExtractionService> logger)
+    public TogetherExtractionService(HttpClient http, IOptions<TogetherOptions> options,
+        IFeeCatalog catalog, FallbackExtractor fallback, ILogger<TogetherExtractionService> logger,
+        TimeProvider? timeProvider = null)
     {
         _http = http;
         _options = options.Value;
         _fallback = fallback;
         _logger = logger;
+        _clock = timeProvider ?? TimeProvider.System;
         _contract = new ModelExtractionContract(catalog);
-        _systemPrompt = ModelExtractionContract.BuildSystemPrompt(catalog);
+        _schema = _contract.JsonSchema();
+        _systemPrompt = ModelExtractionContract.BuildSystemPrompt(catalog) +
+            " Respond only in JSON following this schema: " + JsonSerializer.Serialize(_schema);
     }
 
     public async Task<ExtractionResult> ExtractAsync(string studentText,
@@ -38,22 +44,24 @@ public sealed class MetaExtractionService : IAiExtractor
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(_options.ApiKey) ||
-            _options.Model is not ("muse-spark-1.3" or "muse-spark-1.2" or "muse-spark-1.1"))
+            _options.Model != "Qwen/Qwen3.5-9B")
         {
             return _fallback.Extract(studentText);
         }
 
         try
         {
+            var started = _clock.GetTimestamp();
+            var allowed = TimeSpan.FromSeconds(_options.TimeoutSeconds);
             using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            budget.CancelAfter(TimeSpan.FromSeconds(_options.TimeoutSeconds));
+            budget.CancelAfter(allowed);
             var payload = new
             {
                 model = _options.Model,
                 stream = false,
-                store = false,
-                reasoning_effort = "minimal",
-                max_completion_tokens = 1024,
+                reasoning = new { enabled = false },
+                temperature = 0,
+                max_tokens = 512,
                 messages = new[]
                 {
                     new { role = "system", content = _systemPrompt },
@@ -65,8 +73,7 @@ public sealed class MetaExtractionService : IAiExtractor
                     json_schema = new
                     {
                         name = "solvia_permit_draft",
-                        strict = true,
-                        schema = _contract.JsonSchema()
+                        schema = _schema
                     }
                 }
             };
@@ -74,14 +81,20 @@ public sealed class MetaExtractionService : IAiExtractor
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
             request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
             using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, budget.Token);
+            cancellationToken.ThrowIfCancellationRequested();
+            // A busy host can dispatch the cancellation timer late. The
+            // monotonic elapsed budget still prevents trusting late output.
+            if (_clock.GetElapsedTime(started) >= allowed) return _fallback.Extract(studentText);
             if (!response.IsSuccessStatusCode)
             {
                 // Do not read or log error bodies: they can contain inputs or credentials.
-                _logger.LogInformation("Meta extraction returned HTTP {Status}; using fallback.", (int)response.StatusCode);
+                _logger.LogInformation("Together extraction returned HTTP {Status}; using fallback.", (int)response.StatusCode);
                 return _fallback.Extract(studentText);
             }
 
             var body = await response.Content.ReadAsStringAsync(budget.Token);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_clock.GetElapsedTime(started) >= allowed) return _fallback.Extract(studentText);
             using var document = JsonDocument.Parse(body);
             var root = document.RootElement;
             if (root.ValueKind == JsonValueKind.Object &&
@@ -92,16 +105,17 @@ public sealed class MetaExtractionService : IAiExtractor
                 (!message.TryGetProperty("refusal", out var refusal) || refusal.ValueKind == JsonValueKind.Null) &&
                 message.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String &&
                 content.GetString() is { Length: > 0 } modelJson &&
-                _contract.Parse(modelJson, studentText, ExtractionSource.Meta, requireCompleteShape: true) is { } result)
+                _contract.Parse(modelJson, studentText, ExtractionSource.Together, requireCompleteShape: true) is { } result)
             {
-                return result;
+                cancellationToken.ThrowIfCancellationRequested();
+                if (_clock.GetElapsedTime(started) < allowed) return result;
             }
         }
         catch (Exception exception) when (exception is not OperationCanceledException ||
                                           !cancellationToken.IsCancellationRequested)
         {
             // Exception messages and raw provider data are deliberately excluded.
-            _logger.LogInformation("Meta extraction unavailable ({FailureKind}); using fallback.", exception.GetType().Name);
+            _logger.LogInformation("Together extraction unavailable ({FailureKind}); using fallback.", exception.GetType().Name);
         }
 
         return _fallback.Extract(studentText);

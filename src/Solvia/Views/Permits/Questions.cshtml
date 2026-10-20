@@ -32,10 +32,10 @@
         <textarea class="form-control fs-4" id="carText" name="carText" rows="2" maxlength="@Solvia.Models.ViewModels.PermitDraftViewModel.MaxCarTextLength"
                   placeholder="Example: blue 2019 Honda Civic, plate 8XYZ123">@Model.CarText</textarea>
         <p class="fs-6 text-muted mt-2 mb-0">
-            @if (AiSettings.Value.Provider.Equals("meta", StringComparison.OrdinalIgnoreCase))
+            @if (AiSettings.Value.Provider.Equals("together", StringComparison.OrdinalIgnoreCase))
             {
-                <text>Use a fictional vehicle. This demo is for adults 18 and older.
-                When configured, Solvia sends your vehicle sentence to Meta's hosted AI reader.</text>
+                <text>Use a fictional vehicle. Solvia sends your vehicle sentence to Together's
+                hosted AI reader, Qwen3.5-9B. Do not include personal information.</text>
             }
             else
             {

@@ -39,7 +39,7 @@ public sealed partial class ExtractionTests
     {
         var results = await ExtractVocabularyThroughBothProviders(term, permitType);
         Assert.Equal(ExtractionSource.Ollama, results[0].Source);
-        Assert.Equal(ExtractionSource.Meta, results[1].Source);
+        Assert.Equal(ExtractionSource.Together, results[1].Source);
         Assert.All(results, result =>
         {
             Assert.Equal(expectedTerm, result.Term);
@@ -50,23 +50,23 @@ public sealed partial class ExtractionTests
     private static async Task<ExtractionResult[]> ExtractVocabularyThroughBothProviders(string term, string permitType)
     {
         // Complete eight-field JSON tests the semantic vocabulary rather than
-        // triggering Meta's missing-field rejection. Both transports are fake.
+        // triggering the hosted adapter's missing-field rejection. Both transports are fake.
         var modelJson = JsonSerializer.Serialize(new
         {
             college = "Fresno City College", permitType, term, carMake = "Honda",
             carModel = "Civic", carColor = "Blue", plate = "8XYZ123", carState = "CA"
         });
         var ollama = NewService(new FakeOllamaHandler { ResponseBody = ChatEnvelope(modelJson) });
-        var metaHandler = new FakeOllamaHandler
+        var hostedHandler = new FakeOllamaHandler
         {
             ResponseBody = JsonSerializer.Serialize(new
             {
                 choices = new[] { new { finish_reason = "stop", message = new { content = modelJson, refusal = (string?)null } } }
             })
         };
-        var meta = new MetaExtractionService(new HttpClient(metaHandler),
-            Options.Create(new MetaOptions { ApiKey = "offline-vocabulary-test-placeholder" }),
-            Catalog, new FallbackExtractor(Catalog), NullLogger<MetaExtractionService>.Instance);
-        return [await ollama.ExtractAsync(PinnedSentence), await meta.ExtractAsync(PinnedSentence)];
+        var hosted = new TogetherExtractionService(new HttpClient(hostedHandler),
+            Options.Create(new TogetherOptions { ApiKey = "offline-vocabulary-test-placeholder" }),
+            Catalog, new FallbackExtractor(Catalog), NullLogger<TogetherExtractionService>.Instance);
+        return [await ollama.ExtractAsync(PinnedSentence), await hosted.ExtractAsync(PinnedSentence)];
     }
 }
