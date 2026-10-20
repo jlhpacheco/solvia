@@ -52,6 +52,7 @@ async function tapPrimary(locator: Locator) {
 async function answers(page: Page, person: 'Maria' | 'Pat' | 'Elena', daily: boolean) {
   await page.goto('/');
   await page.getByRole('button', { name: person, exact: true }).tap();
+  await expect(page.getByRole('heading', { name: `Welcome, ${person}.`, exact: true })).toBeVisible();
   await fitsViewport(page);
   await page.goto('/Permits/Questions?college=Fresno%20City%20College');
   const plate = 'T' + randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase();
