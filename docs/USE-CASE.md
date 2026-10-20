@@ -83,7 +83,7 @@ MARIA — student, first day
    College?  Car?  Permit choice?
    (College, permit type, and term are UI selections.
     The configured reader drafts vehicle fields only:
-    Together/Qwen3.5-9B by default, or optional Ollama.
+    Together/OpenAI GPT-OSS 120B by default, or optional Ollama.
     An unavailable or unusable model
     answer uses the clearly labeled built-in reader.)
         |
@@ -140,7 +140,7 @@ same doors and pays the college's full published fee, like any student.
 
 ## AI model choice — the honest framing
 
-**Together AI with hosted `Qwen/Qwen3.5-9B` is the default; Ollama/Phi-4-mini
+**Together AI with OpenAI's US-developed `openai/gpt-oss-120b` is the default; Ollama/Phi-4-mini
 is optional.** `AI_PROVIDER` selects the adapter. The browser sends the
 vehicle sentence to Solvia, which calls that provider on the server.
 Together sends the sentence to its hosted API; Ollama's default endpoint is
@@ -151,7 +151,7 @@ limits. [README setup](../README.md) documents the hidden-prompt Together
 credential helper and the 10-second default timeout (clamped to 1–90).
 
 Together's key is privately configured in Development user-secrets. The first
-live application suite passed eight distinct cases with every source labeled
+historical Qwen application suite passed eight distinct cases with every source labeled
 `together`, including the final release rerun after credential replacement and
 deadline hardening. Historically,
 a direct warm CPU Phi-4-mini response took 32.26 seconds; the application fell back

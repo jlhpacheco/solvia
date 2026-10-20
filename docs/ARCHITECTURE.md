@@ -13,7 +13,7 @@ was built against); `docs/CHECK-REPORT.md` is a historical review snapshot,
 not verification of the current optional model providers. Current test
 boundaries and live-provider opt-ins are in [TESTING.md](TESTING.md).
 
-## One application model, two front doors
+## One application model, confirmed inputs
 
 Both ways in create the **same** `PermitApplication` through one
 creation brain, `ApplicationService.CreateAsync`
@@ -30,7 +30,7 @@ how the inputs are gathered.
   step on this door.
 - **The AI door** — `/Permits/Ask` (Solvia's). The configured model
   drafts vehicle details from the car sentence: Together AI's hosted
-  `Qwen/Qwen3.5-9B` by default, or optional Ollama/Phi-4-mini.
+  OpenAI's US-developed `openai/gpt-oss-120b` by default, or optional Ollama/Phi-4-mini.
   College, permit type, and term remain UI selections. Both adapters use
   the same structured extraction contract and plate safeguards. The
   extraction result type has **no price field**; server pricing alone
@@ -44,9 +44,12 @@ calls the fixed `https://api.together.ai/v1/chat/completions` endpoint with a
 server-only API key, JSON Schema output with local contract validation,
 redirects disabled, and
 authorization-header redaction. `TOGETHER_MODEL` defaults to
-`Qwen/Qwen3.5-9B`; `TOGETHER_TIMEOUT_SECONDS` sets the total request budget
-(10 seconds by default, clamped to 1–90). Requests disable reasoning, set
-temperature 0, and cap output at 512 tokens. Ollama has its own bounded
+`openai/gpt-oss-120b`; unsupported Together model configuration fails startup.
+`TOGETHER_TIMEOUT_SECONDS` sets the total request budget
+(10 seconds by default, clamped to 1–90). Requests use low reasoning effort,
+temperature 1, and a 2,048-token total completion cap, including reasoning.
+Only final JSON content is read; the returned model identity must match.
+Ollama has its own bounded
 request budget. Input
 is limited before either model is called; human-reviewed make/model fields
 are limited to 50 characters, and state/color must be valid named values.
@@ -57,19 +60,15 @@ without echoing it and writes it through stdin to .NET user-secrets; these
 are per-user development settings, not an encrypted vault. See the
 [README](../README.md) for setup and [privacy](PRIVACY.md) for hosted data
 processing boundaries. Together's key is privately configured in Development
-user-secrets; eight distinct live application cases passed, including a final
-rerun on `e3a4993` after credential replacement and deadline hardening, with
-every source labeled `together`.
-The final backend suite passed 390/390 tests in 12 seconds, zero failed/skipped,
-on `92cba211`; the historical 371-test checkpoint includes four deterministic
-deadline guards that reject late answers even when timer cancellation is delayed.
-The full desktop/phone suite passed 84/84 in 4.0 minutes, including 32 smokes,
-before the last receipt-view validity delta; rendered backend cases cover that
-delta. A separate 16/16 Chromium/WebKit tablet run passed in 2.3 minutes on
-`eb488ab1`, giving 100 distinct controlled browser checks across the two
-suites. The eight live model cases above remain separate. The tablet delta
-adjusted the My permits table/card breakpoint and the person-selection test
-wait; the 390-case backend run is specifically tied to `92cba211`.
+user-secrets. The current GPT-OSS model passed 12 distinct live application
+cases (eight vehicle, four schedule), all labeled `together`. Historical Qwen
+tests on `e3a4993` remain separate; see [TESTING](TESTING.md) for dated scopes.
+The current backend suite passed 517/517 checks in 13 seconds, zero failed/skipped.
+The older 390-case `92cba211` and 100-controlled-browser checkpoints remain
+historical in [TESTING](TESTING.md); they are not current model proof.
+Deadline guards reject late answers even when timer cancellation is delayed.
+Controlled browser checks, live model checks and real PayPal integration
+tests have separate evidence and are not added together as one suite.
 Historically,
 a direct warm Phi-4-mini CPU response took 32.26 seconds;
 the application's 10-second budget fell back, so that direct response is
@@ -77,7 +76,7 @@ not proof of model inference through the app.
 
 ### Shared AI admission boundary
 
-`AiRequestLimiter` is a singleton used by both `POST /api/chat/extract` and
+`AiRequestLimiter` is a singleton used by `POST /Planner/Read`, `POST /api/chat/extract` and
 `POST /Permits/Understand` before inference: 20 admitted requests per client
 and 60 globally per minute, with two concurrent per client and four globally.
 It bounds tracked client records, uses monotonic windows and releases a lease

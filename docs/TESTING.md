@@ -1,9 +1,29 @@
 # Testing Solvia
 
+## Current US-model release — October 20, 2026
+
+The current feature release uses OpenAI's US-developed **`openai/gpt-oss-120b`**, served by Together AI. It includes visit planning and read-only Operations review. See [implementation boundaries](US-MODEL-AND-PLANNER.md) and the [quality-control record](QUALITY-CONTROL.md). Verified application/test source: [`b8bf8d3f480344e50c76e6f01f2336e96902f651`](https://github.com/jlhpacheco/solvia/tree/b8bf8d3f480344e50c76e6f01f2336e96902f651). Historical SHAs below identify what actually ran then.
+
+| Current layer | Result / evidence |
+|---|---|
+| Backend | **517/517 passed**, zero failed/skipped, **13 seconds**. `.playwright-data/backend-validation/gptoss-release-verified.trx`; separate `bin/UsModelTests` output. The first restricted-sandbox launch ran no tests because testhost IPC timed out; `gptoss-sandbox-ipc-aborted.trx` is retained. |
+| Actual hosted AI | **12/12 distinct live cases** passed in **26.4 seconds**: eight vehicle + four schedule. All observed sources were `together`; both adapters require returned `response.model == openai/gpt-oss-120b` before accepting validated final content. No PayPal orders/payments. Sanitized local evidence: `outputs/Solvia-US-model-verification.json`. |
+| Observed elapsed values | Eleven timed application/browser observations: median **1.352 seconds**, range **0.815–2.646 seconds**; the uncertainty case has no recorded elapsed value. Not provider-only latency, guaranteed performance or measured production cost. |
+| Controlled browser | **132/132 passed**, zero failed/flaky/skipped/global errors: 108 main (54 desktop/54 phone) in **314.6 seconds**, plus 24 tablet in **121.3 seconds**. Main has 36 smoke executions (18 tagged titles × two projects); tablet is six cases × four portrait/landscape Chromium/WebKit projects, with no smoke tags. TypeScript checks, including tablet, passed. |
+| Bounded UI rechecks | Student, public-person and staff checks were AI-assisted automated reviews, not human-study results. Staff's final read-only pass verified Not priced vs confirmed $0 and reconciled 15 rendered saved Paid rows/$975. No provider recheck or new payment occurred. |
+
+The current 2,048-token completion cap covers reasoning and final content; reasoning is neither used as a draft nor logged. Both adapters enforce pinned identity, strict shape/grounding, refusal/tool/truncation rejection, measured elapsed deadlines and cancellation. Vehicle/schedule response envelopes are capped at 64/32 KiB. The normal 10-second response budget clamps to 1–90 when configured. The shared limiter covers vehicle/chat and schedule reads before inference. Planner comparison uses confirmed dates, category and integer catalog cents; continuation still purchases one permit. Operations is a demo-gated view of saved records, not settlement or production authentication.
+
+The first expanded tablet run passed 23/24; a trace proved a deferred-checkout-script/mock double-load harness race. The harness now waits for the original adapter and checks one render/container; production checkout code did not change for that correction. A later attempt collected zero tests because a blank model configuration was rejected by strict startup validation; the controlled test configuration was corrected. Neither attempt is described as a clean pass.
+
+Current reports: `.playwright-data/main-final-us-report/index.html`, `.playwright-data/main-final-us-results.json`, and `.playwright-data/tablet-report/index.html`; parsed local summary `work/agent-usability/final-us-browser-summary.json`. The first tablet report/trace and startup issue remain separately retained under `work/agent-usability/tablet-first-failure-20261020`. Passing these controlled SDK cases does not add real payment or live-inference evidence.
+
+## Historical browser and backend checkpoints — prior source/model
+
 The backend suite uses C#/xUnit. Browser smoke and journey tests use
 **TypeScript and Playwright Test** with desktop Chrome and Pixel 7-sized
 Chromium contexts. Tests use fictional data only.
-The latest complete desktop/phone TypeScript run passed **84/84 checks** in
+The historical complete desktop/phone TypeScript run passed **84/84 checks** in
 **4.0 minutes**, including **32 smoke checks** and the existing SDK/error
 contracts. Report: `.playwright-data/reports/final-browser`. This clean full
 run supersedes the earlier 82-case aggregate checkpoint. It preceded the
@@ -28,16 +48,15 @@ assertions, cold-start timing and loading-feedback harness expectations.
 The 30/30 smoke run in 3.8 minutes on `e3a4993` and the earlier 2.6-minute
 run on `aa6781a` are historical checkpoints; rerunning cases does not add
 distinct tests.
-TypeScript type checking passed; the app build completed with zero warnings
-and errors.
+At that historical checkpoint, TypeScript checking passed and the app build completed with zero warnings/errors.
 
-## Backend and route regressions
+## Backend and route regressions — command and historical checkpoints
 
 ```powershell
 dotnet test tests/Solvia.Tests
 ```
 
-The final coordinated backend run passed **390/390 tests**, zero failed or
+The historical coordinated backend run passed **390/390 tests**, zero failed or
 skipped, in **12 seconds**, against application source
 `92cba2119af4c7d5be7b7b51e70c99f9f2aecb8e`. It covers domain pricing, ownership, checkout/capture
 verification, webhooks, PDF contents, actual Program.cs dependency injection,
@@ -59,7 +78,7 @@ is retained. Its fix/regression and the vocabulary checks identified in a
 separate agent review were covered by the historical 367-test passing run.
 That earlier provider configuration is not the current hosted reader.
 
-The final TRX is retained locally under ignored
+That historical TRX is retained locally under ignored
 `.playwright-data/backend-validation/final-validity-release.trx`.
 The historical 371-test result is `together-release-verified.trx`; the failed
 Together run is `together-release.trx`. The historical pre-switch result is
@@ -70,7 +89,7 @@ the review, correction, and retest process and its limits.
 
 The shared AI limiter admits at most 20 requests per client and 60 globally
 per minute, with at most two in-flight requests per client and four globally.
-Both extraction routes share it; rejections return HTTP 429 with Retry-After
+Vehicle/chat and schedule-reading routes share it; rejections return HTTP 429 with Retry-After
 before model invocation. MVC rejection retains the answers. Offline checks
 cover shared real-route quotas, window recovery, concurrency, exception and
 cancellation release. These are per-process guards that reset on restart,
@@ -99,7 +118,7 @@ npx playwright test --config playwright.tablet.config.ts
 ```
 
 The suite inherits the isolated base server, with hosted AI credentials
-blanked. Its 16 checks are additional to the 84 desktop/phone checks.
+blanked. The current tablet suite contains 24 checks and desktop/phone contains 108; all 132 passed in the current US-model run above. Its earlier 16-case tablet checkpoint remains historical.
 
 On Linux CI, use `npx playwright install --with-deps chromium` for browser
 system dependencies. To inspect failures or run interactively:
@@ -204,7 +223,7 @@ captures do not establish that interactive PayPal wallet checkout was tested.
 
 ## Opt-in live AI checks
 
-`tests/ai/model-live.spec.ts` contains **eight live-provider cases**,
+`tests/ai/model-live.spec.ts` contains **eight vehicle live-provider cases**; `tests/ai/schedule-live.spec.ts` adds **four schedule cases** for Together. The current 12-case US-model suite is
 separate from the controlled browser counts above. It uses the already-running
 loopback app (default port 5156), creates fictional vehicle/application drafts,
 and stops before any PayPal order/payment. It does not start or reconfigure
@@ -221,17 +240,21 @@ setup; its user-secrets store is local configuration, not an encrypted vault.
 ```powershell
 $env:SOLVIA_RUN_LIVE_AI = '1'
 $env:SOLVIA_AI_PROVIDER = 'together'
+$env:SOLVIA_AI_MODEL = 'openai/gpt-oss-120b'
+$env:SOLVIA_AI_EVIDENCE_LABEL = 'gpt-oss-120b'
 npx playwright test --config=playwright.ai.config.ts
-Remove-Item Env:SOLVIA_RUN_LIVE_AI,Env:SOLVIA_AI_PROVIDER
+Remove-Item Env:SOLVIA_RUN_LIVE_AI,Env:SOLVIA_AI_PROVIDER,Env:SOLVIA_AI_MODEL,Env:SOLVIA_AI_EVIDENCE_LABEL
 ```
 
 For Ollama, set `SOLVIA_AI_PROVIDER=ollama` instead and ensure the app itself
 uses `AI_PROVIDER=ollama` with Phi-4-mini available. The flags identify and
 authorize the test; they do not switch the app's server provider. Optional
 `SOLVIA_AI_BASE_URL` must remain loopback. Together calls are metered.
+The four schedule cases are Together-only and are skipped for an Ollama run.
 
-Evidence is written under ignored `.playwright-data/ai-evidence/{provider}/`;
-traces are off. Retain failures and source labels. The same eight real Together
+Evidence uses ignored `.playwright-data/ai-evidence/{evidence-label}/`;
+the current command selects `gpt-oss-120b` so it does not overwrite the earlier provider-labelled Qwen checkpoint.
+traces are off. Retain failures and source labels. Historically, the same eight Qwen/Together
 application cases passed twice, including a final **8/8** run against
 `e3a49938bc08be6fc0d2fe11c695bf69adc8f9dc` after deadline hardening and
 credential replacement. Every case returned `source=together`; this is
@@ -242,8 +265,8 @@ were 5,314, 3,898, 2,109, 2,538, 2,221, 1,741, 2,660 and 1,582 ms: median
 review navigation time, not just model latency, and is not a service guarantee.
 The fresh 30-check controlled smoke run also passed in 3.8 minutes.
 
-The first live report is `results-first-pass.json`; the final is `results.json`,
-both under `.playwright-data/ai-evidence/together/`. Repeating cases does not
+For that historical Qwen run, the first report was `results-first-pass.json` and final report `results.json`,
+both then under `.playwright-data/ai-evidence/together/`. Current live evidence is separately identified as GPT-OSS in `outputs/Solvia-US-model-verification.json`. Repeating cases does not
 double the distinct-case count.
 
 Historically, a warmed direct CPU Phi-4-mini response took 32.26 seconds

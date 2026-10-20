@@ -25,7 +25,7 @@ System.Security.Cryptography.Pkcs 10.0.13
 Web assets: AG Grid Community 34.3.1 (CDN), Bootstrap 5.3.3 including Popper,
 jQuery 3.7.1, jQuery Validation 1.21.0, Microsoft jQuery Unobtrusive Validation.
 PDF fonts: Roboto Regular/Bold from the pinned Roboto-2 distribution.
-No Qwen/Phi model weights or PayPal/Together server software are distributed.
+No model weights or PayPal/Together server software are distributed.
 ==============================================================================
 Solvia - MIT
 Source: Repository LICENSE

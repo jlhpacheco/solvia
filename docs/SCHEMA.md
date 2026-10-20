@@ -367,7 +367,7 @@ user-secrets, never through the database, browser code, or committed files.
 | `PayPal` / `PayPalOptions` | `ClientId` (`""`), `ClientSecret` (`""`), `Environment` (`"sandbox"`), `BaseUrl` (`"https://api-m.sandbox.paypal.com"`), `Currency` (`"USD"`), `WebhookId` (`""` — id of the registered PayPal webhook, used by verify-webhook-signature; an identifier, not a credential) |
 | `AI` / `AiOptions` | `Provider` (`"together"`; optional `"ollama"`) |
 | `Ollama` / `OllamaOptions` | `BaseUrl` (`"http://localhost:11434"`), `Model` (`"phi4-mini"`), `TimeoutSeconds` (`10`, clamped to 1–90) |
-| `Together` / `TogetherOptions` | `ApiKey` (`""`, server-only), `Model` (`"Qwen/Qwen3.5-9B"`), `TimeoutSeconds` (`10`, clamped to 1–90) |
+| `Together` / `TogetherOptions` | `ApiKey` (`""`, server-only), `Model` (`"openai/gpt-oss-120b"`), `TimeoutSeconds` (`10`, clamped to 1–90) |
 | `Category` / `CategoryOptions` | `EmployeeDomains` (`["college.example"]`), `StudentDomains` (`["student.example"]`) |
 | `FeeTable` / `FeeTableOptions` | `Renderer` (`"native"`; `"aggrid"` is the AG Grid Community seam) |
 | `Calendar` / `CalendarOptions` | `Renderer` (`"native"`; `"bryntum"` is the licensed-build drop-in point) |
@@ -381,13 +381,14 @@ and `TOGETHER_TIMEOUT_SECONDS`. `scripts/Set-TogetherCredentials.ps1` is the Dev
 setup path: a hidden prompt writes the key through stdin to .NET
 user-secrets and selects the Together provider/model/timeout. User-secrets are
 per-user settings, not an encrypted vault. The Together adapter uses a fixed
-hosted API endpoint, structured JSON, disabled reasoning, temperature 0 and a
-512-output-token cap. Only the pinned `Qwen/Qwen3.5-9B` model is accepted.
-It falls back if its key or a usable response is absent.
-The key is privately configured in Development user-secrets. The first live
-eight-case application suite and its final release rerun passed with every
-source labeled `together` (eight distinct cases);
-this does not change the data schema or verify account privacy settings.
+hosted API endpoint, structured JSON, low reasoning effort, temperature 1 and a
+2,048-token total completion cap, including reasoning. Only the pinned
+`openai/gpt-oss-120b` model is accepted in configuration and returned responses.
+Unsupported model configuration fails startup; an unavailable key or unusable
+response uses the labeled fallback. No reasoning or model tools are displayed.
+The key is privately configured in Development user-secrets. The current live
+suite passed 12 distinct cases; older Qwen runs remain historical in TESTING.md.
+This does not change the data schema or verify account privacy settings.
 
 ## Out of scope — by design
 

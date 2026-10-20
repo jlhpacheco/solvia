@@ -73,16 +73,16 @@ Copyright (c) 2026 Jose Luis Pacheco.
 
 - **PayPal Sandbox** (Orders API + webhooks) — PayPal's developer
   terms. Sandbox only: fictitious accounts, no real money.
-- **Together AI hosting Qwen3.5-9B** — the default hosted reader
-  (`AI_PROVIDER=together`, model `Qwen/Qwen3.5-9B`). Together's API service
+- **Together AI hosting OpenAI GPT-OSS 120B** — the default hosted reader
+  (`AI_PROVIDER=together`, model `openai/gpt-oss-120b`). Together's API service
   is external and not bundled; service access is governed by its own
-  terms and account settings. Qwen's [model card](https://huggingface.co/Qwen/Qwen3.5-9B)
+  terms and account settings. OpenAI's [official model release](https://openai.com/index/introducing-gpt-oss/)
   identifies the weights as Apache-2.0; no weights ship in this repository.
   See the [provider catalog](https://docs.together.ai/docs/serverless/models)
   and [privacy notes](docs/PRIVACY.md). Together's key is privately configured
-  in Development user-secrets. Eight live application cases and the final
-  same-eight rerun passed with every source `together`; account privacy
-  settings remain unverified.
+  in Development user-secrets. Current model tests and historical Qwen
+  checks are distinguished in docs/TESTING.md; account privacy and US-only
+  processing settings remain unverified.
 - **Elastic** — the app ships a config-selectable search provider
   that speaks to an Elastic node over HTTP; the built-in search is
   the shipped default and no Elastic code is bundled. The live

@@ -4,7 +4,11 @@
 
 > **DRAFT — PayPal AI Hackathon project, in preparation. Not yet submitted.**
 
-**Solvia** — a simple helper that lets a college student pay what is due for her vehicle permit, fast, with PayPal.
+**Solvia** helps students and public visitors compare a parking plan, review vehicle details, pay the published permit fee with PayPal, and retrieve printable proof.
+
+Current implementation: [US-developed AI, visit planning and staff review](docs/US-MODEL-AND-PLANNER.md).
+The configured model is **OpenAI's US-developed GPT-OSS 120B, hosted through Together AI**.
+Model origin does not establish a US-only processing region.
 
 Latest review: [changes and verification](docs/REVIEW-2026-10-19.md),
 [hackathon readiness and judging](docs/HACKATHON-READINESS.md),
@@ -30,6 +34,7 @@ Together: *pay what is due for the vehicle on the road.*
 Maria is a fictional adult student (18+). It is her first day.
 
 1. Maria opens Solvia and picks how to start:
+   - **Plan my parking:** describe expected weekdays and weeks, confirm the schedule, and compare catalog day/term costs. Continuing with day parking starts one pass for the first visit; a multi-visit estimate is not a prepaid bundle.
    - **Ask Solvia (the AI door):** choose a college, describe a car, and choose a permit. The configured reader drafts vehicle fields for review.
    - **The classic form:** pick campus, car, permit type, and start date — the same shape colleges already use.
 2. Both doors build the **same application** through the same brain, and both show the **exact total first**, taken from a real fee table (see `data/fees.csv` — 10 campuses, every one publishing its student semester price, from the 2026-10-18 scan of 25 mycampuspermit.com pages; only the 10 with a published price ship, and no price is ever guessed).
@@ -47,8 +52,8 @@ Full flow: [docs/USE-CASE.md](docs/USE-CASE.md)
 | Part | Tool |
 |---|---|
 | Payments (central) | PayPal Sandbox — Orders API (create order → student approves → capture), called directly over HTTPS from the app; a signature-verified PayPal webhook is the second road to the same truth. Paid lands only from a COMPLETED capture — never from a return page |
-| AI adapter | **Together AI with Qwen/Qwen3.5-9B** is the default hosted reader; **Phi-4-mini via Ollama** is optional. Both draft vehicle details for human review through shared schema/plate safeguards. The catalog sets fees. Eight real Together application cases passed, including the final release rerun, with `source=together`; fallback is not counted as model evidence. |
-| Fee table | **AG Grid Community edition** (free, sponsor) — the 10-college fee table, with a built-in table renderer behind the same seam showing identical values |
+| AI adapter | **OpenAI's US-developed GPT-OSS 120B through Together AI** is the default hosted reader; **Phi-4-mini via Ollama** is optional. Vehicle and schedule drafts require review. Model identity, schema, grounded facts and deadlines are checked before labeling Together output. The catalog sets fees. See the current dated live-model evidence in [testing](docs/TESTING.md). |
+| Fee comparison and staff review | **AG Grid Community edition** (free, sponsor) — the 10-college fee table and a demo-only saved-payment review, each with native HTML fallback. Operations counts concern saved Sandbox records, not settlement or real college revenue. |
 | Printable permits | **PDFsharp 6.2.3 (MIT)** with embedded **Roboto (Apache-2.0)** — US Letter student and employee permits; no separate PDF application or OS font installation required |
 | College search | Built-in deterministic search ships by default; an **Elastic** (sponsor) provider sits behind the same config seam — the live Elastic node was not run for this build and ELSER is not claimed — see [docs/SPONSORS.md](docs/SPONSORS.md) |
 | Term calendar | Native calendar list (built-in) — term start, permit end, renewal date. Bryntum is **not** used: it has no free edition, and its 45-day trial would expire during judging — see [docs/SPONSORS.md](docs/SPONSORS.md) |
@@ -64,28 +69,28 @@ eligibility and selection remain organizer decisions.
 
 ### AI model choice
 
-**Together AI with `Qwen/Qwen3.5-9B` is the default.** `AI_PROVIDER=together`
+**OpenAI's US-developed `openai/gpt-oss-120b` through Together AI is the default.** `AI_PROVIDER=together`
 selects its hosted API; optional `AI_PROVIDER=ollama` uses Phi-4-mini at the
 configured endpoint. Validated sources are `together`, `ollama`, or
 `fallback`. The shared contract preserves explicit/ambiguous plate rules and
 has no price field. People review the draft; the catalog supplies the fee.
 
-Together lists this model among its [small and fast recommendations](https://docs.together.ai/docs/inference/recommended-models).
-Our server requests structured JSON with reasoning disabled, temperature 0,
-and a 512-output-token cap. The final eight-case application run observed a
-median **2.4 seconds** from submit to review, range **1.6–5.3 seconds**, on
-this computer. This includes the application flow, not just provider latency,
-and is not a performance guarantee.
+Our server requests structured JSON with low reasoning effort, temperature 1,
+and a 2,048-token total completion cap, following the
+[Together GPT-OSS contract](https://docs.together.ai/docs/gpt-oss).
+Only final content is parsed; reasoning is not displayed or logged. GPT-OSS
+reasoning cannot be disabled entirely, and it consumes completion tokens.
 Current [published prices](https://docs.together.ai/docs/serverless/models)
-are $0.17 per million input tokens and $0.25 per million output tokens.
-An illustrative 1,000-input/200-output-token request costs **$0.00022** in
+are $0.15 per million input tokens and $0.60 per million output tokens.
+An illustrative 1,000-input/200-total-completion-token request costs **$0.00027** in
 inference tokens; this is an estimate, not a measured bill or a fixed cost
 per permit. Include instructions and schema in input-token estimates.
 
 Together's key is privately configured in Development user-secrets. The same
-eight live cases passed twice, including a final **8/8** run on application
-source `e3a4993` after credential rotation and deadline hardening. These are
-eight distinct cases, all labeled `together`. Historically,
+earlier Qwen reader passed eight live vehicle cases twice on application
+source `e3a4993`. Those are historical checks and timings, not evidence for
+the replacement GPT-OSS model. Current results are recorded separately in
+[testing](docs/TESTING.md). Historically,
 a direct warmed CPU Phi-4-mini request returned in **32.26 seconds**, while
 the app's **10-second** budget fell back. See
 [provider-aware opt-in checks](docs/TESTING.md#opt-in-live-ai-checks).
@@ -101,13 +106,13 @@ privacy setting or zero-retention guarantee is claimed.
 ## Rules compliance — PayPal AI Hackathon
 
 - [x] **Verify a real PayPal Sandbox capture** — the running app captured a $30.00 USD Fresno City College term permit and produced a paid receipt/PDF. An independent provider query confirmed `COMPLETED` and the exact amount. This used PayPal's official Sandbox test-card confirmation followed by Solvia's capture endpoint; wallet/Personal-buyer UI approval has not been verified.
-- [x] Record **live application AI evidence** — eight Together cases passed with `source=together` in every case, including the final release rerun after credential rotation and deadline hardening. This is separate from the controlled browser suite; the catalog sets the total.
+- [x] Record **live application AI evidence** — 12 actual GPT-OSS 120B cases passed through Together: eight vehicle and four schedule cases, all observed sources `together`, with returned-model identity checked. This is separate from 132 controlled browser checks; the catalog sets the total.
 - [x] **PayPal Sandbox only** — fictitious test accounts and test transactions, no real money, no real student data (Maria is fictional).
 - [x] **Locally runnable prototype** — tested routes and services; complete the external-service checks in the readiness document before submission. Render hosting is planned.
 - [x] **Public repository with an open-source license** — this repo is public, MIT License at the top level.
 - [x] **Tools are listed and explained** — see the table above.
 - [x] **New project chronology confirmed** — the participant confirmed Solvia was first built during this hackathon, after October 1, 2026. Solvia is an independent implementation and business model; its commits document development within the event.
-- [ ] Demo video: under 3 minutes and public on YouTube. A 156.086-second recorded action sequence is complete; the narrated/captioned MP4 is complete at 156.1 seconds; the public URL remains pending.
+- [ ] Demo video: under 3 minutes and public on YouTube. The replacement narrated/captioned MP4 is **160.0 seconds**, with fresh US-model footage. The public YouTube URL remains pending.
 - [x] Submission text in English — this README and the saved/read-back Devpost story and instructions. Final submission remains open.
 - [ ] Demo stays free for judges to test through the judging period (Dec 1–15, 2026).
 
@@ -184,7 +189,7 @@ password are shown there. Test money only, never real money.
 
 ### Step 4 — Select an optional AI provider
 
-#### Default hosted reader: Together AI + Qwen3.5-9B
+#### Default hosted reader: Together AI + OpenAI GPT-OSS 120B
 
 Create/sign in to a [Together account](https://api.together.ai/) and provision
 a Together API key privately in the server's secret environment as
@@ -205,16 +210,16 @@ Set these non-secret settings in the terminal that runs Solvia:
 
 ```powershell
 $env:AI_PROVIDER = 'together'
-$env:TOGETHER_MODEL = 'Qwen/Qwen3.5-9B'
+$env:TOGETHER_MODEL = 'openai/gpt-oss-120b'
 $env:TOGETHER_TIMEOUT_SECONDS = '10'
 ```
 
 Restart Solvia after changing server configuration. The default timeout is
 10 seconds, with configured values clamped to 1–90. Missing credentials,
 timeouts and unusable answers produce a labeled fallback. The adapter accepts
-only the pinned `Qwen/Qwen3.5-9B` model; an unsupported ID also falls back.
+only the pinned `openai/gpt-oss-120b` model; an unsupported configured ID fails startup instead of silently using a different model.
 Together is metered. The development key is configured privately and the
-eight live application cases passed, including the final release rerun. Read
+12 actual GPT-OSS application cases passed (eight vehicle, four schedule). Read
 [privacy](docs/PRIVACY.md) before sending inputs and
 the provider's [structured-output contract](https://docs.together.ai/docs/inference/chat/structured-outputs)
 for the hosted request format.
@@ -302,35 +307,28 @@ payment guards. It verified 14 completed captures totaling **$945.00 USD in
 Sandbox test funds** and two free permits. All 16 PDFs passed content checks.
 See [the provider results](docs/SANDBOX-RESULTS-2026-10-19.md).
 Two further real-provider checks verified unapproved-order and refused-card
-handling. The official PayPal/card buttons were also checked against the
-actual remote SDK, together with the no-JavaScript continuation. The latest
-controlled desktop/phone run passed **84/84 checks in 4.0 minutes**, including
-**32 smokes**. The subsequent receipt-view validity correction is covered by
-the final backend's rendered cases; no full browser rerun of that delta is
-claimed. A separate 16/16 tablet run passed in 2.3 minutes on `eb488ab1`,
-covering Chromium and WebKit in portrait/landscape. Together the two suites
-cover 100 distinct controlled browser checks: 84 desktop/phone, including
-32 smokes, plus 16 tablet cases. The eight live AI cases remain separate.
-The first tablet run passed 12/16: two harness navigation races and two real
-WebKit My permits overflow failures were corrected by waiting for person
-selection and adjusting the responsive table/card breakpoint before rerunning.
-The final backend run passed **390/390 in 12 seconds**, zero failed/skipped,
-on source `92cba211`. It includes shared AI quotas/concurrency and neutral
-payment-versus-validity messaging. Paid denied/future/expired permits cannot
-be called live merely because payment completed. AI extraction is limited
-to 20 requests/client/minute and 60 globally, with two concurrent/client and
-four globally; these process-local guards are not a provider billing cap.
-Historical 371-test and 82-case aggregate checkpoints, plus the earlier
-30/30 smoke run on `e3a4993`, remain documented. Eight distinct real Together
-cases passed twice on the earlier model-tested source and remain separate
-from the controlled browser count; no new live suite on `92cba211` is claimed.
-See [test coverage and limits](docs/TESTING.md).
-An additional 156.086-second recorded action sequence exercised three actual Together
-calls and a separate $30 Sandbox purchase: order `5CV7753505063622B`, capture
-`9AP215253S500404B`. Provider lookup/retries confirmed one completed capture;
-paid PDF retrieval and anonymous verification privacy were checked. This
-separate-database run is excluded from the historical matrix total. The final narrated/captioned MP4 is complete at 156.1 seconds; public YouTube
-publication remains pending.
+handling. Two actual remote-SDK/no-JavaScript checks created no orders.
+
+Current application/test source **`b8bf8d3`** passed **517/517 backend checks**
+in 13 seconds, zero failures/skips. The full desktop/phone TypeScript suite
+passed **108/108** in 5.2 minutes, including **36 smoke executions**; a separate
+tablet suite passed **24/24** in 2.0 minutes across Chromium/WebKit portrait
+and landscape. These total **132 controlled checks**, separate from the
+**12 actual GPT-OSS live cases**. TypeScript typechecking includes tablet tests.
+These are emulated devices, not physical iPad/Safari certification.
+
+Earlier 390-backend/100-browser and Qwen live-model checkpoints remain
+historical in [the test record](docs/TESTING.md). Initial failures, their
+corrections and exact suite boundaries are retained. Paid does not by itself
+mean currently valid. Process-local AI request/concurrency limits are not a
+provider billing cap or production authentication.
+
+A separate historical $30 term purchase has order `5CV7753505063622B`, capture
+`9AP215253S500404B`. Provider lookup/retries confirmed one capture, followed by
+PDF retrieval and anonymous-verification checks. It is excluded from the $945
+matrix. The new **160-second** video uses freshly recorded GPT-OSS inference
+and explicitly labels this reused term-payment segment as a different permit
+from the planner's $1 first-day example. Public YouTube publication is pending.
 For pending order IDs, buyer approval errors, or resuming payment, see
 [Sandbox payment troubleshooting](docs/PAYPAL-TROUBLESHOOTING.md).
 
@@ -352,6 +350,6 @@ Third-party components and their licenses: [NOTICES.md](NOTICES.md).
 
 ## Review the working flow
 
-[Watch or download the 2:36 demo](docs/review/Solvia-demo.mp4), [read the screenshot guide](docs/review/Solvia-step-by-step-guide.pdf), or [inspect the quality-control process](docs/review/Solvia-quality-control.pdf).
+[Watch or download the 2:40 demo](docs/review/Solvia-demo.mp4), [read the screenshot guide](docs/review/Solvia-step-by-step-guide.pdf), or [inspect the quality-control process](docs/review/Solvia-quality-control.pdf).
 
-The edited recording shows actual Together inference, one new $30 PayPal Sandbox capture, and the resulting permit PDF. Sandbox card approval uses the explicitly disclosed REST test harness; wallet login is not demonstrated. Brief holds use actual screenshots from that same recording. The My permits screen was recorded before the later tablet card-layout refinement. All profiles are fictional. A public YouTube upload remains a submission gate.
+The replacement recording shows actual OpenAI GPT-OSS 120B inference through Together, reviewed schedule/vehicle fields, deterministic planning and a saved-record Operations view. A clearly separate historical $30 term-purchase segment shows actual Sandbox capture and matching PDF references. Card approval uses the disclosed REST test harness; wallet login is not demonstrated. Narration is natural synthetic speech at unchanged tempo. All profiles are fictional. A public YouTube upload remains a submission gate.

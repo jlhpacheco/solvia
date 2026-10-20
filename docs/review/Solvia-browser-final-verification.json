@@ -1,0 +1,94 @@
+{
+  "readAtUtc": "2026-10-20T18:39:01.897159+00:00",
+  "scope": "Controlled offline browser checks on the US-model working tree plus corrected simulated-SDK fixture ordering. No provider payment proof is inferred.",
+  "tablet": {
+    "htmlReport": "index.html",
+    "stats": {
+      "total": 24,
+      "expected": 24,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "ok": true
+    },
+    "durationMs": 121326.386,
+    "startTime": 1792521069596,
+    "projects": {
+      "ipad-emulated-portrait-chromium": {
+        "total": 6,
+        "expected": 6,
+        "smoke": 0
+      },
+      "ipad-emulated-landscape-chromium": {
+        "total": 6,
+        "expected": 6,
+        "smoke": 0
+      },
+      "ipad-emulated-portrait-webkit": {
+        "total": 6,
+        "expected": 6,
+        "smoke": 0
+      },
+      "ipad-emulated-landscape-webkit": {
+        "total": 6,
+        "expected": 6,
+        "smoke": 0
+      }
+    },
+    "taggedSmokeChecks": 0,
+    "smokeTitles": [],
+    "globalErrors": []
+  },
+  "main": {
+    "htmlReport": "index.html",
+    "stats": {
+      "total": 108,
+      "expected": 108,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "ok": true
+    },
+    "durationMs": 314627.062,
+    "startTime": 1792521216888,
+    "projects": {
+      "desktop-chromium": {
+        "total": 54,
+        "expected": 54,
+        "smoke": 18
+      },
+      "mobile-chromium": {
+        "total": 54,
+        "expected": 54,
+        "smoke": 18
+      }
+    },
+    "taggedSmokeChecks": 36,
+    "smokeTitles": [
+      "@smoke day passes hide semester choices and preserve the term selection through review",
+      "@smoke local styles and scripts contain their actual bytes",
+      "@smoke numeric license plate survives the Volvo sentence",
+      "@smoke page loads: /",
+      "@smoke page loads: /College/Dates",
+      "@smoke page loads: /College/Fees",
+      "@smoke page loads: /College/Roster",
+      "@smoke page loads: /College/Search?q=Fresno",
+      "@smoke page loads: /Home/Privacy",
+      "@smoke page loads: /Permits/Apply",
+      "@smoke page loads: /Permits/Ask",
+      "@smoke page loads: /Permits/My",
+      "@smoke page loads: /Vehicles",
+      "@smoke payment review filters real pending records and opens saved-reference details",
+      "@smoke planner compares confirmed costs with no automatic purchase",
+      "@smoke sponsor grid searches and sorts actual fees",
+      "@smoke vehicle reader announces pending work and preserves the protected form values",
+      "@smoke workspace links navigate in the current tab"
+    ],
+    "globalErrors": []
+  },
+  "totalChecks": 132,
+  "totalExpected": 132,
+  "totalTaggedSmokeChecks": 36,
+  "retainedFailureHistory": "failure-history.md",
+  "applicationSource": "b8bf8d3f480344e50c76e6f01f2336e96902f651"
+}

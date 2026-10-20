@@ -1,128 +1,288 @@
 {
-  "testedApplicationCommit": "e3a49938bc08be6fc0d2fe11c695bf69adc8f9dc",
-  "provider": "Together AI",
-  "model": "Qwen/Qwen3.5-9B",
-  "counts": {
-    "startTime": "2026-10-20T03:54:41.564Z",
-    "duration": 79627.87,
-    "expected": 8,
+  "model": "openai/gpt-oss-120b",
+  "developer": "OpenAI",
+  "modelOrigin": "US-developed",
+  "hostedProvider": "Together AI",
+  "usOnlyProcessingVerified": false,
+  "date": "2026-10-20",
+  "suite": "TypeScript Playwright live AI",
+  "stats": {
+    "startTime": "2026-10-20T18:28:28.170Z",
+    "duration": 26377.218999999997,
+    "expected": 12,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
   },
-  "observations": [
+  "distinctCases": 12,
+  "vehicleCases": 8,
+  "scheduleCases": 4,
+  "runtimeBoundary": "Both adapters require response.model == openai/gpt-oss-120b before using final validated content; source=fallback is not counted as positive live-model proof.",
+  "observedSources": [
+    "together"
+  ],
+  "allObservedSourcesTogether": true,
+  "measuredSubmitToReviewMs": {
+    "count": 11,
+    "median": 1352,
+    "minimum": 815,
+    "maximum": 2646,
+    "scope": "Application/browser flow, not provider-only latency or a guarantee"
+  },
+  "noPayPalOrdersOrPayments": true,
+  "reasoningEffort": "low",
+  "maxCompletionTokens": 2048,
+  "fineTuning": false,
+  "cases": [
     {
-      "checkedAtUtc": "2026-10-20T03:55:02.824Z",
-      "requestedProvider": "together",
-      "elapsedMs": 5314,
-      "source": "together",
-      "plate": "654321",
-      "make": "Volvo",
-      "model": "760",
-      "color": "White",
-      "state": "CA",
-      "college": "CSU Monterey Bay",
-      "permitType": "Term",
-      "term": "Fall"
+      "name": "real together model extracts fictional numeric Volvo sentence",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:33.805Z",
+          "requestedProvider": "together",
+          "elapsedMs": 2646,
+          "source": "together",
+          "plate": "654321",
+          "make": "Volvo",
+          "model": "760",
+          "color": "White",
+          "state": "CA",
+          "college": "CSU Monterey Bay",
+          "permitType": "Term",
+          "term": "Fall"
+        }
+      ]
     },
     {
-      "checkedAtUtc": "2026-10-20T03:55:10.12Z",
-      "requestedProvider": "together",
-      "elapsedMs": 3898,
-      "source": "together",
-      "plate": "654321",
-      "make": "Volvo",
-      "model": "760",
-      "color": "White",
-      "state": "CA",
-      "college": "CSU Monterey Bay",
-      "permitType": "Term",
-      "term": "Fall"
+      "name": "real together model extracts capitalized plate-number label",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:35.685Z",
+          "requestedProvider": "together",
+          "elapsedMs": 1276,
+          "source": "together",
+          "plate": "654321",
+          "make": "Volvo",
+          "model": "760",
+          "color": "White",
+          "state": "CA",
+          "college": "CSU Monterey Bay",
+          "permitType": "Term",
+          "term": "Fall"
+        }
+      ]
     },
     {
-      "checkedAtUtc": "2026-10-20T03:55:15.958Z",
-      "requestedProvider": "together",
-      "elapsedMs": 2109,
-      "source": "together",
-      "plate": "7ABC123",
-      "make": "Honda",
-      "model": "Civic",
-      "color": "Blue",
-      "state": "CA",
-      "college": "CSU Monterey Bay",
-      "permitType": "Term",
-      "term": "Fall"
+      "name": "real together model extracts alphanumeric plate and punctuation",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:37.442Z",
+          "requestedProvider": "together",
+          "elapsedMs": 1352,
+          "source": "together",
+          "plate": "7ABC123",
+          "make": "Honda",
+          "model": "Civic",
+          "color": "Blue",
+          "state": "CA",
+          "college": "CSU Monterey Bay",
+          "permitType": "Term",
+          "term": "Fall"
+        }
+      ]
     },
     {
-      "checkedAtUtc": "2026-10-20T03:55:20.814Z",
-      "requestedProvider": "together",
-      "elapsedMs": 2538,
-      "source": "together",
-      "plate": "654321",
-      "make": "Volvo",
-      "model": "760",
-      "color": "White",
-      "state": "CA",
-      "college": "CSU Monterey Bay",
-      "permitType": "Term",
-      "term": "Fall"
+      "name": "real together model extracts spaced numeric plate",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:39.024Z",
+          "requestedProvider": "together",
+          "elapsedMs": 1098,
+          "source": "together",
+          "plate": "654321",
+          "make": "Volvo",
+          "model": "760",
+          "color": "White",
+          "state": "CA",
+          "college": "CSU Monterey Bay",
+          "permitType": "Term",
+          "term": "Fall"
+        }
+      ]
     },
     {
-      "checkedAtUtc": "2026-10-20T03:55:26.213Z",
-      "requestedProvider": "together",
-      "elapsedMs": 2221,
-      "source": "together",
-      "plate": "RV654321",
-      "make": "Rivian",
-      "model": "R1S",
-      "color": "Green",
-      "state": "CA",
-      "college": "CSU Monterey Bay",
-      "permitType": "Term",
-      "term": "Fall"
+      "name": "real together model extracts Rivian make beyond the fallback vocabulary",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:41.173Z",
+          "requestedProvider": "together",
+          "elapsedMs": 1361,
+          "source": "together",
+          "plate": "RV654321",
+          "make": "Rivian",
+          "model": "R1S",
+          "color": "Green",
+          "state": "CA",
+          "college": "CSU Monterey Bay",
+          "permitType": "Term",
+          "term": "Fall"
+        }
+      ]
     },
     {
-      "checkedAtUtc": "2026-10-20T03:55:32.568Z",
-      "requestedProvider": "together",
-      "elapsedMs": 1741,
-      "source": "together",
-      "plate": "",
-      "make": "Volvo",
-      "model": "760",
-      "color": "White",
-      "state": "CA",
-      "college": "CSU Monterey Bay",
-      "permitType": "Term",
-      "term": "Fall"
+      "name": "AI review leaves an unstated plate empty and allows human correction",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:43.045Z",
+          "requestedProvider": "together",
+          "elapsedMs": 1439,
+          "source": "together",
+          "plate": "",
+          "make": "Volvo",
+          "model": "760",
+          "color": "White",
+          "state": "CA",
+          "college": "CSU Monterey Bay",
+          "permitType": "Term",
+          "term": "Fall"
+        }
+      ]
     },
     {
-      "checkedAtUtc": "2026-10-20T03:55:40.79Z",
-      "requestedProvider": "together",
-      "elapsedMs": 2660,
-      "source": "together",
-      "plate": "",
-      "make": "Volvo",
-      "model": "760",
-      "color": "White",
-      "state": "CA",
-      "college": "CSU Monterey Bay",
-      "permitType": "Term",
-      "term": "Fall"
+      "name": "AI review does not guess between two uncertain plate numbers",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:45.053Z",
+          "requestedProvider": "together",
+          "elapsedMs": 1374,
+          "source": "together",
+          "plate": "",
+          "make": "Volvo",
+          "model": "760",
+          "color": "White",
+          "state": "CA",
+          "college": "CSU Monterey Bay",
+          "permitType": "Term",
+          "term": "Fall"
+        }
+      ]
     },
     {
-      "checkedAtUtc": "2026-10-20T03:55:44.502Z",
-      "requestedProvider": "together",
-      "elapsedMs": 1582,
-      "source": "together",
-      "plate": "AI654321",
-      "make": "Volvo",
-      "model": "760",
-      "color": "White",
-      "state": "CA",
-      "college": "CSU Monterey Bay",
-      "permitType": "Term",
-      "term": "Fall"
+      "name": "instructions in vehicle text cannot change the selected campus, permit or price",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:46.924Z",
+          "requestedProvider": "together",
+          "elapsedMs": 1520,
+          "source": "together",
+          "plate": "AI654321",
+          "make": "Volvo",
+          "model": "760",
+          "color": "White",
+          "state": "CA",
+          "college": "CSU Monterey Bay",
+          "permitType": "Term",
+          "term": "Fall"
+        }
+      ]
+    },
+    {
+      "name": "real Together schedule draft: Tuesdays and Thursdays for three weeks",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:49.481Z",
+          "source": "together",
+          "checked": [
+            "Tuesday",
+            "Thursday"
+          ],
+          "weeks": "3",
+          "elapsedMs": 1190,
+          "expected": {
+            "sentence": "Tuesdays and Thursdays for three weeks",
+            "days": [
+              "Tuesday",
+              "Thursday"
+            ],
+            "weeks": "3"
+          }
+        }
+      ]
+    },
+    {
+      "name": "real Together schedule draft: Monday, Wednesday and Friday for two weeks",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:50.644Z",
+          "source": "together",
+          "checked": [
+            "Monday",
+            "Wednesday",
+            "Friday"
+          ],
+          "weeks": "2",
+          "elapsedMs": 815,
+          "expected": {
+            "sentence": "Monday, Wednesday and Friday for two weeks",
+            "days": [
+              "Monday",
+              "Wednesday",
+              "Friday"
+            ],
+            "weeks": "2"
+          }
+        }
+      ]
+    },
+    {
+      "name": "real Together schedule draft: Weekends for four weeks",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:52.030Z",
+          "source": "together",
+          "checked": [
+            "Saturday",
+            "Sunday"
+          ],
+          "weeks": "4",
+          "elapsedMs": 1034,
+          "expected": {
+            "sentence": "Weekends for four weeks",
+            "days": [
+              "Saturday",
+              "Sunday"
+            ],
+            "weeks": "4"
+          }
+        }
+      ]
+    },
+    {
+      "name": "real schedule reader leaves uncertainty for explicit review",
+      "status": "passed",
+      "observations": [
+        {
+          "checkedAtUtc": "2026-10-20T18:28:53.383Z",
+          "source": "together",
+          "confirmedNoDefaults": true
+        }
+      ]
     }
   ],
-  "scope": "Eight distinct live app checks; all eight passed again after credential rotation and deadline fix. Fictional data. No order or payment created. Inference, not fine-tuning."
+  "sources": [
+    "https://openai.com/index/introducing-gpt-oss/",
+    "https://docs.together.ai/docs/gpt-oss",
+    "https://docs.together.ai/docs/serverless/models"
+  ]
 }

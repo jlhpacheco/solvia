@@ -1,126 +1,66 @@
 # PayPal AI Hackathon readiness
 
-Reviewed October 19, 2026 against the [official rules](https://paypalaihackathon.devpost.com/rules)
-and [event overview](https://paypalaihackathon.devpost.com/). This is a project
-audit, not an organizer decision or confirmation of submission.
+Technical evidence updated October 20, 2026. Rules were reviewed October 19 against the [official rules](https://paypalaihackathon.devpost.com/rules) and [event overview](https://paypalaihackathon.devpost.com/). This is our project audit, not an organizer decision, legal signoff, official score or confirmation of submission.
 
-## Official requirements to finish
+## Current US-model feature release
 
-The submission deadline is **November 12, 2026 at noon Pacific**. Judging is
-December 1-15; results are expected around December 21. Confirm participant
-eligibility, team details, registration, and applicable geographic exclusions.
+The default reader is OpenAI's US-developed **`openai/gpt-oss-120b`**, hosted by Together AI. It supports editable vehicle and schedule drafting. The deterministic planner compares confirmed visits against published catalog rates/demo date windows; daily continuation starts one first-day pass, not a bulk purchase. The gated Operations page reviews saved records and does not contact PayPal. See [current model/planner details](US-MODEL-AND-PLANNER.md).
 
-Submit a functional application meaningfully combining **PayPal Sandbox and
-AI**, English instructions, a public source repository with an open-source
-license, and a public YouTube demonstration shorter than three minutes.
-Provide free judge access and identify the tools/models used. Existing work
-is allowed when substantially updated during the event; disclose the starting
-point and changes if that category applies. The participant confirmed Solvia
-was first built during this hackathon and should be classified as New.
+- **Backend:** 517/517 passed, zero failed/skipped, in 13 seconds; `gptoss-release-verified.trx`.
+- **Actual model:** 12/12 distinct live cases passed in 26.4 seconds (eight vehicle, four schedule), all observed sources Together; both adapters verify the exact returned model ID. Eleven timed application/browser observations had median 1.352 seconds, range 0.815–2.646; not provider-only latency or a guarantee. No payment was created by this suite.
+- **Controlled browser:** 132/132 passed, zero failed/flaky/skipped/global errors: 108 main (54 desktop/54 phone, including 36 smoke executions) in 314.6 seconds, plus 24 tablet across portrait/landscape Chromium/WebKit in 121.3 seconds. TypeScript checks passed. These are separate from 12 actual live-model cases.
+- **Payment:** historical 20-case matrix remains 14 completed captures/$945 gross Sandbox funds, two free terms and 16 validated PDFs. Two separate provider negatives stayed unpaid; two separate actual SDK/no-JavaScript smokes created no orders. The original $30 and later recorded $30 purchases remain separate.
+- **User evidence:** three role-based agent reviews and final rechecks are AI-assisted automation, not human studies or measured savings. The staff UI recheck matched 15 saved paid rows to $975 in a copied demo database; this is no new capture or settlement proof.
 
-Sponsor prize entries require actual use of that sponsor's tool. Solvia's
-working fee comparison uses AG Grid Community. Planned Elastic, Render,
-Zapier, APIMatic, or KERNEL work is not evidence of completed integration.
-The prize goal is the Grand Prize and an AG Grid sponsor prize where the
-rules permit that combination; neither is earned automatically. The current
-integration is Community, without an AG Charts/Studio or APIMatic execution
-claim. Organizer assessment still determines eligibility and awards.
+Verified application/test source: [`b8bf8d3f480344e50c76e6f01f2336e96902f651`](https://github.com/jlhpacheco/solvia/tree/b8bf8d3f480344e50c76e6f01f2336e96902f651); earlier SHAs below remain historical. Model origin does not establish US-only processing, residency, ZDR or account privacy settings.
 
-Check the linked rules before submitting, including IP permissions and
-participant obligations. An existing Solvia draft is present on Devpost;
-final submission and participant eligibility have not been verified.
+## Official requirements and submission gates
 
-## How the app will be judged
+Deadline: **November 12, 2026, noon Pacific**. Judging runs **December 1, 2 p.m.–December 15, 8 a.m. Pacific**; the expected announcement is around December 21, 2 p.m. Pacific. Keep free functional judge access through the judging end.
 
-After the initial viability check, the five criteria have equal weight (20%
-each). The table is our assessment, not an official numeric score.
+Required artifacts include a meaningful PayPal Sandbox + AI application, English materials, public source with an open-source license and complete setup/run instructions or a working hosted build, and a **public YouTube video shorter than three minutes**. Hosting is an option, not a mandatory rule. A localhost address is not remotely accessible judge access. The participant confirmed Solvia is independent and first built during this hackathon: **New**; this does not establish every IP or eligibility fact.
 
-| Criterion | Evidence in Solvia | What would improve the entry |
+Solvia's demonstrated sponsor is **AG Grid Community**, in fees and saved-payment review, with native fallbacks. Planned Elastic/Render/Zapier/APIMatic/KERNEL work does not establish execution or a sponsor prize. The goal is Grand Prize plus an AG Grid sponsor prize only as permitted by the rules; no award or eligibility result is predicted.
+
+The current Devpost snapshot is **Draft, 2 of 5**, with a blank public-video URL and unchecked eligibility 16–18/final terms. The US-model story, tags, four judge fields and two safe screenshots were saved and read back. The prior attachment was replaced with **Solvia-US-model-QA.zip**. Personal answers, rights and eligibility remain participant work. See the [dated release record](RELEASE-2026-10-20.md).
+
+## Five equally weighted judging criteria
+
+Each criterion carries 20% after Stage One's pass/fail viability review. These are evidence/gap notes, not official numeric scores.
+
+| Criterion | Current substance | Remaining evidence |
 |---|---|---|
-| Technological implementation | Shared application/pricing services; actual Sandbox capture, receipt and PDF verified; eight Together application cases plus final same-eight rerun passed; automated route/domain tests | Verify interactive buyer checkout and a clean judge-machine run |
-| Design | Solvia navy/teal layout, clear total, person switcher, responsive workspace, fee search | Observe a first-time user completing a permit on a phone |
-| Potential impact | Published fees, one application path, receipts and printable permits; sourced district parking-fund examples | Measure completion, corrections, staff minutes and total cost per permit in a consenting pilot; no achieved savings claim |
-| Innovation/idea | Reviewable language drafting, campus comparison, deterministic pricing and verified capture in one journey | Demonstrate the combined workflow; do not claim online purchase or PDF permits are market firsts |
-| Presentation | Finished 2:36 narrated/captioned actual-flow video, screenshot guide, documented setup and open-source notices; English Devpost draft saved/read back | Listen to the final narration, publish the required public YouTube video and verify judge access |
+| Implementation | Actual US-model inference; deterministic planner; exact-money Sandbox capture/retries/PDF; read-only saved records; backend/browser regressions | Interactive wallet approval and clean full-path judge setup |
+| Design | Editable human review, clear totals, day/term choice, responsive workflows and source/validity labels | Consenting first-time users and physical-device testing |
+| Potential impact | Student/public paid permits and employee demo exemption; sourced district budgets/policies; planning estimate | Measure completion, corrections, staff minutes and cost in a pilot; no achieved ROI claim |
+| Innovation / idea | Reviewable schedule-to-permit comparison, server pricing and verified payment/proof together | Demonstrate the combined difference; no market-first or proven autonomous-commerce claim |
+| Presentation | Existing English narration/captions, guide and QA record; new US-model presentation capture is separate | Final listening/rights review, public YouTube and clean free full-path judge access |
 
-The actual Sandbox capture now provides provider payment evidence. The
-Together application runs also provide real model evidence: eight distinct
-cases passed twice with every source labeled `together`. Remaining gaps include
-clean judge access, user validation and public video publication.
-A fallback parser is useful resilience but is not counted as
-model evidence. CSV fee data is the accepted hackathon
-scope; live price synchronization is not claimed.
+SJECCD's FY2025–26 adopted budget, printed p.47, shows a budgeted $1,995,985 Fund 10 transfer into Parking Fund 11 alongside $100,000 parking fees. The combined fund includes staffing/operations; the transfer is not software cost or Solvia savings. MPC and Kern CCD/Bakersfield are differently scoped examples, not partners. See [primary sources, fair comparison and proposed pilot](IMPACT-AND-DIFFERENTIATION.md); CCC rules must not be applied to CSU campuses.
 
-SJECCD's FY2025–26 adopted budget, printed p.47, shows a budgeted $1,995,985
-Fund 10 transfer into Parking Fund 11 alongside $100,000 in parking fees.
-That combined parking/transportation fund includes staffing and operations;
-the transfer is not a software cost or Solvia savings. MPC and Kern CCD /
-Bakersfield provide additional, differently scoped policy and financial
-examples. See the [primary sources, fair competitor comparison and proposed
-pilot](IMPACT-AND-DIFFERENTIATION.md). These institutions are research examples,
-not Solvia partners, and CCC fee rules must not be applied to CSU campuses.
+## Historical evidence — preserve source and model boundaries
 
-The multi-college Sandbox matrix subsequently passed all 20 checks: 16
-student/public day/term permit cases across four campuses, plus four guards.
-Fourteen actual provider captures totaled $945.00 USD in test funds and two
-permits issued free. All 16 PDFs passed content validation. See the
-[dated results](SANDBOX-RESULTS-2026-10-19.md) and
-[repeatable matrix setup](SANDBOX-MATRIX.md).
+The previous Qwen reader's eight distinct live cases passed twice on `e3a4993`, with final median 2.4 seconds/range 1.6–5.3. That checkpoint passed 371 backend and 82 aggregate controlled-browser checks, including fresh 30-smoke evidence. Source `92cba211` later passed 390/390 in 12 seconds; desktop/phone 84/84 plus tablet 16/16 on `eb488ab1` gave 100 controlled cases. The initial tablet 12/16 included harness races and actual WebKit layout defects, fixed before clean rerun. None is retroactively relabelled GPT-OSS.
 
-Two additional real-provider negative checks confirmed that unapproved and
-refused payments cannot issue a paid permit. The actual remote SDK displayed
-PayPal and card options, and a no-JavaScript smoke check confirmed its
-protected continuation. The complete desktop/phone TypeScript run passed
-84/84 in 4.0 minutes, including 32 smokes. It preceded the final receipt-view
-validity change; five rendered backend cases cover that delta. The final
-backend suite passed 390/390 in 12 seconds, zero failed/skipped, on source
-`92cba2119af4c7d5be7b7b51e70c99f9f2aecb8e`. Paid denied/future/expired records
-retain payment facts without claiming a currently live permit.
+The historical 156.1-second narrated/captioned video used Qwen-era AI and a separate recorded $30 capture, order `5CV7753505063622B` / capture `9AP215253S500404B`, independently checked for one capture and followed by PDF/privacy checks. It is excluded from $945. Any replacement US-model video must name its actual model/provider and distinguish reused Sandbox footage. Current artifacts are a refreshed/rendered **21-page guide**, **three-page QA report** and **160-second US-model video**; public YouTube publication remains open.
 
-Both public extraction routes share limits of 20 requests/client/minute and
-60 globally, with two in flight per client and four globally. They return
-429/Retry-After before model invocation and preserve MVC answers. These
-process-local limits reset on restart and are not a provider billing cap.
-
-Historical checkpoints remain: 371 backend passes and 82 cumulative browser
-checks, including a fresh 30-check smoke run in 3.8 minutes on `e3a4993`.
-The eight actual Together cases passed twice on that model-tested source
-and remain separate from the controlled suite. No new eight-case live run
-on `92cba211` is claimed. Interactive wallet approval remains unverified.
-The tablet rerun passed 16/16 in 2.3 minutes on `eb488ab1`, covering Chromium
-and WebKit in portrait/landscape. Together the two suites total 100 distinct
-controlled browser checks, excluding live AI. The first 12/16 result exposed
-two harness navigation races and two real WebKit My permits overflow
-failures; the selection wait and table/card breakpoint were corrected before
-the clean rerun. See [testing details](TESTING.md).
-
-A separate 156.086-second recorded action sequence exercised three actual Together
-calls and one additional $30 Sandbox capture, followed by paid PDF retrieval
-and anonymous privacy checks. Order `5CV7753505063622B`, capture
-`9AP215253S500404B`, was independently checked for a single completed capture.
-This separate-database run is excluded from the historical matrix total.
-The narrated/captioned MP4 is complete at 156.1 seconds. Final listening,
-rights review and the public YouTube link remain open before submission.
-The English story, technical/AI/testing fields and 8.26 MB review ZIP
-were saved and read back from Devpost. The project remains Draft, 2 of 5;
-the video URL is blank, and no eligibility or final-terms box was checked.
+The first expanded tablet run passed 23/24 because of a deferred-script/mock double-load harness race; its trace was retained. A later startup attempt collected no tests due to a blank model setting rejected by strict US-model validation; the controlled configuration was corrected. These are retained failed attempts, not clean passes. See [testing](TESTING.md) for the final current runs when complete.
 
 ## Participant checklist
 
-- [ ] Confirm eligibility, team membership, registration, and acceptance of the rules.
-- [ ] Rotate the sandbox secret pasted in chat; set it privately with `scripts/Set-SandboxCredentials.ps1`.
-- [x] Complete a real Sandbox capture and verify the paid receipt and PDF. The $30.00 USD order `1G1852006N6969449` completed with capture `7WR24202DB5257942` and receipt `SOL-2026-197973` using official test-card confirmation and the Solvia REST endpoint.
-- [ ] Verify interactive wallet/Personal-buyer checkout separately; the merchant account cannot buy from itself.
-- [x] Verify the default Together `Qwen/Qwen3.5-9B` reader through the actual app: eight distinct cases passed twice, every source `together`. The final run's submit-to-review median was 2.4 seconds, range 1.6–5.3 seconds on this computer, not a latency guarantee. Ollama remains optional.
-- [x] Repeat the same eight live cases after credential replacement/deadline hardening and finish the fresh 30-check controlled smoke run: both passed on `e3a4993`; smoke took 3.8 minutes. These reruns do not add distinct cases.
-- [x] Pass the complete 84-case desktop/phone run, including 32 smokes, and final 390-case backend release. The final receipt-view delta is covered by rendered backend cases rather than a claimed full browser rerun.
-- [x] Complete the corrected tablet rerun: 16/16 passed in 2.3 minutes, giving 100 controlled browser checks across two suites.
-- [x] Produce the 156.1-second English narrated/captioned demo, 21-page screenshot guide and five-page quality-control PDF; save/read back the current Devpost draft and review ZIP. Final listening and public video publication remain separate.
-- [ ] If demonstrating webhook recovery, register an HTTPS sandbox listener, configure its webhook ID privately, and test a real verified event. No subscription was present when the dashboard was inspected.
-- [x] Confirm the employee/free permit flow and generate a Letter-size PDF. A physical printer check is not claimed.
-- [x] Exercise AG Grid sorting and campus search in the actual app.
-- [x] Save Solvia's circular logo and public merchant name in the Sandbox business profile; keep the demo disclosure visible in the app.
-- [ ] Prepare judge access for the full judging period; local instructions ship, hosting is not deployed.
-- [x] Confirm project chronology: Solvia is New, first built during this hackathon, per the participant.
-- [ ] Publish the finished 156.1-second narrated video publicly on YouTube and complete the English submission.
-- [ ] Review and submit explicitly on Devpost. No submission has been made by this review.
+- [ ] Confirm eligibility, actual team/representation/jurisdiction, registration, conflicts, rights and acceptance of rules. The assistant does not check these attestations.
+- [ ] Rotate the Sandbox secret previously pasted in chat and provision it privately; no completion is inferred.
+- [x] Verify actual Sandbox capture/receipt/PDF and the historical multi-campus matrix; no real money is involved.
+- [ ] Verify a separate Personal Sandbox buyer's interactive wallet approval; the merchant cannot buy from itself.
+- [x] Verify current US-developed GPT-OSS through 12 actual app cases; source/model identity is checked, not inferred from fallback.
+- [x] Pass current 517-case backend verification, zero failed/skipped, in 13 seconds.
+- [x] Complete current tablet 24/24 in 121.3 seconds, zero failed/flaky/skipped. This is browser-engine emulation, not physical iPad/Safari testing.
+- [x] Complete current 108-case desktop/phone rerun in 314.6 seconds, zero failed/flaky/skipped/global errors. Together with tablet, this is 132 controlled checks; earlier Qwen passes stay historical.
+- [ ] Refresh presentation/QC/guide/review-pack artifacts to match the selected US-model release, inspect renders and listen to narration.
+- [ ] Publish the finished English demonstration **publicly on YouTube**, under three minutes, and save its actual URL.
+- [ ] Validate clean full-path free judge access through December 15, 8 a.m. Pacific. Local setup ships; hosting is not deployed.
+- [ ] If claiming webhook recovery, register/configure an HTTPS Sandbox listener and test a real verified delivered event. Refunds/live money remain unverified.
+- [x] Verify employee/free permit PDF output and actual AG Grid use; a physical printer is not tested.
+- [x] Confirm participant-stated independent New project chronology.
+- [x] Save/read back the US-model story, fields and current QA attachment without filling personal facts or accepting terms.
+- [ ] Explicitly submit only when the participant is ready, then verify the actual confirmation/receipt. No final submission is recorded.

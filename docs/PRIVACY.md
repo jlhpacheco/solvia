@@ -12,12 +12,13 @@ authentication or production authorization.
 
 ## AI data path
 
-The browser sends the vehicle sentence to Solvia, then the server calls the
+The browser sends a vehicle or optional schedule sentence to Solvia, then the server calls the
 selected model provider:
 
-- `AI_PROVIDER=together` is the default. It sends the vehicle sentence and
+- `AI_PROVIDER=together` is the default. It sends the relevant sentence and
   extraction instructions/catalog context to Together AI's hosted HTTPS
-  API using `Qwen/Qwen3.5-9B`. No payment credentials, payment tools or buyer
+  API using OpenAI's US-developed `openai/gpt-oss-120b`. US model origin does
+  not establish a US-only processing location. No payment credentials, payment tools or buyer
   account access are supplied to the model.
 - Optional `AI_PROVIDER=ollama` runs Phi-4-mini at
   `http://localhost:11434` on the application host by default. A remote
@@ -44,7 +45,7 @@ rules. Input is bounded before inference, and the person reviews editable
 vehicle fields before saving. The provider budget defaults to 10 seconds
 and clamps configured values to 1–90 seconds.
 
-Both public extraction routes also share admission control before calling
+Vehicle, chat and schedule extraction routes share admission control before calling
 the reader: 20 requests per connection IP per minute and 60 globally per
 process, with two simultaneous requests per IP and four globally. A rejected
 request receives HTTP 429/Retry-After and is not sent to the model; the form
@@ -54,7 +55,7 @@ Multiple hosted instances need shared/gateway limits and provider spending
 controls. These safeguards do not establish provider privacy settings.
 
 Together's key is configured privately in Development user-secrets. The first
-real application suite passed eight distinct cases, including a final
+historical Qwen application suite passed eight distinct cases, including a final
 release rerun after credential replacement, all labeled `together`. This
 verifies runtime inference for that run, not provider retention, training or
 residency settings; those account controls remain unverified.
@@ -87,9 +88,9 @@ Public verification shows permit standing and minimal permit facts, not the hold
 Payment confirmation does not by itself establish current parking validity.
 Receipt headings use the shared date/status rule; paid denied, future and
 expired records keep their payment facts without an active-permit claim.
-The final 390-case backend run covers those receipt states and the shared
-admission guard. Browser evidence is 84 desktop/phone checks plus a separate
-16-case Chromium/WebKit tablet rerun; see [versioned testing](TESTING.md).
+Current list and receipt validity checks share the date/status rule and
+retain historical PDFs. See [versioned testing](TESTING.md) for current
+backend, desktop/phone and Chromium/WebKit tablet evidence.
 These functional results do not establish a security certification or
 provider privacy setting.
 Cancel/unknown-return messages direct people to inspect saved status rather

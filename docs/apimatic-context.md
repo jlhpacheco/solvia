@@ -23,7 +23,7 @@ they call), not aspirational.
 ## API overview
 
 - **Product:** Solvia — a fictional student picks her college, the
-  configured AI endpoint (Together/Qwen3.5-9B by default, optional Ollama/Phi-4-mini) drafts her
+  configured AI endpoint (Together/OpenAI GPT-OSS 120B by default, optional Ollama/Phi-4-mini) drafts her
   vehicle details for review, and the app quotes the exact total from
   the college's real published fee (`data/fees.csv`, 10 campuses),
   the student approves, and pays with **PayPal sandbox**. A paid (or

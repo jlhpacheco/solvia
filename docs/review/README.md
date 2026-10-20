@@ -1,13 +1,20 @@
-# Solvia judge review pack
+# Solvia current US-model review materials
 
-Start with Solvia-demo.mp4 (2:36), then the screenshot guide and quality-control PDF. The local video uses synthetic natural narration with unchanged tempo and includes an explicitly disclosed PayPal Sandbox REST card-approval harness. It does not demonstrate wallet login. The guide labels earlier paid examples separately from newly created unpaid drafts.
+Updated October 20, 2026. App/test source: b8bf8d3f480344e50c76e6f01f2336e96902f651.
 
-Source and local setup: https://github.com/jlhpacheco/solvia#run-it-locally
-Testing: https://github.com/jlhpacheco/solvia/blob/main/docs/TESTING.md
-Impact sources: https://github.com/jlhpacheco/solvia/blob/main/docs/IMPACT-AND-DIFFERENTIATION.md
+Runtime: OpenAI's US-developed GPT-OSS 120B through Together AI. Model origin does not establish US-only processing. This uses existing hosted inference, not fine-tuning or an OpenAI API key.
 
-Verified scope: 390 backend checks; 84 desktop/phone TypeScript checks including 32 smokes; 16 additional iPad Chromium/WebKit portrait/landscape checks. These are 100 distinct controlled browser checks across two suites, separate from eight actual Together cases passed twice. See QC for exact source versions, failed checks/corrections and limits.
+Current evidence: 517 backend checks, 132 controlled TypeScript browser checks (108 desktop/phone including 36 smoke executions, plus 24 tablet emulations), and 12 separate actual GPT-OSS cases. Full scope, retained failures and remaining gates are in the quality-control PDF and versioned test record.
 
-Historical four-college matrix: 14 captures/$945 gross Sandbox funds. The video adds one separate $30 Sandbox capture, not another run of that matrix. No real money or real student records. No campus authorization, measured savings or guaranteed prize is claimed.
+The 2:40 video shows freshly recorded GPT-OSS schedule/vehicle inference and editable review. The payment segment is explicitly a separate recorded $30 term purchase, not the planner's $1 first-day pass. Official Sandbox test-card approval uses REST before Solvia capture; interactive wallet login is not demonstrated. Natural synthetic narration retains its original tempo. Sampled frames and local transcription were checked; continuous listening/motion review remains separate.
 
-The public YouTube URL, entrant-only answers/attestations and final submission remain outstanding. A clean full-path judge setup and interactive wallet approval are not independently verified. No private API keys are included.
+The 21-page guide refreshes current model-disclosure input screens while preserving clearly identified earlier verified workflow/payment examples. All people and vehicles are fictional; Sandbox funds are not college revenue or actual parking authorization. Agent reviews are automated diagnostics, not human impact evidence.
+
+Source/setup: https://github.com/jlhpacheco/solvia#run-it-locally
+Current model/planner: https://github.com/jlhpacheco/solvia/blob/main/docs/US-MODEL-AND-PLANNER.md
+Tests: https://github.com/jlhpacheco/solvia/blob/main/docs/TESTING.md
+Quality control: https://github.com/jlhpacheco/solvia/blob/main/docs/QUALITY-CONTROL.md
+Video: https://github.com/jlhpacheco/solvia/blob/main/docs/review/Solvia-demo.mp4
+Guide: https://github.com/jlhpacheco/solvia/blob/main/docs/review/Solvia-step-by-step-guide.pdf
+
+Public YouTube publication, clean free full-path judge access and participant eligibility/rights answers remain submission gates. No final submission or award is claimed. No private keys, raw card details, private account credentials or real student data are included.

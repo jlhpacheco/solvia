@@ -1,119 +1,183 @@
 1
-00:00:00,401 --> 00:00:04,241
-Campus parking should start with a clear price and a clear next step.
+00:00:00,500 --> 00:00:03,857
+Students and visitors need a clear parking decision.
 
 2
-00:00:04,761 --> 00:00:08,361
-This is Solvia, a hackathon demo using fictional adults and PayPal
+00:00:03,857 --> 00:00:07,634
+Solvia brings published prices, reviewed vehicle details, and proof
 
 3
-00:00:08,361 --> 00:00:09,481
-sandbox funds.
+00:00:07,634 --> 00:00:09,732
+of payment into one journey.
 
 4
-00:00:12,704 --> 00:00:14,684
-Maria is a student at Fresno City College.
+00:00:09,732 --> 00:00:13,928
+This working hackathon demo uses fictional adults and PayPal Sandbox
 
 5
-00:00:14,984 --> 00:00:18,424
-She describes her vehicle in one sentence and chooses a term permit.
+00:00:13,928 --> 00:00:14,348
+funds.
 
 6
-00:00:26,734 --> 00:00:30,354
-Together's Qwen model reads the vehicle details, but Maria reviews
+00:00:15,500 --> 00:00:18,194
+Start with a schedule you can review.
 
 7
-00:00:30,354 --> 00:00:31,974
-every field before saving.
+00:00:18,194 --> 00:00:21,659
+Tuesdays and Thursdays for three weeks means six visits.
 
 8
-00:00:32,674 --> 00:00:36,134
-The AI never chooses her college, permit type, or price.
+00:00:21,659 --> 00:00:25,893
+At these catalog rates, the daily estimate is six dollars, compared
 
 9
-00:00:40,675 --> 00:00:44,775
-Solvia shows the published $30 fee and the permit dates before checking
+00:00:25,893 --> 00:00:28,202
+with a thirty dollar term permit.
 
 10
-00:00:44,775 --> 00:00:45,315
-out.
+00:00:28,202 --> 00:00:29,742
+These are planning estimates.
 
 11
-00:00:49,576 --> 00:00:51,876
-Here are the actual PayPal checkout options.
+00:00:29,742 --> 00:00:33,976
+Continuing with daily parking starts a single one dollar pass application,
 
 12
-00:00:59,808 --> 00:01:03,388
-For this recording, an automated test harness approves an official
+00:00:33,976 --> 00:00:35,516
+not six prepaid visits.
 
 13
-00:01:03,388 --> 00:01:06,488
-sandbox test card through PayPal's REST API.
+00:00:38,500 --> 00:00:40,414
+Maria describes a fictional car.
 
 14
-00:01:07,108 --> 00:01:09,108
-This does not demonstrate a wallet login.
+00:00:40,414 --> 00:00:44,626
+OpenAI's U.S.-developed GPT O S S one hundred twenty billion parameter
 
 15
-00:01:09,928 --> 00:01:12,608
-Solvia then captures the payment through its own back end.
+00:00:44,626 --> 00:00:48,454
+model, served through Together A I, drafts the vehicle fields.
 
 16
-00:01:17,839 --> 00:01:21,679
-The permit becomes live only after PayPal confirms a completed capture.
+00:00:48,454 --> 00:00:51,517
+She checks and can correct them before saving.
 
 17
-00:01:22,399 --> 00:01:25,359
-The receipt shows the real order and capture references.
+00:00:51,517 --> 00:00:54,580
+The model cannot set prices or make payments.
 
 18
-00:01:28,780 --> 00:01:31,960
-Maria downloads her printable permit and can find it again in my
+00:00:58,500 --> 00:01:02,596
+The daily review shows one date and one dollar before checkout.
 
 19
-00:01:31,960 --> 00:01:32,360
-permits.
+00:01:02,596 --> 00:01:06,692
+Now we switch to a separate, previously recorded thirty dollar student
 
 20
-00:01:41,463 --> 00:01:45,663
-Its public verification link confirms validity without exposing her
+00:01:06,692 --> 00:01:07,437
+term purchase.
 
 21
-00:01:45,663 --> 00:01:46,123
-plate.
+00:01:07,437 --> 00:01:10,788
+It is a different permit from the daily plan.
 
 22
-00:01:49,847 --> 00:01:51,347
-Visitors can choose a day pass.
+00:01:12,500 --> 00:01:15,342
+These are the actual PayPal checkout options.
 
 23
-00:01:51,807 --> 00:01:55,527
-The form hides semester choices and the review shows the actual daily
+00:01:15,342 --> 00:01:18,995
+This recorded purchase uses official Sandbox card approval through
 
 24
-00:01:55,527 --> 00:01:57,187
-price and one day dates.
+00:01:18,995 --> 00:01:20,619
+a REST test harness.
 
 25
-00:02:06,837 --> 00:02:08,557
-Elena is an employee in this demo.
+00:01:20,619 --> 00:01:23,055
+It does not demonstrate wallet login.
 
 26
-00:02:09,077 --> 00:02:12,637
-Her exempt permit is issued without a PayPal charge and it has its
+00:01:23,055 --> 00:01:27,114
+Solvia then captures through its own backend, checking the completed
 
 27
-00:02:12,637 --> 00:02:13,677
-own printable proof.
+00:01:27,114 --> 00:01:29,144
+amount, currency, and saved order.
 
 28
-00:02:25,859 --> 00:02:29,779
-Solvia combines AI assisted entry with human review, deterministic
+00:01:29,144 --> 00:01:31,580
+An order alone is not payment.
 
 29
-00:02:29,779 --> 00:02:31,699
-pricing, and verified payment records.
+00:01:39,500 --> 00:01:43,342
+That purchase's receipt and printable permit carry matching order
 
 30
-00:02:32,239 --> 00:02:34,159
-Clear prices, confident next steps.
+00:01:43,342 --> 00:01:44,623
+and capture references.
+
+31
+00:01:44,623 --> 00:01:46,757
+My permits provides another copy.
+
+32
+00:01:46,757 --> 00:01:50,600
+The public link checks validity without exposing the plate.
+
+33
+00:01:50,600 --> 00:01:53,588
+Paid and currently valid are separate facts.
+
+34
+00:01:58,500 --> 00:02:02,812
+A visitor can review a day pass without semester questions.
+
+35
+00:02:02,812 --> 00:02:07,123
+The employee demo illustrates an exemption, with printable proof and
+
+36
+00:02:07,123 --> 00:02:07,986
+no payment.
+
+37
+00:02:07,986 --> 00:02:11,004
+These are demonstration policies, not campus authorization.
+
+38
+00:02:12,500 --> 00:02:16,256
+The payment review dashboard summarizes saved local demo records.
+
+39
+00:02:16,256 --> 00:02:20,429
+It does not recheck PayPal or represent actual college revenue.
+
+40
+00:02:20,429 --> 00:02:25,020
+Independent agent task reviews help find friction; they are not human
+
+41
+00:02:25,020 --> 00:02:27,524
+participant studies or proof of savings.
+
+42
+00:02:29,500 --> 00:02:30,404
+AI assists.
+
+43
+00:02:30,404 --> 00:02:31,309
+People review.
+
+44
+00:02:31,309 --> 00:02:33,118
+The catalog sets prices.
+
+45
+00:02:33,118 --> 00:02:34,474
+PayPal confirms payment.
+
+46
+00:02:34,474 --> 00:02:38,092
+Human usability and operational impact still need measurement.
