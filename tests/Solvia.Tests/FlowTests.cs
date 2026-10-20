@@ -56,6 +56,24 @@ public sealed class FlowTests
             Task.FromResult(_inner.Extract(studentText));
     }
 
+    private sealed class CountingExtractor : IAiExtractor
+    {
+        public int Calls { get; private set; }
+        public ExtractionResult Result { get; init; } = new()
+        {
+            Source = ExtractionSource.Fallback,
+            Plate = "8XYZ123",
+            CarMake = "Honda",
+            CarModel = "Civic",
+        };
+
+        public Task<ExtractionResult> ExtractAsync(string studentText, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(Result);
+        }
+    }
+
     private sealed record World(
         SolviaDbContext Db,
         SqliteConnection Connection,
@@ -70,7 +88,7 @@ public sealed class FlowTests
     }
 
     private static PermitsController NewController(
-        World w, string asStudent = "maria")
+        World w, string asStudent = "maria", IAiExtractor? extractor = null)
     {
         var db = w.Db;
         var numbers = new PermitNumberService(db);
@@ -87,7 +105,7 @@ public sealed class FlowTests
         var controller = new PermitsController(
             db,
             w.Catalog,
-            new FallbackAiExtractor(w.Catalog),
+            extractor ?? new FallbackAiExtractor(w.Catalog),
             w.TermDates,
             new PricingService(w.Catalog),
             new UserCategoryResolver(Options.Create(new CategoryOptions())),
@@ -332,6 +350,192 @@ public sealed class FlowTests
     }
 
     // -------------------------------------------------------- AI door
+
+    [Theory]
+    [InlineData(1000, 1, "Understood")]
+    [InlineData(1001, 0, "Questions")]
+    public async Task AiDoor_DescriptionLimit_GuardsReaderAndKeepsActualChoices(
+        int characters, int expectedCalls, string expectedView)
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var extractor = new CountingExtractor();
+        var controller = NewController(w, extractor: extractor);
+        var applicationId = Guid.NewGuid();
+        var text = new string('a', characters);
+
+        var result = Assert.IsType<ViewResult>(await controller.Understand(
+            "Fresno City College", text, PermitTypeCode.Daily, TermKind.Spring,
+            applicationId, default));
+
+        Assert.Equal(expectedView, result.ViewName);
+        Assert.Equal(expectedCalls, extractor.Calls);
+        if (characters > PermitDraftViewModel.MaxCarTextLength)
+        {
+            var model = Assert.IsType<QuestionsViewModel>(result.Model);
+            Assert.Equal(text, model.CarText);
+            Assert.Equal("Fresno City College", model.College);
+            Assert.Equal(applicationId, model.ApplicationId);
+            Assert.Equal(PermitTypeCode.Daily, model.PermitType);
+            Assert.Equal(TermKind.Spring, model.Term);
+            Assert.Contains("1,000", model.Notice ?? "");
+        }
+        else
+        {
+            var draft = Assert.IsType<PermitDraftViewModel>(result.Model);
+            Assert.Equal(PermitTypeCode.Daily, draft.PermitType);
+            Assert.Equal(TermKind.Spring, draft.Term);
+        }
+        Assert.Empty(w.Db.Vehicles);
+        Assert.Empty(w.Db.PermitApplications);
+    }
+
+    [Fact]
+    public async Task AiDoor_OversizedDescriptionPostedToReview_CannotBypassLimit()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var controller = NewController(w);
+        var draft = new PermitDraftViewModel
+        {
+            College = "Fresno City College", Plate = "8XYZ123",
+            CarText = new string('x', 1001), PermitType = PermitTypeCode.Daily,
+            Term = TermKind.Spring,
+        };
+
+        var result = Assert.IsType<ViewResult>(await controller.Review(draft, default));
+
+        Assert.Equal("Questions", result.ViewName);
+        var model = Assert.IsType<QuestionsViewModel>(result.Model);
+        Assert.Equal(draft.CarText, model.CarText);
+        Assert.Equal(draft.PermitType, model.PermitType);
+        Assert.Equal(draft.Term, model.Term);
+        Assert.Contains("1,000", model.Notice ?? "");
+        Assert.Empty(w.Db.Vehicles);
+        Assert.Empty(w.Db.PermitApplications);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AiDoor_OverlongVehicleDetail_StaysEditableWithoutSaving(bool make)
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var controller = NewController(w);
+        var draft = new PermitDraftViewModel
+        {
+            College = "Fresno City College", Plate = "8XYZ123", CarText = "my fictional car",
+            CarMake = make ? new string('m', 51) : "Honda",
+            CarModel = make ? "Civic" : new string('m', 51), CarColor = "Blue", CarState = "CA",
+        };
+
+        var result = Assert.IsType<ViewResult>(await controller.Review(draft, default));
+
+        Assert.Equal("Understood", result.ViewName);
+        Assert.Same(draft, result.Model);
+        var field = make ? nameof(draft.CarMake) : nameof(draft.CarModel);
+        Assert.Contains(controller.ModelState[field]!.Errors, error => error.ErrorMessage.Contains("50"));
+        Assert.Empty(w.Db.Vehicles);
+        Assert.Empty(w.Db.PermitApplications);
+    }
+
+    [Theory]
+    [InlineData("4", "Blue", "CarState")]
+    [InlineData("999", "Blue", "CarState")]
+    [InlineData("+4", "Blue", "CarState")]
+    [InlineData("CA", "5", "CarColor")]
+    [InlineData("CA", "999", "CarColor")]
+    [InlineData("CA", "-1", "CarColor")]
+    public async Task AiDoor_NumericStateOrColor_IsRejectedBeforeVehicleSave(
+        string state, string color, string invalidField)
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var controller = NewController(w);
+        var draft = new PermitDraftViewModel
+        {
+            College = "Fresno City College", Plate = "8XYZ123",
+            CarMake = "Honda", CarModel = "Civic", CarState = state, CarColor = color,
+        };
+
+        var result = Assert.IsType<ViewResult>(await controller.Review(draft, default));
+
+        Assert.Equal("Understood", result.ViewName);
+        Assert.NotEmpty(controller.ModelState[invalidField]!.Errors);
+        Assert.Empty(w.Db.Vehicles);
+        Assert.Empty(w.Db.PermitApplications);
+    }
+
+    [Theory]
+    [InlineData(ExtractionSource.Ollama, "configured AI reader")]
+    [InlineData(ExtractionSource.Meta, "hosted Meta AI reader")]
+    [InlineData(ExtractionSource.Fallback, "unavailable or returned an unusable answer")]
+    public async Task AiDoor_ReaderNote_DescribesConfiguredReaderWithoutDeviceClaims(
+        ExtractionSource source, string expectedNote)
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var extractor = new CountingExtractor { Result = new ExtractionResult { Source = source, Plate = "8XYZ123" } };
+        var controller = NewController(w, extractor: extractor);
+
+        var draft = await UnderstandAsync(controller, carText: "plate 8XYZ123");
+
+        Assert.Contains(expectedNote, draft.SourceNote);
+        Assert.DoesNotContain("this computer", draft.SourceNote);
+        Assert.DoesNotContain("model is off", draft.SourceNote);
+    }
+
+    [Fact]
+    public async Task AiDoor_NewDraftCannotChangeStateOnReferencedVehicle_OlderReceiptKeepsState()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var vehicle = AddVehicle(w.Db, "elena", "EMP1234");
+        var firstController = NewController(w, "elena");
+        var first = new PermitDraftViewModel
+        {
+            College = "Fresno City College", Plate = vehicle.Plate,
+            CarMake = "Honda", CarModel = "Civic", CarState = "CA", CarColor = "Blue",
+        };
+        Assert.IsType<RedirectResult>(await firstController.Review(first, default));
+        var older = Assert.Single(w.Db.PermitApplications);
+        var olderReceipt = older.ReceiptNumber;
+        Assert.False(string.IsNullOrWhiteSpace(olderReceipt));
+
+        var controller = NewController(w, "elena");
+        var differentState = new PermitDraftViewModel
+        {
+            College = "Fresno City College", Plate = vehicle.Plate,
+            PermitType = PermitTypeCode.Daily, CarMake = "Changed make",
+            CarModel = "Changed model", CarState = "NV", CarColor = "Red",
+        };
+
+        var held = Assert.IsType<ViewResult>(await controller.Review(differentState, default));
+
+        Assert.Equal("Understood", held.ViewName);
+        Assert.Contains(controller.ModelState[nameof(differentState.CarState)]!.Errors,
+            error => error.ErrorMessage.Contains("linked to permit applications"));
+        await w.Db.Entry(vehicle).ReloadAsync();
+        Assert.Equal(UsState.CA, vehicle.State);
+        Assert.Equal("Honda", vehicle.Make);
+        Assert.Equal("Civic", vehicle.Model);
+        Assert.Equal(VehicleColor.Blue, vehicle.Color);
+        Assert.Single(w.Db.PermitApplications);
+
+        var receipts = new MyPermitsController(w.Db) { ControllerContext = controller.ControllerContext };
+        var receipt = Assert.IsType<ReceiptViewModel>(
+            Assert.IsType<ViewResult>(await receipts.Receipt(older.Id, default)).Model);
+        Assert.True(receipt.IsLive);
+        Assert.Equal(olderReceipt, receipt.ReceiptNumber);
+        Assert.Equal("EMP1234 (CA)", receipt.PlateLine);
+    }
 
     private static async Task<PermitDraftViewModel> UnderstandAsync(
         PermitsController controller,

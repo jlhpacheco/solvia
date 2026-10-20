@@ -329,6 +329,66 @@ public sealed class ApplicationTests
 
     // ------------------------------------------- vehicle resolution
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResolveVehicle_OverlongDetail_CannotMutateExistingVehicle(bool make)
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+        var existing = AddVehicle(w.Db, "maria");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => w.Applications.ResolveVehicleForDraftAsync(
+            "maria", existing.Plate, make ? new string('x', 51) : "Changed make",
+            make ? "Changed model" : new string('x', 51), "Red", "NV"));
+
+        Assert.Equal("Honda", existing.Make);
+        Assert.Equal("Civic", existing.Model);
+        Assert.Equal(VehicleColor.Blue, existing.Color);
+        Assert.Equal(UsState.CA, existing.State);
+        Assert.Single(w.Db.Vehicles);
+        Assert.Equal(EntityState.Unchanged, w.Db.Entry(existing).State);
+    }
+
+    [Theory]
+    [InlineData("4", "Blue")]
+    [InlineData("999", "Blue")]
+    [InlineData("+4", "Blue")]
+    [InlineData("CA", "5")]
+    [InlineData("CA", "999")]
+    [InlineData("CA", "-1")]
+    [InlineData("CA,AL", "Blue")]
+    public async Task ResolveVehicle_NumericOrCompositeEnum_IsNotSaved(string state, string color)
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+
+        await Assert.ThrowsAsync<ArgumentException>(() => w.Applications.ResolveVehicleForDraftAsync(
+            "maria", "8XYZ123", "Honda", "Civic", color, state));
+
+        Assert.Empty(w.Db.Vehicles);
+        Assert.DoesNotContain(w.Db.ChangeTracker.Entries<Vehicle>(), entry => entry.State == EntityState.Added);
+    }
+
+    [Fact]
+    public async Task ResolveVehicle_ExactFieldLimitsAndNamedEnums_AreAccepted()
+    {
+        var w = NewWorld();
+        using var _ = w.Connection;
+        using var __ = w.Db;
+
+        var vehicle = await w.Applications.ResolveVehicleForDraftAsync(
+            "maria", "8XYZ123", new string('a', 50), new string('b', 50), "blue", "ca");
+
+        Assert.Equal(50, vehicle.Make!.Length);
+        Assert.Equal(50, vehicle.Model!.Length);
+        Assert.Equal(UsState.CA, vehicle.State);
+        Assert.Equal(VehicleColor.Blue, vehicle.Color);
+        Assert.Single(w.Db.Vehicles);
+    }
+
     [Fact]
     public async Task ResolveVehicle_CreatesThenReusesAndUpdates()
     {

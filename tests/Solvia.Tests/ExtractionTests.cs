@@ -396,13 +396,14 @@ public sealed partial class ExtractionTests
     // ------------------------------------------------------------------
 
     private static OllamaExtractionService NewService(
-        FakeOllamaHandler handler, TimeSpan? timeout = null)
+        FakeOllamaHandler handler, TimeSpan? timeout = null, int timeoutSeconds = 10)
     {
         var http = new HttpClient(handler);
         var options = Options.Create(new OllamaOptions
         {
             BaseUrl = "http://localhost:11434",
             Model = "phi4-mini",
+            TimeoutSeconds = timeoutSeconds,
         });
         return new OllamaExtractionService(
             http,

@@ -10,12 +10,20 @@
         real student records are needed. Please use fictional details when trying it.
     </p>
     <p class="fs-5">
-        The AI that reads a student's answers (Microsoft Phi-4-mini) runs
-        through Ollama on the application host by default. If you open a hosted
-        copy, your answers travel to that server; they do not stay in your browser.
-        A deployment can configure a different model endpoint. Solvia does not
-        implement model training. The app labels its deterministic fallback
-        whenever the model is unavailable.
+        The app operator chooses the AI reader. The default uses Phi-4-mini
+        through Ollama on the application host or a configured remote runner.
+        Selecting Meta sends the vehicle sentence to Meta's hosted Model API;
+        the Questions page identifies that destination before you submit.
+        Meta uses Standard mode with request storage disabled. Standard mode
+        excludes model training, but this does not promise zero retention or
+        processing only in the United States. Use fictional details only;
+        the Meta demonstration is for adults 18 and older.
+    </p>
+    <p class="fs-5">
+        Answers travel to the Solvia server even when a model runs locally
+        there. API keys stay on that server. Solvia labels model versus rules
+        output, and lets you review all fields before saving. The AI cannot
+        set prices, approve payments or issue permits.
     </p>
     <p class="fs-5 mb-0">
         The public permit check (<code>/verify</code>) shows only what a

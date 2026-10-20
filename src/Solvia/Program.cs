@@ -12,7 +12,7 @@ if (builder.Environment.IsEnvironment("Testing"))
     builder.WebHost.UseStaticWebAssets();
 
 // --- Configuration ------------------------------------------------------------
-// Secrets (the PayPal client id and secret) come ONLY from environment
+// Secrets (the PayPal credentials and Meta API key) come ONLY from environment
 // variables or .NET user-secrets — never from files committed to this repo.
 //
 // The bridge below lets hosts that use .env-style variable names
@@ -30,6 +30,11 @@ foreach (var (envName, configKey) in new[]
     ("PAYPAL_WEBHOOK_ID", "PayPal:WebhookId"),
     ("OLLAMA_BASE_URL", "Ollama:BaseUrl"),
     ("OLLAMA_MODEL", "Ollama:Model"),
+    ("OLLAMA_TIMEOUT_SECONDS", "Ollama:TimeoutSeconds"),
+    ("AI_PROVIDER", "AI:Provider"),
+    ("META_API_KEY", "Meta:ApiKey"),
+    ("META_MODEL", "Meta:Model"),
+    ("META_TIMEOUT_SECONDS", "Meta:TimeoutSeconds"),
     ("FEES_CSV_PATH", "FeesCsvPath"),
     ("WEBHOOK_URL", "Webhook:Url"),
 })
@@ -52,6 +57,14 @@ builder.Services.Configure<PayPalOptions>(
     builder.Configuration.GetSection(PayPalOptions.SectionName));
 builder.Services.Configure<OllamaOptions>(
     builder.Configuration.GetSection(OllamaOptions.SectionName));
+builder.Services.AddOptions<AiOptions>()
+    .Bind(builder.Configuration.GetSection(AiOptions.SectionName))
+    .Validate(options => options.Provider.Equals("ollama", StringComparison.OrdinalIgnoreCase) ||
+                         options.Provider.Equals("meta", StringComparison.OrdinalIgnoreCase),
+        "AI:Provider must be ollama or meta.")
+    .ValidateOnStart();
+builder.Services.Configure<MetaOptions>(
+    builder.Configuration.GetSection(MetaOptions.SectionName));
 builder.Services.Configure<CategoryOptions>(
     builder.Configuration.GetSection(CategoryOptions.SectionName));
 builder.Services.Configure<FeeTableOptions>(
@@ -110,7 +123,14 @@ builder.Services.AddSingleton<UserCategoryResolver>();
 // extraction entry point. Any model failure lands in the fallback,
 // so these registrations can never take the demo down.
 builder.Services.AddSingleton<FallbackExtractor>();
-builder.Services.AddHttpClient<IAiExtractor, OllamaExtractionService>();
+builder.Services.AddHttpClient<OllamaExtractionService>();
+builder.Services.AddHttpClient<MetaExtractionService>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+    .RedactLoggedHeaders(["Authorization"]);
+builder.Services.AddScoped<IAiExtractor>(services =>
+    services.GetRequiredService<IOptions<AiOptions>>().Value.Provider.Equals("meta", StringComparison.OrdinalIgnoreCase)
+        ? services.GetRequiredService<MetaExtractionService>()
+        : services.GetRequiredService<OllamaExtractionService>());
 
 // R4 registrations: the application core. Number drawing and
 // issuance are scoped over the scoped DbContext; ApplicationService

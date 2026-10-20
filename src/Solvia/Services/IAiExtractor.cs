@@ -14,10 +14,23 @@ public enum ExtractionSource
 
     /// <summary>
     /// The deterministic rule-based extractor answered — because
-    /// Ollama was unreachable, timed out, or returned an answer that
+    /// the selected provider was unavailable, timed out, or returned an answer that
     /// failed validation. Serialized on the wire as "fallback".
     /// </summary>
     Fallback,
+
+    /// <summary>The hosted Meta model answered and passed the shared validation.</summary>
+    Meta,
+}
+
+public static class ExtractionSourceExtensions
+{
+    public static string ToWireName(this ExtractionSource source) => source switch
+    {
+        ExtractionSource.Ollama => "ollama",
+        ExtractionSource.Meta => "meta",
+        _ => "fallback"
+    };
 }
 
 /// <summary>
@@ -67,16 +80,15 @@ public sealed record ExtractionResult
 
 /// <summary>
 /// Reads a permit draft out of one student message. The primary
-/// implementation asks the local AI model (Phi-4-mini via Ollama —
-/// 100% on the student's own computer, so their words never leave
-/// the machine and never train anything); ANY model failure lands in
-/// the deterministic fallback, so extraction always answers.
+/// implementation is selected explicitly: Ollama (local to the application
+/// host by default) or the hosted Meta Model API. The configured provider
+/// receives extraction inputs. Model failures use the deterministic fallback.
 /// </summary>
 public interface IAiExtractor
 {
     /// <summary>
     /// Extracts the draft from the student's message. Never throws
-    /// for a model/Ollama failure — those land in the fallback.
+    /// for a model/provider failure — those land in the fallback.
     /// </summary>
     Task<ExtractionResult> ExtractAsync(
         string studentText,

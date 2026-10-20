@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Solvia.Models.ViewModels;
 using Solvia.Services;
 
 namespace Solvia.Controllers;
@@ -11,7 +12,7 @@ namespace Solvia.Controllers;
 /// The draft carries NO price — the AI never sets the price; the
 /// flow takes the price from the fee catalog for the resolved
 /// campus. The <c>source</c> field is honest about which path
-/// answered: "ollama" when the local Phi-4-mini model answered and
+/// answered: "ollama" or "meta" when the selected model answered and
 /// passed validation, "fallback" when the deterministic extractor
 /// answered because the model was down or its answer failed
 /// validation.
@@ -42,6 +43,11 @@ public sealed class ChatController : ControllerBase
             return BadRequest(new { error = "A student message is required." });
         }
 
+        if (request.Text.Length > PermitDraftViewModel.MaxCarTextLength)
+        {
+            return BadRequest(new { error = PermitDraftViewModel.CarTextLengthMessage });
+        }
+
         var result = await _extractor.ExtractAsync(request.Text, cancellationToken);
         _logger.LogInformation(
             "Extraction answered by {Source}; college={College}",
@@ -57,7 +63,7 @@ public sealed class ChatController : ControllerBase
             carColor = result.CarColor,
             plate = result.Plate,
             carState = result.CarState,
-            source = result.Source == ExtractionSource.Ollama ? "ollama" : "fallback",
+            source = result.Source.ToWireName(),
         });
     }
 }

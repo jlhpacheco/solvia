@@ -1,4 +1,5 @@
 @model Solvia.Models.ViewModels.QuestionsViewModel
+@inject Microsoft.Extensions.Options.IOptions<Solvia.Config.AiOptions> AiSettings
 @{
     ViewData["Title"] = "Three quick questions";
 }
@@ -20,7 +21,7 @@
 </div>
 
 <div class="sv-card mt-3">
-    <form asp-action="Understand" method="post">
+    <form asp-action="Understand" method="post" id="vehicle-questions">
         <input type="hidden" name="college" value="@Model.College" />
         @if (Model.ApplicationId is { } draftId)
         {
@@ -28,12 +29,21 @@
         }
 
         <label class="form-label fs-4" for="carText"><strong>2 · Your car</strong> — say it in one sentence</label>
-        <textarea class="form-control fs-4" id="carText" name="carText" rows="2"
+        <textarea class="form-control fs-4" id="carText" name="carText" rows="2" maxlength="@Solvia.Models.ViewModels.PermitDraftViewModel.MaxCarTextLength"
                   placeholder="Example: blue 2019 Honda Civic, plate 8XYZ123">@Model.CarText</textarea>
         <p class="fs-6 text-muted mt-2 mb-0">
-            Solvia sends these demo details to its configured AI reader (Phi-4-mini
-            via Ollama). Use a fictional vehicle. If the model is unavailable, plain
-            rules read your answers and the next screen labels the fallback.
+            @if (AiSettings.Value.Provider.Equals("meta", StringComparison.OrdinalIgnoreCase))
+            {
+                <text>Use a fictional vehicle. This demo is for adults 18 and older.
+                When configured, Solvia sends your vehicle sentence to Meta's hosted AI reader.</text>
+            }
+            else
+            {
+                <text>Use a fictional vehicle. Solvia sends your vehicle sentence to its
+                configured Ollama AI reader.</text>
+            }
+            If the model is unavailable, plain rules read your answers and the next
+            screen labels the fallback. You can edit every field before saving.
         </p>
 
         <p class="fs-4 mt-4 mb-2"><strong>3 · Your permit</strong></p>
@@ -55,6 +65,14 @@
             }
         </div>
 
-        <button type="submit" class="btn btn-primary sv-cta w-100 mt-4">Read my answers</button>
+        <button type="submit" id="read-answers" class="btn btn-primary sv-cta w-100 mt-4">Read my answers</button>
+        <div id="ai-reading-status" role="status" aria-live="polite" hidden>
+            <p class="mt-3 mb-2">Reading your vehicle details… You'll review every field next.</p>
+            <progress class="w-100" aria-label="Reading vehicle details"></progress>
+        </div>
     </form>
 </div>
+
+@section Scripts {
+    <script src="~/js/questions.js" asp-append-version="true" defer></script>
+}

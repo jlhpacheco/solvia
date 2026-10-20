@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,8 +23,8 @@ namespace Solvia.Controllers;
 ///
 /// AI DOOR (Solvia's) — /Permits/Ask → Questions → Understood →
 /// Review → Confirm: pick a college, answer 3 questions only
-/// (school / car / term), and the local AI (Phi-4-mini via Ollama,
-/// deterministic fallback when it is off) reads the car sentence.
+/// (school / car / term), and the configured AI reader via Ollama
+/// reads the car sentence. Unavailable or unusable answers fall back to rules.
 /// The Understood screen is THE GATE — editable fields, the flow
 /// does not advance without a plate — and submitting it persists
 /// the draft through the same CreateAsync. Review is the trust
@@ -353,6 +354,18 @@ public sealed class PermitsController : DemoControllerBase
             return RedirectToAction(nameof(Ask));
         }
 
+        if (carText?.Length > PermitDraftViewModel.MaxCarTextLength)
+        {
+            return QuestionsForLongDescription(new PermitDraftViewModel
+            {
+                ApplicationId = applicationId,
+                College = fee.Campus,
+                CarText = carText,
+                PermitType = permitType,
+                Term = term,
+            });
+        }
+
         // The car, in the student's own words, through the AI
         // extractor. The extraction is a PRE-FILL only: the
         // Understood screen's fields are editable, and what is
@@ -375,7 +388,7 @@ public sealed class PermitsController : DemoControllerBase
             CarState = result.CarState,
             PermitType = permitType,
             Term = term,
-            Source = result.Source == ExtractionSource.Ollama ? "ollama" : "fallback",
+            Source = result.Source.ToWireName(),
         };
         draft.SourceNote = SourceNote(draft.Source);
 
@@ -409,14 +422,27 @@ public sealed class PermitsController : DemoControllerBase
         draft.College = fee.Campus;
         draft.SourceNote = SourceNote(draft.Source);
 
+        if (draft.CarText?.Length > PermitDraftViewModel.MaxCarTextLength)
+        {
+            return QuestionsForLongDescription(draft);
+        }
+
+        ValidateDraftVehicle(draft);
         var normalizedPlate = FallbackExtractor.NormalizePlate(draft.Plate);
         if (normalizedPlate is null)
         {
             draft.PlateMissing = true;
             ModelState.AddModelError(nameof(draft.Plate), "Enter a license plate with 4 to 10 letters or digits.");
+        }
+        else
+        {
+            draft.Plate = normalizedPlate;
+            draft.PlateMissing = false;
+        }
+        if (!ModelState.IsValid)
+        {
             return View("Understood", draft);
         }
-        draft.Plate = normalizedPlate;
 
         var student = await CurrentStudentAsync(_db, cancellationToken);
 
@@ -432,9 +458,18 @@ public sealed class PermitsController : DemoControllerBase
             }
         }
 
-        var vehicle = await _applications.ResolveVehicleForDraftAsync(
-            student.Id, draft.Plate, draft.CarMake, draft.CarModel,
-            draft.CarColor, draft.CarState, cancellationToken);
+        Vehicle vehicle;
+        try
+        {
+            vehicle = await _applications.ResolveVehicleForDraftAsync(
+                student.Id, draft.Plate!, draft.CarMake, draft.CarModel,
+                draft.CarColor, draft.CarState, cancellationToken);
+        }
+        catch (DraftVehicleStateLockedException ex)
+        {
+            ModelState.AddModelError(nameof(draft.CarState), ex.Message);
+            return View("Understood", draft);
+        }
 
         var input = new ApplicationInput(
             StudentId: student.Id,
@@ -600,6 +635,45 @@ public sealed class PermitsController : DemoControllerBase
     // AI-door helpers
     // ==================================================================
 
+    private IActionResult QuestionsForLongDescription(PermitDraftViewModel draft) =>
+        View("Questions", new QuestionsViewModel
+        {
+            ApplicationId = draft.ApplicationId,
+            College = draft.College,
+            CarText = draft.CarText,
+            PermitType = draft.PermitType,
+            Term = draft.Term,
+            Notice = PermitDraftViewModel.CarTextLengthMessage +
+                     " Your college and permit choices are kept; shorten the description and try again.",
+        });
+
+    private void ValidateDraftVehicle(PermitDraftViewModel draft)
+    {
+        // Validate here as well as during MVC binding: no direct caller or
+        // manually posted draft may bypass the same persistence boundary.
+        var errors = new List<ValidationResult>();
+        Validator.TryValidateObject(draft, new ValidationContext(draft), errors, validateAllProperties: true);
+        foreach (var error in errors)
+        {
+            foreach (var member in error.MemberNames)
+            {
+                var message = error.ErrorMessage ?? "Check this vehicle detail.";
+                if (!ModelState.TryGetValue(member, out var entry) ||
+                    entry.Errors.All(existing => existing.ErrorMessage != message))
+                    ModelState.AddModelError(member, message);
+            }
+        }
+
+        if (!IsNamedEnumValue<UsState>(draft.CarState))
+            ModelState.AddModelError(nameof(draft.CarState), "Choose a plate state from the list.");
+        if (!IsNamedEnumValue<VehicleColor>(draft.CarColor))
+            ModelState.AddModelError(nameof(draft.CarColor), "Choose a color from the list.");
+    }
+
+    private static bool IsNamedEnumValue<TEnum>(string? value) where TEnum : struct, Enum =>
+        string.IsNullOrWhiteSpace(value) || Enum.GetNames<TEnum>().Any(name =>
+            string.Equals(name, value.Trim(), StringComparison.OrdinalIgnoreCase));
+
     private IActionResult BackToUnderstoodWithError(PermitDraftViewModel draft)
     {
         draft.PlateMissing = string.IsNullOrWhiteSpace(draft.Plate);
@@ -722,11 +796,13 @@ public sealed class PermitsController : DemoControllerBase
         };
     }
 
-    private static string SourceNote(string source) =>
-        source == "ollama"
-            ? "Read by the local AI (Phi-4-mini) on this computer."
-            : "Read by the built-in reader — the AI model is off right " +
-              "now, so plain rules read your words.";
+    private static string SourceNote(string source) => source switch
+    {
+        "ollama" => "Read by Solvia's configured AI reader via Ollama. Check the draft before continuing.",
+        "meta" => "Read by Solvia's hosted Meta AI reader. Check the draft before continuing.",
+        _ => "Read by the built-in reader because the configured AI was unavailable " +
+             "or returned an unusable answer. Check the draft before continuing."
+    };
 
     private static DateOnly Today() => DateOnly.FromDateTime(DateTime.Now);
 

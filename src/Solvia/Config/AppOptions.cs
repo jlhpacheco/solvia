@@ -1,5 +1,29 @@
 namespace Solvia.Config;
 
+/// <summary>Choose one model provider explicitly; the default remains Ollama.</summary>
+public sealed class AiOptions
+{
+    public const string SectionName = "AI";
+    public string Provider { get; set; } = "ollama";
+}
+
+/// <summary>Server-only Meta Model API settings. Never send ApiKey to the browser.</summary>
+public sealed class MetaOptions
+{
+    public const string SectionName = "Meta";
+    private int _timeoutSeconds = 10;
+
+    public string ApiKey { get; set; } = "";
+    public string Model { get; set; } = "muse-spark-1.3";
+
+    /// <summary>Complete model response budget; configured values clamp to 1–90 seconds.</summary>
+    public int TimeoutSeconds
+    {
+        get => _timeoutSeconds;
+        set => _timeoutSeconds = Math.Clamp(value, 1, 90);
+    }
+}
+
 /// <summary>
 /// PayPal configuration section. ClientId and ClientSecret are secrets:
 /// they are supplied ONLY through environment variables or .NET
@@ -29,16 +53,27 @@ public sealed class PayPalOptions
 }
 
 /// <summary>
-/// Ollama configuration section — the local model runner. Solvia's AI
-/// (Microsoft Phi-4-mini) runs 100% on the local machine; student data
-/// never leaves the computer.
+/// Ollama configuration for Microsoft Phi-4-mini. The default endpoint is
+/// local to the application host; deployments can configure a remote runner.
 /// </summary>
 public sealed class OllamaOptions
 {
     public const string SectionName = "Ollama";
+    private int _timeoutSeconds = 10;
 
     public string BaseUrl { get; set; } = "http://localhost:11434";
     public string Model { get; set; } = "phi4-mini";
+
+    /// <summary>
+    /// Model response budget, including loading. Defaults to 10 seconds;
+    /// configured values are clamped to 1–90 seconds. A slower local runner
+    /// can opt into a longer wait without changing the shipped default.
+    /// </summary>
+    public int TimeoutSeconds
+    {
+        get => _timeoutSeconds;
+        set => _timeoutSeconds = Math.Clamp(value, 1, 90);
+    }
 }
 
 /// <summary>

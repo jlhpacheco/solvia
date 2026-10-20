@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Solvia.Models.Enums;
 
 namespace Solvia.Models.ViewModels;
@@ -133,18 +134,26 @@ public sealed class QuestionsViewModel
 /// </summary>
 public sealed class PermitDraftViewModel
 {
+    public const int MaxCarTextLength = 1000;
+    public const int MaxVehicleDetailLength = 50;
+    public const string CarTextLengthMessage =
+        "Keep your car description to 1,000 characters or fewer.";
+
     /// <summary>The saved draft this screen is correcting, once one exists.</summary>
     public Guid? ApplicationId { get; set; }
 
     public string College { get; set; } = "";
 
     /// <summary>The student's own words, kept so Fix-it never loses them.</summary>
+    [StringLength(MaxCarTextLength, ErrorMessage = CarTextLengthMessage)]
     public string? CarText { get; set; }
 
     public string? Plate { get; set; }
 
+    [StringLength(MaxVehicleDetailLength, ErrorMessage = "Keep the make to 50 characters or fewer.")]
     public string? CarMake { get; set; }
 
+    [StringLength(MaxVehicleDetailLength, ErrorMessage = "Keep the model to 50 characters or fewer.")]
     public string? CarModel { get; set; }
 
     /// <summary>Canonical color name (a VehicleColor name) or null.</summary>

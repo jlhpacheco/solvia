@@ -199,36 +199,92 @@ public sealed class FallbackExtractor
     private static readonly Regex StrictPlate = new(
         @"\b\d[A-Za-z]{3}\d{3}\b", RegexOptions.Compiled);
 
-    private static string? FindPlate(string text)
+    private static string? FindPlate(string text) => ResolvePlate(text);
+
+    /// <summary>
+    /// Reads explicit plate evidence before considering a model's claim. A claim
+    /// can fill an unlabeled plate only when that exact value occurs in the input.
+    /// Missing, conflicting, or uncertain evidence requires human confirmation.
+    /// </summary>
+    public static string? ResolvePlate(string text, string? modelPlate = null)
     {
         var labeled = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Match keyword in PlateAfterKeyword.Matches(text))
+        var labels = PlateAfterKeyword.Matches(text);
+        foreach (Match keyword in labels)
         {
+            if (HasUncertainPlateContext(text[..keyword.Index], text[(keyword.Index + keyword.Length)..])) return null;
             var value = Regex.Match(text[(keyword.Index + keyword.Length)..], @"^[A-Za-z0-9]+(?:[- ]+[A-Za-z0-9]+){0,2}");
-            if (!value.Success) continue;
-            var parts = Regex.Split(value.Value, @"[- ]+");
-            if (IsPlateProse(parts[0])) continue;
-            var raw = parts[0];
+            if (!value.Success) return null;
+            var parts = Regex.Matches(value.Value, @"[A-Za-z0-9]+");
+            if (IsPlateProse(parts[0].Value)) return null;
+            var raw = parts[0].Value;
+            var valueEnd = parts[0].Index + parts[0].Length;
             foreach (var part in parts.Skip(1))
             {
-                if (IsPlateProse(part) ||
-                    (part.Length == 2 && part.All(char.IsLetter) && Enum.TryParse<UsState>(part, true, out _))) break;
+                var word = part.Value;
+                if (IsPlateProse(word) || FindColor(word) is not null ||
+                    KnownMakes.Contains(word, StringComparer.OrdinalIgnoreCase) ||
+                    (word.Length == 2 && word.All(char.IsLetter) && Enum.TryParse<UsState>(word, true, out _))) break;
                 // Join spaced fragments, never a following ordinary word.
-                if (!part.Any(char.IsDigit) && !(raw.Any(char.IsDigit) && part.Length <= 3)) break;
-                raw += part;
+                if (!word.Any(char.IsDigit) && !(raw.Any(char.IsDigit) && word.Length <= 3)) break;
+                raw += word;
+                valueEnd = part.Index + part.Length;
             }
-            if (NormalizePlate(raw) is { } plate) labeled.Add(plate);
+            if (HasAlternativePlate(text[(keyword.Index + keyword.Length + valueEnd)..])) return null;
+            if (NormalizePlate(raw) is not { } plate) return null;
+            labeled.Add(plate);
         }
-        if (labeled.Count > 0) return labeled.Count == 1 ? labeled.Single() : null;
+        if (labels.Count > 0) return labeled.Count == 1 ? labeled.Single() : null;
 
-        var strict = StrictPlate.Matches(text).Select(match => NormalizePlate(match.Value)).Distinct().ToArray();
-        return strict.Length == 1 ? strict[0] : null;
+        var strictMatches = StrictPlate.Matches(text);
+        var strict = strictMatches.Select(match => NormalizePlate(match.Value)).Distinct().ToArray();
+        if (strict.Length > 0)
+        {
+            if (strict.Length != 1 || strictMatches.Any(match =>
+                    HasUncertainPlateContext(text[..match.Index], text[(match.Index + match.Length)..]) ||
+                    HasAlternativePlate(text[(match.Index + match.Length)..]) ||
+                    Regex.IsMatch(text[..match.Index], @"\bor\s*$", RegexOptions.IgnoreCase))) return null;
+            return strict[0];
+        }
+
+        if (NormalizePlate(modelPlate) is not { } claim) return null;
+        var pattern = @"(?<![A-Za-z0-9])" +
+                      string.Join(@"[ -]*", claim.Select(c => Regex.Escape(c.ToString()))) +
+                      @"(?![A-Za-z0-9])";
+        var evidence = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+        if (!evidence.Success || HasUncertainPlateContext(text[..evidence.Index], text[(evidence.Index + evidence.Length)..]) ||
+            HasAlternativePlate(text[(evidence.Index + evidence.Length)..]) ||
+            Regex.IsMatch(text[..evidence.Index], @"\bor\s*$", RegexOptions.IgnoreCase)) return null;
+        return claim;
+    }
+
+    private static bool HasAlternativePlate(string tail)
+    {
+        if (Regex.IsMatch(tail, @"^\s*(?:or\b|[/|])", RegexOptions.IgnoreCase)) return true;
+        var alternative = Regex.Match(tail, @"^\s*(?:,|and\b)\s*([A-Za-z0-9-]+)", RegexOptions.IgnoreCase);
+        return alternative.Success && alternative.Groups[1].Value.Any(char.IsDigit) &&
+               NormalizePlate(alternative.Groups[1].Value) is not null;
+    }
+
+    private static bool HasUncertainPlateContext(string prefix, string tail)
+    {
+        // Scope uncertainty to the plate/candidate. "I may need a day pass;
+        // plate ABC123" still contains a certain plate, while "plate may be
+        // ABC123" and "either plate ABC123 or XYZ987" require a human answer.
+        const string uncertainty = @"(?:not\s+sure|unsure|uncertain|maybe|perhaps|possibly|probably|likely|either|" +
+                                   @"(?:might|may|could)\s+be|(?:do\s+not|don't|dont)\s+know|(?:i\s+)?(?:think|guess|believe))";
+        return Regex.IsMatch(prefix, @"\b" + uncertainty + @"[\s,:-]*(?:(?:my|the|license|licence)\s+)*$", RegexOptions.IgnoreCase) ||
+               Regex.IsMatch(tail, @"^\s*(?:(?:might|may|could|can)\s+(?:be|read)\b|" +
+                   @"(?:either|maybe|perhaps|possibly|probably|likely|seems|appears)\b)", RegexOptions.IgnoreCase) ||
+               Regex.IsMatch(tail, @"^[\s,;:-]*(?:i\s+)?(?:think|guess|believe|am\s+not\s+sure)\s*[.!?]*$", RegexOptions.IgnoreCase);
     }
 
     private static bool IsPlateProse(string word) => new[] {
         "plate", "plates", "license", "licence", "number", "no", "none", "unknown", "missing",
-        "pending", "not", "yet", "is", "for", "from", "with", "and", "in", "on", "at", "the",
-        "my", "car", "vehicle", "i", "need", "fall", "spring", "summer", "color", "state"
+        "pending", "not", "yet", "is", "for", "from", "with", "and", "or", "in", "on", "at", "the",
+        "my", "car", "vehicle", "i", "need", "fall", "spring", "summer", "color", "state",
+        "might", "may", "could", "can", "be", "either", "maybe", "perhaps", "possibly", "probably",
+        "likely", "seems", "appears", "think", "guess", "believe"
     }.Contains(word, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Upper-cases and strips separators; sane plates are 4–10 alphanumerics.</summary>

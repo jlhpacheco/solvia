@@ -78,6 +78,15 @@ public sealed record CreateApplicationResult(
     public bool IsCreated => Status == CreateApplicationStatus.Created;
 }
 
+/// <summary>The AI draft must preserve the garage's referenced plate/state rule.</summary>
+public sealed class DraftVehicleStateLockedException : InvalidOperationException
+{
+    public DraftVehicleStateLockedException()
+        : base("This plate is linked to permit applications. Add a new vehicle to use a different plate or state.")
+    {
+    }
+}
+
 /// <summary>
 /// The ONE application-creation brain (REDO-PLAN §2c) — both doors
 /// create through here, so there is one category rule, one price
@@ -365,9 +374,22 @@ public sealed class ApplicationService
         CancellationToken cancellationToken = default)
     {
         var normalized = NormalizePlate(plate);
+        // SQLite does not enforce HasMaxLength. Validate every supplied
+        // vehicle detail before loading or mutating a tracked vehicle.
+        var normalizedMake = BoundedVehicleDetail(make, nameof(make));
+        var normalizedModel = BoundedVehicleDetail(model, nameof(model));
+        var state = ParseState(stateCode);
+        var color = ParseColor(colorName);
         var vehicle = await _db.Vehicles.FirstOrDefaultAsync(
             v => v.StudentId == studentId && v.Plate == normalized,
             cancellationToken);
+        if (vehicle is not null && vehicle.State != state &&
+            await _db.PermitApplications.AnyAsync(application => application.VehicleId == vehicle.Id, cancellationToken))
+        {
+            // Match the garage: any permit reference freezes plate/state.
+            // Make, model and color remain editable when the state is kept.
+            throw new DraftVehicleStateLockedException();
+        }
         if (vehicle is null)
         {
             vehicle = new Vehicle
@@ -379,10 +401,10 @@ public sealed class ApplicationService
         }
 
         vehicle.Plate = normalized;
-        vehicle.State = ParseState(stateCode);
-        vehicle.Color = ParseColor(colorName);
-        vehicle.Make = NullIfBlank(make);
-        vehicle.Model = NullIfBlank(model);
+        vehicle.State = state;
+        vehicle.Color = color;
+        vehicle.Make = normalizedMake;
+        vehicle.Model = normalizedModel;
         await _db.SaveChangesAsync(cancellationToken);
         return vehicle;
     }
@@ -463,15 +485,32 @@ public sealed class ApplicationService
     private static string NormalizePlate(string plate) =>
         plate.Replace(" ", "").Trim().ToUpperInvariant();
 
-    private static VehicleColor ParseColor(string? color) =>
-        Enum.TryParse<VehicleColor>(color, ignoreCase: true, out var parsed)
-            ? parsed
-            : VehicleColor.Other;
+    private static VehicleColor ParseColor(string? colorName) =>
+        ParseNamedEnum(colorName, VehicleColor.Other, nameof(colorName), "Choose a color from the list.");
 
-    private static UsState ParseState(string? state) =>
-        Enum.TryParse<UsState>(state, ignoreCase: true, out var parsed)
-            ? parsed
-            : UsState.CA;
+    private static UsState ParseState(string? stateCode) =>
+        ParseNamedEnum(stateCode, UsState.CA, nameof(stateCode), "Choose a plate state from the list.");
+
+    private static TEnum ParseNamedEnum<TEnum>(string? value, TEnum defaultValue, string parameter, string error)
+        where TEnum : struct, Enum
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return defaultValue;
+
+        // Enum.TryParse alone also accepts numeric strings, including values
+        // with no declared name. Accept only a single actual enum name.
+        var name = Enum.GetNames<TEnum>().FirstOrDefault(candidate =>
+            string.Equals(candidate, value.Trim(), StringComparison.OrdinalIgnoreCase));
+        return name is not null ? Enum.Parse<TEnum>(name) : throw new ArgumentException(error, parameter);
+    }
+
+    private static string? BoundedVehicleDetail(string? value, string parameter)
+    {
+        var detail = NullIfBlank(value);
+        if (detail?.Length > 50)
+            throw new ArgumentException("Vehicle make and model must be 50 characters or fewer.", parameter);
+        return detail;
+    }
 
     private static string? NullIfBlank(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
