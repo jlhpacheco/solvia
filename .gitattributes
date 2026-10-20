@@ -1,0 +1,8 @@
+# Preserve document and media bytes, including PDF cross-reference offsets.
+*.pdf binary
+*.mp4 binary
+*.mp3 binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.zip binary
