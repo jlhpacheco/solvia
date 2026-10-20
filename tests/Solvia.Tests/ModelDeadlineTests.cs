@@ -29,6 +29,7 @@ public sealed class ModelDeadlineTests
             ? JsonSerializer.Serialize(new { message = new { content = modelJson } })
             : JsonSerializer.Serialize(new
             {
+                model = TogetherOptions.SupportedModel,
                 choices = new[] { new { finish_reason = "stop", message = new { content = modelJson } } }
             });
         var handler = new ClockAdvancingHandler(clock, response, delayBody);

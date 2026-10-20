@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$ProjectPath = (Join-Path $PSScriptRoot '..\src\Solvia\Solvia.csproj'),
-    [ValidateSet('Qwen/Qwen3.5-9B')]
-    [string]$Model = 'Qwen/Qwen3.5-9B',
+    [ValidateSet('openai/gpt-oss-120b')]
+    [string]$Model = 'openai/gpt-oss-120b',
     [ValidateRange(1, 90)]
     [int]$TimeoutSeconds = 10
 )

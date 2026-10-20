@@ -37,8 +37,10 @@ public sealed class MyPermitRow
     /// </summary>
     public string PaymentDisplay { get; set; } = "";
 
-    /// <summary>True when the permit is live (Paid or NotRequired).</summary>
+    /// <summary>Historical issuance/payment gate (Paid or NotRequired), separate from current validity.</summary>
     public bool IsLive { get; set; }
+    public bool IsActive { get; set; }
+    public string ValidityReason { get; set; } = "";
 
     /// <summary>Item 39: "Pay Now" shows only when money is still owed.</summary>
     public bool ShowPayNow { get; set; }
@@ -85,8 +87,10 @@ public sealed class ReceiptViewModel
     public bool CanPay { get; init; }
     public Guid Id { get; set; }
 
-    /// <summary>True when Paid or NotRequired — the permit is live.</summary>
+    /// <summary>True when Paid or NotRequired; allows retrieval of the issued historical document.</summary>
     public bool IsLive { get; set; }
+    public bool IsActive { get; set; }
+    public string ValidityReason { get; set; } = "";
 
     /// <summary>True for a free permit (no payment was needed).</summary>
     public bool IsFree { get; set; }

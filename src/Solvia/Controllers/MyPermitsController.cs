@@ -78,6 +78,7 @@ public sealed class MyPermitsController : DemoControllerBase
     private static MyPermitRow ToRow(PermitApplication a)
     {
         var isLive = a.PaymentStatus is PaymentStatus.Paid or PaymentStatus.NotRequired;
+        var validity = PermitValidity.Check(a, DateOnly.FromDateTime(DateTime.Today));
         var payment = PaymentWord(a.PaymentStatus);
         if (a.PriceCents > 0)
         {
@@ -97,6 +98,8 @@ public sealed class MyPermitsController : DemoControllerBase
             CategoryLabel = a.Category.ToString(),
             PaymentDisplay = payment,
             IsLive = isLive,
+            IsActive = validity.IsActive,
+            ValidityReason = validity.Reason,
             ShowPayNow = CanPay(a),
             ReceiptNumber = a.ReceiptNumber,
         };
@@ -125,11 +128,14 @@ public sealed class MyPermitsController : DemoControllerBase
         var isLive = application.PaymentStatus is
             PaymentStatus.Paid or PaymentStatus.NotRequired;
         var isFree = application.PaymentStatus == PaymentStatus.NotRequired;
+        var validity = PermitValidity.Check(application, DateOnly.FromDateTime(DateTime.Today));
 
         var model = new ReceiptViewModel
         {
             Id = application.Id,
             IsLive = isLive,
+            IsActive = validity.IsActive,
+            ValidityReason = validity.Reason,
             CanPay = CanPay(application),
             IsFree = isFree,
             ReceiptNumber = application.ReceiptNumber,

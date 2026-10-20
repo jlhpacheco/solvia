@@ -1,0 +1,18 @@
+.sv-planner-heading { max-width: 48rem; margin-block: 1rem 1.5rem; }
+.sv-planner-heading h1 { font-size: clamp(2rem, 1.5rem + 2vw, 3.4rem); letter-spacing: -.04em; }
+.sv-planner-form { max-width: 58rem; }
+.sv-planner-form .form-control, .sv-planner-form .form-select { font-size: 1rem; min-block-size: 3rem; }
+.sv-planner-reader { padding: 1.25rem; border-radius: .8rem; background: var(--sv-teal-soft); }
+.sv-planner-fields, .sv-planner-options { display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sv-planner-days { display: flex; flex-wrap: wrap; gap: .5rem; }
+.sv-planner-day { display: flex; align-items: center; gap: .6rem; padding: .65rem .8rem; border: 1px solid #aab6c8; border-radius: .6rem; background: white; min-block-size: 3rem; }
+.sv-planner-day:has(input:checked) { background: var(--sv-teal-soft); border-color: var(--sv-teal); }
+.sv-planner-day input { inline-size: 1.15rem; block-size: 1.15rem; accent-color: #087f83; }
+.sv-planner-day input:focus-visible { outline: 3px solid #164bdb; outline-offset: 4px; }
+.sv-planner-verdict { border-inline-start: 4px solid var(--sv-teal); background: var(--sv-teal-soft); padding: 1rem 1.25rem; border-radius: .5rem; margin-block: 1rem; }
+.sv-plan-price { font-size: 2.3rem; font-weight: 750; color: var(--sv-navy); margin-block: .8rem; }
+.sv-planner-options article { display: flex; flex-direction: column; align-items: flex-start; }
+.sv-planner-options .btn { margin-block-start: auto; min-block-size: 3rem; }
+.sv-visit-dates { display: flex; flex-wrap: wrap; gap: .5rem 2rem; padding-inline-start: 1.25rem; }
+@media (max-width: 700px) { .sv-planner-fields, .sv-planner-options { grid-template-columns: minmax(0, 1fr); } .sv-planner-reader { padding: 1rem; } }
+@media (forced-colors: active) { .sv-planner-day { border-color: ButtonText; } .sv-planner-verdict { border-color: Highlight; } }

@@ -15,3 +15,4 @@ playwright-report/
 test-results/
 .playwright-data/
 sandbox-results/
+debug.log

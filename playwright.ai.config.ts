@@ -11,6 +11,10 @@ if (provider !== 'ollama' && provider !== 'together') {
 }
 
 const baseURL = process.env.SOLVIA_AI_BASE_URL ?? 'http://localhost:5156';
+const evidenceLabel = process.env.SOLVIA_AI_EVIDENCE_LABEL ?? provider;
+if (!/^[a-z0-9-]{1,50}$/.test(evidenceLabel)) {
+  throw new Error('SOLVIA_AI_EVIDENCE_LABEL must be a short lowercase name, without a path.');
+}
 const appAddress = new URL(baseURL);
 if (!['http:', 'https:'].includes(appAddress.protocol) ||
     !['localhost', '127.0.0.1', '[::1]'].includes(appAddress.hostname)) {
@@ -19,8 +23,8 @@ if (!['http:', 'https:'].includes(appAddress.protocol) ||
 
 export default defineConfig({
   testDir: './tests/ai',
-  testMatch: 'model-live.spec.ts',
-  metadata: { aiProvider: provider },
+  testMatch: '*-live.spec.ts',
+  metadata: { aiProvider: provider, expectedModel: process.env.SOLVIA_AI_MODEL ?? 'not specified' },
   workers: 1,
   fullyParallel: false,
   retries: 0,
@@ -28,9 +32,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [
     ['list'],
-    ['json', { outputFile: `.playwright-data/ai-evidence/${provider}/results.json` }]
+    ['json', { outputFile: `.playwright-data/ai-evidence/${evidenceLabel}/results.json` }]
   ],
-  outputDir: `.playwright-data/ai-evidence/${provider}/artifacts`,
+  outputDir: `.playwright-data/ai-evidence/${evidenceLabel}/artifacts`,
   use: {
     ...devices['Desktop Chrome'],
     baseURL,

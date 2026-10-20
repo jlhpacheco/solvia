@@ -301,7 +301,8 @@ public sealed class PermitsController : DemoControllerBase
     // ==================================================================
 
     [HttpGet]
-    public IActionResult Questions(string? college)
+    public IActionResult Questions(string? college, PermitTypeCode permitType = PermitTypeCode.Term,
+        TermKind term = TermKind.Fall, DateOnly? startDate = null)
     {
         var fee = college is null ? null : _catalog.Find(college);
         if (fee is null)
@@ -312,6 +313,9 @@ public sealed class PermitsController : DemoControllerBase
         return View(new QuestionsViewModel
         {
             College = fee.Campus,
+            PermitType = Enum.IsDefined(permitType) ? permitType : PermitTypeCode.Term,
+            Term = Enum.IsDefined(term) ? term : TermKind.Fall,
+            StartDate = startDate,
             CarText = TempData["CarText"] as string,
             Notice = TempData["Notice"] as string,
         });
@@ -336,6 +340,7 @@ public sealed class PermitsController : DemoControllerBase
             CarText = draft.CarText,
             PermitType = draft.PermitType,
             Term = draft.Term,
+            StartDate = draft.StartDate,
         });
     }
 
@@ -349,7 +354,7 @@ public sealed class PermitsController : DemoControllerBase
         string college, string? carText,
         PermitTypeCode permitType, TermKind term,
         Guid? applicationId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, DateOnly? startDate = null)
     {
         var fee = _catalog.Find(college);
         if (fee is null)
@@ -366,6 +371,7 @@ public sealed class PermitsController : DemoControllerBase
                 CarText = carText,
                 PermitType = permitType,
                 Term = term,
+                StartDate = startDate,
             });
         }
 
@@ -389,6 +395,7 @@ public sealed class PermitsController : DemoControllerBase
                 CarText = carText,
                 PermitType = permitType,
                 Term = term,
+                StartDate = startDate,
                 Notice = AiRequestLimiter.RejectionMessage + " Your answers are still here.",
             });
         }
@@ -409,6 +416,7 @@ public sealed class PermitsController : DemoControllerBase
             CarState = result.CarState,
             PermitType = permitType,
             Term = term,
+            StartDate = startDate,
             Source = result.Source.ToWireName(),
         };
         draft.SourceNote = SourceNote(draft.Source);
@@ -498,7 +506,7 @@ public sealed class PermitsController : DemoControllerBase
             Campus: fee.Campus,
             TypeCode: draft.PermitType,
             Term: draft.Term,
-            StartDate: ComputeAiStart(fee.Campus, draft.PermitType, draft.Term),
+            StartDate: draft.StartDate ?? ComputeAiStart(fee.Campus, draft.PermitType, draft.Term),
             Source: draft.Source,
             PersistWhenPriceBlocked: true);
 
@@ -664,12 +672,21 @@ public sealed class PermitsController : DemoControllerBase
             CarText = draft.CarText,
             PermitType = draft.PermitType,
             Term = draft.Term,
+            StartDate = draft.StartDate,
             Notice = PermitDraftViewModel.CarTextLengthMessage +
                      " Your college and permit choices are kept; shorten the description and try again.",
         });
 
     private void ValidateDraftVehicle(PermitDraftViewModel draft)
     {
+        if (!Enum.IsDefined(draft.PermitType) || !Enum.IsDefined(draft.Term))
+            ModelState.AddModelError("", "Choose a permit type and term from the lists.");
+        if (draft.StartDate is { } start && draft.PermitType == PermitTypeCode.Term && Enum.IsDefined(draft.Term))
+        {
+            var dates = _termDates.GetTermDates(draft.College, draft.Term, start.Year);
+            if (dates is null || start < dates.TermStart || start > dates.TermEnd || start > dates.PermitEndDate)
+                ModelState.AddModelError(nameof(draft.StartDate), "The planned start must fall inside the selected demo term window. Return to the planner to check the dates.");
+        }
         // Validate here as well as during MVC binding: no direct caller or
         // manually posted draft may bypass the same persistence boundary.
         var errors = new List<ValidationResult>();
@@ -786,6 +803,7 @@ public sealed class PermitsController : DemoControllerBase
             PermitType = application.PermitType?.Code ?? PermitTypeCode.Term,
             Term = application.Term,
             Source = application.Source,
+            StartDate = application.StartDate,
         };
     }
 

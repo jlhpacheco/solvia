@@ -8,7 +8,7 @@ namespace Solvia.Services;
 
 /// <summary>
 /// Server-side Together AI API adapter. Hosted inputs leave the app host.
-/// Only the selected Qwen3.5 9B model is permitted; no tools or payments
+/// Only the selected OpenAI GPT-OSS 120B model is permitted; no tools or payments
 /// are exposed to the model. Failures use the clearly labeled fallback.
 /// Contract: https://docs.together.ai/docs/inference/chat/structured-outputs
 /// </summary>
@@ -44,7 +44,7 @@ public sealed class TogetherExtractionService : IAiExtractor
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(_options.ApiKey) ||
-            _options.Model != "Qwen/Qwen3.5-9B")
+            _options.Model != TogetherOptions.SupportedModel)
         {
             return _fallback.Extract(studentText);
         }
@@ -59,12 +59,14 @@ public sealed class TogetherExtractionService : IAiExtractor
             {
                 model = _options.Model,
                 stream = false,
-                reasoning = new { enabled = false },
-                temperature = 0,
-                max_tokens = 512,
+                reasoning_effort = "low",
+                temperature = 1,
+                // GPT-OSS counts internal reasoning and final JSON against
+                // the same bounded completion budget. Never expose reasoning.
+                max_tokens = 2048,
                 messages = new[]
                 {
-                    new { role = "system", content = _systemPrompt },
+                    new { role = "developer", content = _systemPrompt },
                     new { role = "user", content = studentText }
                 },
                 response_format = new
@@ -92,17 +94,22 @@ public sealed class TogetherExtractionService : IAiExtractor
                 return _fallback.Extract(studentText);
             }
 
-            var body = await response.Content.ReadAsStringAsync(budget.Token);
+            var body = await ReadBoundedAsync(response.Content, budget.Token);
             cancellationToken.ThrowIfCancellationRequested();
-            if (_clock.GetElapsedTime(started) >= allowed) return _fallback.Extract(studentText);
+            if (body is null || _clock.GetElapsedTime(started) >= allowed) return _fallback.Extract(studentText);
             using var document = JsonDocument.Parse(body);
             var root = document.RootElement;
             if (root.ValueKind == JsonValueKind.Object &&
+                root.TryGetProperty("model", out var responseModel) && responseModel.ValueKind == JsonValueKind.String &&
+                responseModel.GetString() == TogetherOptions.SupportedModel &&
                 root.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array &&
                 choices.GetArrayLength() == 1 &&
                 choices[0].TryGetProperty("finish_reason", out var finish) && finish.GetString() == "stop" &&
-                choices[0].TryGetProperty("message", out var message) &&
+                choices[0].TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.Object &&
                 (!message.TryGetProperty("refusal", out var refusal) || refusal.ValueKind == JsonValueKind.Null) &&
+                (!message.TryGetProperty("tool_calls", out var tools) || tools.ValueKind == JsonValueKind.Null ||
+                    (tools.ValueKind == JsonValueKind.Array && tools.GetArrayLength() == 0)) &&
+                (!message.TryGetProperty("function_call", out var function) || function.ValueKind == JsonValueKind.Null) &&
                 message.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String &&
                 content.GetString() is { Length: > 0 } modelJson &&
                 _contract.Parse(modelJson, studentText, ExtractionSource.Together, requireCompleteShape: true) is { } result)
@@ -118,6 +125,23 @@ public sealed class TogetherExtractionService : IAiExtractor
             _logger.LogInformation("Together extraction unavailable ({FailureKind}); using fallback.", exception.GetType().Name);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return _fallback.Extract(studentText);
+    }
+
+    private static async Task<string?> ReadBoundedAsync(HttpContent content, CancellationToken token)
+    {
+        const int maximum = 64 * 1024;
+        if (content.Headers.ContentLength > maximum) return null;
+        using var stream = await content.ReadAsStreamAsync(token);
+        using var buffer = new MemoryStream();
+        var bytes = new byte[4096];
+        int count;
+        while ((count = await stream.ReadAsync(bytes, token)) > 0)
+        {
+            if (buffer.Length + count > maximum) return null;
+            buffer.Write(bytes, 0, count);
+        }
+        return Encoding.UTF8.GetString(buffer.ToArray());
     }
 }

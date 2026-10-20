@@ -13,6 +13,24 @@ namespace Solvia.Tests;
 /// <summary>Runs actual provider selection, Razor disclosure and API routing without outbound HTTP.</summary>
 public sealed class AiProviderSelectionIntegrationTests
 {
+    [Theory]
+    [InlineData("Qwen/Qwen3.5-9B")]
+    [InlineData("openai/gpt-oss-20b")]
+    [InlineData("unapproved-model")]
+    public void StartupRejectsAnUnapprovedHostedModel_InsteadOfSilentlyChangingItsOrigin(string model)
+    {
+        using var baseFactory = new AppIntegrationTests.DemoFactory();
+        using var factory = baseFactory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Together:Model"] = model,
+                    ["Together:ApiKey"] = ""
+                })));
+        var error = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        Assert.Contains("Together:Model must be openai/gpt-oss-120b", error.Message);
+    }
+
     [Fact]
     public async Task TogetherSelectedWithoutKey_DisclosesHostedProcessing_UsesRulesWithoutCallingEitherProvider()
     {

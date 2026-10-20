@@ -63,8 +63,11 @@ builder.Services.AddOptions<AiOptions>()
                          options.Provider.Equals("together", StringComparison.OrdinalIgnoreCase),
         "AI:Provider must be together or ollama.")
     .ValidateOnStart();
-builder.Services.Configure<TogetherOptions>(
-    builder.Configuration.GetSection(TogetherOptions.SectionName));
+builder.Services.AddOptions<TogetherOptions>()
+    .Bind(builder.Configuration.GetSection(TogetherOptions.SectionName))
+    .Validate(options => options.Model == TogetherOptions.SupportedModel,
+        "Together:Model must be openai/gpt-oss-120b.")
+    .ValidateOnStart();
 builder.Services.Configure<CategoryOptions>(
     builder.Configuration.GetSection(CategoryOptions.SectionName));
 builder.Services.Configure<FeeTableOptions>(
@@ -124,6 +127,12 @@ builder.Services.AddSingleton<UserCategoryResolver>();
 // so these registrations can never take the demo down.
 builder.Services.AddSingleton<FallbackExtractor>();
 builder.Services.AddSingleton<AiRequestLimiter>();
+builder.Services.AddScoped<VisitPlannerService>();
+builder.Services.AddScoped<PaymentReviewService>();
+builder.Services.AddHttpClient<TogetherVisitScheduleReader>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+    .RedactLoggedHeaders(["Authorization"]);
+builder.Services.AddScoped<IVisitScheduleReader>(services => services.GetRequiredService<TogetherVisitScheduleReader>());
 builder.Services.AddHttpClient<OllamaExtractionService>();
 builder.Services.AddHttpClient<TogetherExtractionService>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })

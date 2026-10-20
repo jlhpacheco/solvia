@@ -1,0 +1,165 @@
+@using System.Text.Json
+@using Solvia.Models.Enums
+@using Solvia.Models.ViewModels
+@model PaymentReviewViewModel
+@{
+    ViewData["Title"] = "Sandbox payment review";
+    // Keep the default JavaScriptEncoder: it escapes script terminators and
+    // HTML characters even inside this inert JSON block. No relaxed encoder.
+    var rowsJson = JsonSerializer.Serialize(Model.Rows,
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+}
+<link rel="stylesheet" href="~/css/payment-review.css" asp-append-version="true" />
+
+<div class="pr-page">
+    <header class="pr-header">
+        <div>
+            <p class="pr-eyebrow">Solvia operations <span class="pr-sandbox">Sandbox only</span></p>
+            <h1>Payment review</h1>
+            <p class="pr-intro">Follow saved payments, spot exceptions, and check the permit behind each record.</p>
+        </div>
+        <a class="pr-refresh" href="@Url.Action("Index", new { campus = Model.Campus, status = Model.Status?.ToString(), category = Model.Category?.ToString(), attentionOnly = Model.AttentionOnly })">Refresh records</a>
+    </header>
+
+    <p class="pr-source">Fictional people and test payments. Read-only records from Solvia, read @Model.ReadAtUtc.ToString("MMM d, yyyy 'at' HH:mm 'UTC'"). PayPal was not contacted to recheck these records.</p>
+
+    <form method="get" action="@Url.Action("Index", "Operations")" class="pr-filters">
+        <div>
+            <label for="pr-campus">Campus</label>
+            <select id="pr-campus" name="campus">
+                <option value="">All campuses</option>
+                @foreach (var campus in Model.Campuses)
+                {
+                    <option value="@campus" selected="@(Model.Campus == campus)">@campus</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label for="pr-status">Payment status</label>
+            <select id="pr-status" name="status">
+                <option value="">All statuses</option>
+                @foreach (var status in Enum.GetValues<PaymentStatus>())
+                {
+                    <option value="@status" selected="@(Model.Status == status)">@(status switch { PaymentStatus.NotRequired => "No payment required", PaymentStatus.PartiallyRefunded => "Partially refunded", _ => status.ToString() })</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label for="pr-category">Category</label>
+            <select id="pr-category" name="category">
+                <option value="">All categories</option>
+                @foreach (var category in Enum.GetValues<UserCategory>())
+                {
+                    <option value="@category" selected="@(Model.Category == category)">@(category == UserCategory.Public ? "Public visitor" : category.ToString())</option>
+                }
+            </select>
+        </div>
+        <label class="pr-attention-control" for="pr-attention">
+            <input type="checkbox" id="pr-attention" name="attentionOnly" value="true" checked="@Model.AttentionOnly" />
+            Needs review only
+        </label>
+        <div class="pr-filter-actions">
+            <button type="submit">Apply filters</button>
+            <a href="@Url.Action("Index", "Operations")">Clear</a>
+        </div>
+    </form>
+
+    <section class="pr-summary" aria-label="Summary for the selected filters">
+        <div class="pr-stat"><span>Applications</span><strong data-testid="pr-applications">@Model.ApplicationCount</strong><small>One saved application per record</small></div>
+        <div class="pr-stat pr-stat-paid"><span>Recorded paid amount</span><strong data-testid="pr-paid-amount">@PaymentReviewViewModel.Money(Model.PaidWithCaptureCents)</strong><small>@Model.PaidWithCaptureCount paid with a capture ID · USD gross</small></div>
+        <div class="pr-stat"><span>No payment required</span><strong data-testid="pr-no-payment">@Model.NoPaymentRequiredCount</strong><small>Saved free or exempt records</small></div>
+        <div class="pr-stat pr-stat-attention"><span>Needs review</span><strong data-testid="pr-attention-count">@Model.AttentionCount</strong><small>Applications with at least one flag</small></div>
+    </section>
+
+    <section class="pr-panel">
+        <div class="pr-section-heading"><h2>Review queue</h2><span>@Model.AttentionCount applications</span></div>
+        @if (Model.AttentionCount == 0)
+        {
+            <p class="pr-empty">No review flags for these filters.</p>
+        }
+        else
+        {
+            <div class="pr-queue-wrap" tabindex="0" role="region" aria-label="Applications needing review">
+            <ul class="pr-queue">
+                @foreach (var row in Model.AttentionRows)
+                {
+                    <li>
+                        <div><strong>@row.IssueSummary</strong><span>@row.DemoPerson · @row.Campus</span><small>@row.Reference · @row.Amount</small></div>
+                        <a href="#@row.DetailsId">Review <span class="visually-hidden">@row.Reference</span><span aria-hidden="true"> →</span></a>
+                    </li>
+                }
+            </ul>
+            </div>
+        }
+    </section>
+
+    <section class="pr-panel" id="pr-records">
+        <div class="pr-section-heading"><h2 id="pr-records-title">Payment records</h2><span data-testid="pr-record-count">@Model.ApplicationCount records</span></div>
+        <p class="pr-help">Sort by a column heading. Open a record below to inspect its saved references and validity.</p>
+        @if (Model.Rows.Count == 0)
+        {
+            <p class="pr-empty">No applications match these filters. <a href="@Url.Action("Index", "Operations")">Show all records</a>.</p>
+        }
+        else
+        {
+            <div id="payment-review-grid" class="pr-grid" aria-label="Saved Sandbox payment records" hidden></div>
+            <div id="payment-review-native" class="pr-table-wrap" tabindex="0" role="region" aria-labelledby="pr-records-title">
+                <table class="pr-table">
+                    <caption class="visually-hidden">Saved Sandbox payment records for the selected filters</caption>
+                    <thead><tr><th scope="col">Record</th><th scope="col">Campus</th><th scope="col">Category</th><th scope="col">Payment</th><th scope="col">Amount</th><th scope="col">Permit</th></tr></thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr>
+                                <th scope="row"><a href="#@row.DetailsId">@row.Reference</a><span>@row.DemoPerson</span></th>
+                                <td>@row.Campus</td><td>@row.Category</td><td>@(row.PaymentStatus == "NotRequired" ? "No payment required" : row.PaymentStatus)</td>
+                                <td>@row.Amount</td><td>@(row.IsActive ? "Active" : "Inactive")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="pr-library-note">Interactive records powered by AG Grid Community. The same records remain available as a table if it cannot load.</p>
+        }
+    </section>
+
+    @if (Model.Rows.Count > 0)
+    {
+        <section class="pr-panel">
+            <h2>Record details</h2>
+            <div class="pr-detail-list">
+                @foreach (var row in Model.Rows)
+                {
+                    <details id="@row.DetailsId" class="pr-detail">
+                        <summary>@row.Reference <span>@row.DemoPerson · @row.Amount · @(row.IsActive ? "Active" : "Inactive")</span></summary>
+                        <dl>
+                            <div><dt>Campus / category</dt><dd>@row.Campus · @row.Category</dd></div>
+                            <div><dt>Payment status</dt><dd>@(row.PaymentStatus == "NotRequired" ? "No payment required" : row.PaymentStatus)</dd></div>
+                            <div><dt>Permit validity</dt><dd>@row.ValidityReason Date checked: @Model.ValidityDate.ToString("MMM d, yyyy") (server date).</dd></div>
+                            <div><dt>Permit dates</dt><dd>@row.StartDate.ToString("MMM d, yyyy") – @row.EndDate.ToString("MMM d, yyyy")</dd></div>
+                            <div><dt>PayPal order ID</dt><dd><code>@(string.IsNullOrWhiteSpace(row.OrderId) ? "Not recorded" : row.OrderId)</code></dd></div>
+                            <div><dt>PayPal capture ID</dt><dd><code>@(string.IsNullOrWhiteSpace(row.CaptureId) ? "Not recorded" : row.CaptureId)</code></dd></div>
+                            <div><dt>Paid at (UTC)</dt><dd>@(row.PaidAtUtc?.ToString("MMM d, yyyy HH:mm:ss") ?? "Not recorded")</dd></div>
+                            <div><dt>Application ID</dt><dd><code>@row.Id</code></dd></div>
+                            <div><dt>Review flags</dt><dd>@row.IssueSummary</dd></div>
+                        </dl>
+                        <a href="#pr-records">Back to payment records</a>
+                    </details>
+                }
+            </div>
+        </section>
+    }
+
+    <details class="pr-definitions">
+        <summary>What these numbers mean</summary>
+        <p>All summaries and records follow the selected campus, payment status, category, and review filters. A record is one permit application, not one bank transaction.</p>
+        <p>Recorded paid amount adds each application's saved price when its payment status is Paid and a capture ID is recorded. It excludes free, pending, failed, expired, and refunded statuses. A paid but inactive permit remains in this gross amount. It does not deduct PayPal fees or check balances, settlement, duplicate external references, or refund amounts.</p>
+        <p>The review queue includes unpriced drafts, positive-price pending applications, failed payments, partial refunds, paid records without a capture ID, and paid permits that are inactive. An unissued pending draft with an unconfirmed zero placeholder shows “Not priced”; confirmed free or exempt records keep $0.00. A pending application is not proof of a debt; the person may have left checkout. Current validity uses the same permit rules as Solvia's verification page.</p>
+    </details>
+</div>
+
+@section Scripts {
+    <script type="application/json" id="payment-review-data">@Html.Raw(rowsJson)</script>
+    <script async id="payment-review-library" src="https://cdn.jsdelivr.net/npm/ag-grid-community@34.3.1/dist/ag-grid-community.min.js"></script>
+    <script src="~/js/payment-review.js" asp-append-version="true"></script>
+}

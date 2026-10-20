@@ -61,6 +61,7 @@ public sealed partial class ExtractionTests
         {
             ResponseBody = JsonSerializer.Serialize(new
             {
+                model = TogetherOptions.SupportedModel,
                 choices = new[] { new { finish_reason = "stop", message = new { content = modelJson, refusal = (string?)null } } }
             })
         };

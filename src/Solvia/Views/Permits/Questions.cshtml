@@ -23,6 +23,11 @@
 <div class="sv-card mt-3">
     <form asp-action="Understand" method="post" id="vehicle-questions">
         <input type="hidden" name="college" value="@Model.College" />
+        @if (Model.StartDate is { } plannedStart)
+        {
+            <input type="hidden" name="startDate" value="@plannedStart.ToString("yyyy-MM-dd")" />
+            <p class="alert alert-info">Planned start: <strong>@plannedStart.ToString("MMM d, yyyy")</strong>. This application is for one permit. <a href="/Planner">Change the plan</a></p>
+        }
         @if (Model.ApplicationId is { } draftId)
         {
             <input type="hidden" name="applicationId" value="@draftId" />
@@ -35,7 +40,7 @@
             @if (AiSettings.Value.Provider.Equals("together", StringComparison.OrdinalIgnoreCase))
             {
                 <text>Use a fictional vehicle. Solvia sends your vehicle sentence to Together's
-                hosted AI reader, Qwen3.5-9B. Do not include personal information.</text>
+                hosted AI reader, OpenAI's US-developed GPT-OSS 120B. Do not include personal information.</text>
             }
             else
             {

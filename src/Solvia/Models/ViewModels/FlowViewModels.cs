@@ -110,6 +110,8 @@ public sealed class AskViewModel
 /// </summary>
 public sealed class QuestionsViewModel
 {
+    /// <summary>Optional confirmed planner start; carried through review and Fix it.</summary>
+    public DateOnly? StartDate { get; set; }
     public string College { get; set; } = "";
 
     /// <summary>The student's car, in their own words (kept across the Fix-it loop).</summary>
@@ -134,6 +136,7 @@ public sealed class QuestionsViewModel
 /// </summary>
 public sealed class PermitDraftViewModel
 {
+    public DateOnly? StartDate { get; set; }
     public const int MaxCarTextLength = 1000;
     public const int MaxVehicleDetailLength = 50;
     public const string CarTextLengthMessage =

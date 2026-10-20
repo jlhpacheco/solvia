@@ -40,8 +40,10 @@ export default defineConfig({
       AI__Provider: 'ollama',
       TOGETHER_API_KEY: '',
       Together__ApiKey: '',
-      TOGETHER_MODEL: '',
-      Together__Model: '',
+      // Keep the supported model valid even when the hosted provider is off.
+      // Provider selection and both empty keys below/above still force offline tests.
+      TOGETHER_MODEL: 'openai/gpt-oss-120b',
+      Together__Model: 'openai/gpt-oss-120b',
       TOGETHER_TIMEOUT_SECONDS: '',
       Together__TimeoutSeconds: '10',
       PAYPAL_CLIENT_ID: '',

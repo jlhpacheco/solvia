@@ -1,7 +1,11 @@
+@using Microsoft.Extensions.Hosting
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment AppEnvironment
+@inject Microsoft.Extensions.Configuration.IConfiguration AppConfiguration
 @{
     var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Home";
     var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
-    var workspace = controller is "Permits" or "MyPermits" or "Vehicles" or "College" or "Checkout";
+    var workspace = controller is "Permits" or "MyPermits" or "Vehicles" or "College" or "Checkout" or "Planner" or "Operations";
+    var showPaymentReview = (AppEnvironment.IsDevelopment() || AppEnvironment.IsEnvironment("Testing")) && AppConfiguration.GetValue<bool>("Demo:PaymentReviewEnabled");
     bool Active(string name, string? page = null) => controller == name && (page == null || action == page);
 }
 <!DOCTYPE html>
@@ -27,6 +31,7 @@
                 <div class="sv-tagline">A clearer way to campus.</div>
             </div>
             <nav class="sv-nav" aria-label="Main">
+                <a asp-area="" asp-controller="Planner" asp-action="Index">Plan parking</a>
                 <a asp-area="" asp-controller="Permits" asp-action="Ask">Ask Solvia</a>
                 <a asp-area="" asp-controller="Permits" asp-action="My">My permits</a>
                 <a asp-area="" asp-controller="College" asp-action="Fees">College fees</a>
@@ -40,6 +45,7 @@
             <aside class="sv-sidebar">
                 <span class="sv-sidebar-label">YOUR WORKSPACE</span>
                 <nav aria-label="Permit workspace">
+                    <a class="@(Active("Planner") ? "is-active" : "")" asp-controller="Planner" asp-action="Index"><span aria-hidden="true">◷</span> Plan parking</a>
                     <a class="@(Active("Permits", "Ask") || Active("Permits", "Questions") ? "is-active" : "")" asp-controller="Permits" asp-action="Ask"><span aria-hidden="true">✧</span> Ask Solvia</a>
                     <a class="@(Active("Permits", "Apply") ? "is-active" : "")" asp-controller="Permits" asp-action="Apply"><span aria-hidden="true">＋</span> Apply for a permit</a>
                     <a class="@(Active("Permits", "My") || Active("MyPermits") ? "is-active" : "")" asp-controller="Permits" asp-action="My"><span aria-hidden="true">▤</span> My permits</a>
@@ -50,6 +56,10 @@
                     <a class="@(Active("College", "Fees") ? "is-active" : "")" asp-controller="College" asp-action="Fees"><span aria-hidden="true">≡</span> Published fees</a>
                     <a class="@(Active("College", "Dates") ? "is-active" : "")" asp-controller="College" asp-action="Dates"><span aria-hidden="true">▦</span> Term dates</a>
                     <a class="@(Active("College", "Roster") ? "is-active" : "")" asp-controller="College" asp-action="Roster"><span aria-hidden="true">☷</span> College roster</a>
+                    @if (showPaymentReview)
+                    {
+                        <a class="@(Active("Operations") ? "is-active" : "")" asp-controller="Operations" asp-action="Index"><span aria-hidden="true">↔</span> Payment review</a>
+                    }
                 </nav>
                 <div class="sv-sidebar-note"><span class="sv-status-dot"></span> PayPal Sandbox<p>Fictional people.<br />Test payments only.</p></div>
             </aside>

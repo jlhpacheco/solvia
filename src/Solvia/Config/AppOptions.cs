@@ -11,10 +11,11 @@ public sealed class AiOptions
 public sealed class TogetherOptions
 {
     public const string SectionName = "Together";
+    public const string SupportedModel = "openai/gpt-oss-120b";
     private int _timeoutSeconds = 10;
 
     public string ApiKey { get; set; } = "";
-    public string Model { get; set; } = "Qwen/Qwen3.5-9B";
+    public string Model { get; set; } = SupportedModel;
 
     /// <summary>Complete model response budget; configured values clamp to 1–90 seconds.</summary>
     public int TimeoutSeconds

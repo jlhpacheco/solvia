@@ -68,7 +68,7 @@ else
                     <td>@row.VehicleDisplay</td>
                     <td>@row.DatesDisplay</td>
                     <td>@row.CategoryLabel</td>
-                    <td>@row.PaymentDisplay</td>
+                    <td>@row.PaymentDisplay @if (row.IsLive) { <small class="d-block text-muted">@row.ValidityReason</small> }</td>
                     <td class="text-nowrap">
                         @if (row.ShowPayNow)
                         {
@@ -93,9 +93,13 @@ else
         <div class="sv-card mt-3">
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <h2 class="fs-4 mb-0">@row.TypeName</h2>
-                @if (row.IsLive)
+                @if (row.IsActive)
                 {
                     <span class="badge bg-success fs-6">Live</span>
+                }
+                else if (row.IsLive)
+                {
+                    <span class="badge bg-secondary fs-6">Issued · inactive</span>
                 }
                 else if (row.ShowPayNow)
                 {
@@ -106,6 +110,7 @@ else
                     <span class="badge bg-secondary fs-6">@row.PaymentDisplay</span>
                 }
             </div>
+            @if (row.IsLive) { <p class="mt-2 mb-0 text-muted">@row.ValidityReason</p> }
             <dl class="fs-5 mb-0 mt-2">
                 <dt>Submitted</dt>
                 <dd>@row.SubmittedDisplay</dd>

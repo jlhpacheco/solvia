@@ -70,7 +70,13 @@ async function answers(page: Page, person: 'Maria' | 'Pat' | 'Elena', daily: boo
 async function paymentControls(page: Page, mode: 'ready' | 'reject') {
   // Same controlled SDK boundary as checkout-errors.spec.ts. The server has no
   // client credentials, so add the SDK container and exercise the real local JS.
-  await page.evaluate(selectedMode => {
+  // A visible heading can precede completion of the page's deferred script.
+  // Let that original script finish (and find no configured SDK container)
+  // before installing our fixture and intentionally loading the adapter once.
+  await page.waitForLoadState('load');
+  await expect(page.locator('#paypal-button-container')).toHaveCount(0);
+  const installedAt = await page.evaluate(selectedMode => {
+    (window as any).tabletSdkRenderCalls = 0;
     const container = document.createElement('div');
     container.id = 'paypal-button-container';
     const fallback = document.getElementById('paypal-redirect-fallback')!;
@@ -82,6 +88,7 @@ async function paymentControls(page: Page, mode: 'ready' | 'reject') {
         return {
           isEligible: () => true,
           render() {
+            (window as any).tabletSdkRenderCalls++;
             if (selectedMode === 'reject') return Promise.reject(new Error('Simulated unavailable SDK'));
             for (const name of ['Simulated PayPal option', 'Simulated debit or credit card option']) {
               const button = document.createElement('button');
@@ -96,8 +103,13 @@ async function paymentControls(page: Page, mode: 'ready' | 'reject') {
         };
       }
     };
+    return document.readyState;
   }, mode);
+  expect(installedAt, 'Fixture must follow the original deferred checkout adapter').toBe('complete');
   await page.addScriptTag({ url: '/js/checkout.js' });
+  await expect(page.locator('#paypal-button-container')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => (window as any).tabletSdkRenderCalls),
+    { message: 'The controlled SDK is rendered once, not by two adapter loads' }).toBe(1);
 }
 
 async function downloadPdf(page: Page, link: Locator) {
@@ -127,6 +139,15 @@ test('tablet touch navigation and campus fee search fit the viewport', async ({ 
 });
 
 test('student term review reaches simulated wallet and card controls by touch', async ({ page }) => {
+  // Deterministically exercise the original failure ordering: the Checkout
+  // heading is present while its versioned deferred adapter is still in flight.
+  // The fixture helper must wait rather than race this real local script.
+  let originalAdapterLoads = 0;
+  await page.route(/\/js\/checkout\.js\?v=/, async route => {
+    originalAdapterLoads++;
+    await new Promise(resolve => setTimeout(resolve, 350));
+    await route.continue();
+  });
   const plate = await answers(page, 'Maria', false);
   await expect(page.getByRole('heading', { name: 'Check your total' })).toBeVisible();
   await expect(page.locator('main')).toContainText('$30.00');
@@ -135,8 +156,10 @@ test('student term review reaches simulated wallet and card controls by touch', 
   await tapPrimary(page.getByRole('button', { name: 'Pay with PayPal', exact: true }));
   await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
   await paymentControls(page, 'ready');
+  expect(originalAdapterLoads).toBe(1);
   await expect(page.locator('#paypal-redirect-fallback')).toBeHidden();
   for (const name of ['Simulated PayPal option', 'Simulated debit or credit card option']) {
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(1);
     await tapPrimary(page.getByRole('button', { name, exact: true }));
     await expect(page.locator('#checkout-feedback')).toContainText('Payment is not confirmed');
   }

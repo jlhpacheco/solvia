@@ -8,5 +8,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["playwright*.config.ts", "tests/e2e/**/*.ts", "tests/sandbox/**/*.ts", "tests/ai/**/*.ts"]
+  "include": ["playwright*.config.ts", "tests/e2e/**/*.ts", "tests/tablet/**/*.ts", "tests/sandbox/**/*.ts", "tests/ai/**/*.ts"]
 }

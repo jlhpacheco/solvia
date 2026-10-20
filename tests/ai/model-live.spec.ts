@@ -8,6 +8,9 @@ if (provider !== 'ollama' && provider !== 'together') {
 
 async function extract(page: Page, words: string, info: TestInfo, requireModelResult = true) {
   await page.goto(`/Permits/Questions?college=${encodeURIComponent(college)}`);
+  if (provider === 'together') {
+    await expect(page.getByText(/OpenAI's US-developed GPT-OSS 120B/)).toBeVisible();
+  }
   await page.getByLabel('2 · Your car', { exact: false }).fill(words);
   await page.locator('label[for="typeTerm"]').click();
   await page.locator('label[for="termFall"]').click();

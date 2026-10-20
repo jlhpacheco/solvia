@@ -37,6 +37,11 @@
         <input type="hidden" name="PermitType" value="@Model.PermitType" />
         <input type="hidden" name="Term" value="@Model.Term" />
         <input type="hidden" name="Source" value="@Model.Source" />
+        @if (Model.StartDate is { } plannedStart)
+        {
+            <input type="hidden" name="StartDate" value="@plannedStart.ToString("yyyy-MM-dd")" />
+            <p>Planned start: <strong>@plannedStart.ToString("MMM d, yyyy")</strong> · one permit</p>
+        }
 
         <p class="fs-4 mb-3">
             College: <strong>@Model.College</strong><br />

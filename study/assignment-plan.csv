@@ -1,0 +1,9 @@
+participant_id,planned_role_group,first_condition,first_variant,second_condition,second_variant
+P01,student,ai,A,classic,B
+P02,visitor,classic,A,ai,B
+P03,student,classic,B,ai,A
+P04,visitor,ai,B,classic,A
+P05,student,ai,A,classic,B
+P06,visitor,classic,A,ai,B
+P07,student,classic,B,ai,A
+P08,visitor,ai,B,classic,A

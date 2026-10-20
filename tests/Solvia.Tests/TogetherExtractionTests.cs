@@ -34,6 +34,76 @@ public sealed class TogetherExtractionTests
         Assert.Equal("together", result.Source.ToWireName());
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("openai/gpt-oss-20b")]
+    [InlineData("Qwen/Qwen3.5-9B")]
+    [InlineData("openai/gpt-oss-120b-other")]
+    public async Task MissingOrUnexpectedReturnedModel_IsNeverLabeledAsTheSelectedModel(string? returnedModel)
+    {
+        var response = JsonSerializer.Serialize(new
+        {
+            model = returnedModel,
+            choices = new[] { new { finish_reason = "stop", message = new { content = ModelJson } } }
+        });
+        var result = await Service(new TogetherHandler { ResponseBody = response }).ExtractAsync(FictionalText);
+        Assert.Equal(ExtractionSource.Fallback, result.Source);
+    }
+
+    [Fact]
+    public async Task ReasoningMetadata_IsIgnored_AndCannotReplaceFinalContent()
+    {
+        const string reasoning = "private-reasoning-placeholder";
+        var logs = new SafeTestLogger();
+        string Response(string? content) => JsonSerializer.Serialize(new
+        {
+            model = TogetherOptions.SupportedModel,
+            choices = new[] { new { finish_reason = "stop", message = new
+            {
+                content, reasoning = reasoning + ModelJson, tool_calls = Array.Empty<object>()
+            } } }
+        });
+        var valid = await Service(new TogetherHandler { ResponseBody = Response(ModelJson) }, logger: logs).ExtractAsync(FictionalText);
+        var reasoningOnly = await Service(new TogetherHandler { ResponseBody = Response(null) }, logger: logs).ExtractAsync(FictionalText);
+        Assert.Equal(ExtractionSource.Together, valid.Source);
+        Assert.Equal(ExtractionSource.Fallback, reasoningOnly.Source);
+        Assert.DoesNotContain(reasoning, string.Join(" ", logs.Messages));
+    }
+
+    [Theory]
+    [InlineData("tools")]
+    [InlineData("scalar")]
+    [InlineData("function")]
+    public async Task ToolOrFunctionCall_IsRejectedDespiteOtherwiseValidJson(string special)
+    {
+        var message = new Dictionary<string, object?> { ["content"] = ModelJson };
+        if (special == "tools") message["tool_calls"] = new[] { new { name = "buy_permit" } };
+        if (special == "scalar") message["tool_calls"] = "invalid";
+        if (special == "function") message["function_call"] = new { name = "set_price" };
+        var response = JsonSerializer.Serialize(new
+        {
+            model = TogetherOptions.SupportedModel,
+            choices = new[] { new { finish_reason = "stop", message } }
+        });
+        var result = await Service(new TogetherHandler { ResponseBody = response }).ExtractAsync(FictionalText);
+        Assert.Equal(ExtractionSource.Fallback, result.Source);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OversizeProviderBody_IsDiscardedBeforeTrustingContent(bool unknownLength)
+    {
+        var body = new string(' ', 65 * 1024) + Envelope(ModelJson);
+        var handler = new TogetherHandler
+        {
+            ResponseBody = body,
+            Content = unknownLength ? new UnknownLengthContent(body) : null
+        };
+        var result = await Service(handler).ExtractAsync(FictionalText);
+        Assert.Equal(ExtractionSource.Fallback, result.Source);
+    }
+
     [Fact]
     public async Task Request_UsesOfficialEndpointServerAuthStrictSchemaAndBoundedGeneration()
     {
@@ -46,10 +116,11 @@ public sealed class TogetherExtractionTests
         Assert.DoesNotContain(TestKey, handler.RequestBody);
         using var request = JsonDocument.Parse(handler.RequestBody);
         var root = request.RootElement;
-        Assert.Equal("Qwen/Qwen3.5-9B", root.GetProperty("model").GetString());
-        Assert.False(root.GetProperty("reasoning").GetProperty("enabled").GetBoolean());
-        Assert.Equal(0, root.GetProperty("temperature").GetInt32());
-        Assert.Equal(512, root.GetProperty("max_tokens").GetInt32());
+        Assert.Equal("openai/gpt-oss-120b", root.GetProperty("model").GetString());
+        Assert.False(root.TryGetProperty("reasoning", out _));
+        Assert.Equal("low", root.GetProperty("reasoning_effort").GetString());
+        Assert.Equal(1, root.GetProperty("temperature").GetInt32());
+        Assert.Equal(2048, root.GetProperty("max_tokens").GetInt32());
         Assert.False(root.GetProperty("stream").GetBoolean());
         Assert.False(root.TryGetProperty("tools", out _));
         var format = root.GetProperty("response_format");
@@ -62,13 +133,16 @@ public sealed class TogetherExtractionTests
         Assert.False(schema.GetProperty("properties").TryGetProperty("paymentStatus", out _));
         Assert.Contains("Fresno City College", schema.GetProperty("properties").GetProperty("college").ToString());
         Assert.Contains(schema.GetRawText(), root.GetProperty("messages")[0].GetProperty("content").GetString());
+        Assert.Equal("developer", root.GetProperty("messages")[0].GetProperty("role").GetString());
         Assert.Equal(FictionalText, root.GetProperty("messages")[1].GetProperty("content").GetString());
     }
 
     [Theory]
-    [InlineData("", "Qwen/Qwen3.5-9B")]
+    [InlineData("", "openai/gpt-oss-120b")]
     [InlineData(TestKey, "moonshotai/Kimi-K3")]
     [InlineData(TestKey, "unapproved-model")]
+    [InlineData(TestKey, "Qwen/Qwen3.5-9B")]
+    [InlineData(TestKey, "openai/gpt-oss-20b")]
     public async Task MissingKeyOrUnapprovedModel_DoesNotSendARequest(string key, string model)
     {
         var handler = new TogetherHandler { ResponseBody = Envelope(ModelJson) };
@@ -170,13 +244,13 @@ public sealed class TogetherExtractionTests
     }
 
     private static TogetherExtractionService Service(TogetherHandler handler, string key = TestKey,
-        string model = "Qwen/Qwen3.5-9B", int timeoutSeconds = 10, SafeTestLogger? logger = null) =>
+        string model = "openai/gpt-oss-120b", int timeoutSeconds = 10, SafeTestLogger? logger = null) =>
         new(new HttpClient(handler), Options.Create(new TogetherOptions { ApiKey = key, Model = model, TimeoutSeconds = timeoutSeconds }),
             Catalog, new FallbackExtractor(Catalog), logger ?? new SafeTestLogger());
 
     private static string Envelope(string modelJson) => JsonSerializer.Serialize(new
     {
-        model = "Qwen/Qwen3.5-9B",
+        model = "openai/gpt-oss-120b",
         choices = new[] { new { finish_reason = "stop", message = new { content = modelJson, refusal = (string?)null } } }
     });
 
@@ -186,6 +260,7 @@ public sealed class TogetherExtractionTests
         public HttpStatusCode Status { get; init; } = HttpStatusCode.OK;
         public TimeSpan Delay { get; init; }
         public Exception? Failure { get; init; }
+        public HttpContent? Content { get; init; }
         public int Calls { get; private set; }
         public string? RequestUri { get; private set; }
         public string? AuthScheme { get; private set; }
@@ -201,7 +276,18 @@ public sealed class TogetherExtractionTests
             RequestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
             if (Failure is not null) throw Failure;
             if (Delay > TimeSpan.Zero) await Task.Delay(Delay, cancellationToken);
-            return new HttpResponseMessage(Status) { Content = new StringContent(ResponseBody, Encoding.UTF8, "application/json") };
+            return new HttpResponseMessage(Status) { Content = Content ?? new StringContent(ResponseBody, Encoding.UTF8, "application/json") };
+        }
+    }
+
+    private sealed class UnknownLengthContent(string body) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            stream.WriteAsync(Encoding.UTF8.GetBytes(body)).AsTask();
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
         }
     }
 

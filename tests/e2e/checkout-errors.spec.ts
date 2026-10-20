@@ -12,6 +12,7 @@ const sdkResponse = `window.paypal = {
   Buttons(options) {
     window.checkoutCallbacks = options;
     return { isEligible: () => true, render: (selector) => {
+      window.checkoutSdkRenderCalls++;
       const button = document.createElement('button');
       button.textContent = 'PayPal SDK option';
       document.querySelector(selector).append(button);
@@ -30,7 +31,12 @@ async function openCheckout(page: Page, buttonMode: ButtonMode = 'ready') {
   await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
   await expect(page.locator('#paypal-order-id')).toContainText('Not created yet');
   await expect(page.locator('#paypal-capture-id')).toContainText('Not issued yet');
-  await page.evaluate(mode => {
+  // The visible heading can arrive before the page's original deferred
+  // adapter. Finish that load before installing this simulated SDK boundary.
+  await page.waitForLoadState('load');
+  await expect(page.locator('#paypal-button-container')).toHaveCount(0);
+  const installedAt = await page.evaluate(mode => {
+    (window as any).checkoutSdkRenderCalls = 0;
     const container = document.createElement('div');
     container.id = 'paypal-button-container';
     document.getElementById('checkout-payment')!.append(container);
@@ -38,7 +44,7 @@ async function openCheckout(page: Page, buttonMode: ButtonMode = 'ready') {
       delete (window as any).paypal;
       if (mode === 'load') document.getElementById('checkout-payment')!.dataset.paypalSdkUrl =
         'https://www.paypal.com/sdk/js?client-id=SDK-CONTRACT&currency=USD&intent=capture&enable-funding=card';
-      return;
+      return document.readyState;
     }
     (window as any).paypal = {
       Buttons(options: unknown) {
@@ -46,6 +52,7 @@ async function openCheckout(page: Page, buttonMode: ButtonMode = 'ready') {
         return {
           isEligible: () => mode !== 'ineligible',
           render: () => {
+            (window as any).checkoutSdkRenderCalls++;
             if (mode === 'render-throws') throw new Error('Simulated SDK render failure');
             if (mode === 'render-rejects') return Promise.reject(new Error('Simulated SDK render failure'));
             if (mode === 'render-never-resolves') return new Promise<void>(resolve => { (window as any).finishSdkRender = resolve; });
@@ -57,8 +64,15 @@ async function openCheckout(page: Page, buttonMode: ButtonMode = 'ready') {
         };
       }
     };
+    return document.readyState;
   }, buttonMode);
+  expect(installedAt, 'Simulated SDK follows the original deferred adapter').toBe('complete');
   await page.addScriptTag({ url: '/js/checkout.js' });
+  await expect(page.locator('#paypal-button-container')).toHaveCount(1);
+  if (!['missing', 'load', 'ineligible'].includes(buttonMode)) {
+    await expect.poll(() => page.evaluate(() => (window as any).checkoutSdkRenderCalls),
+      { message: 'The controlled SDK is rendered exactly once' }).toBe(1);
+  }
 }
 
 test('a delayed provider script shows native options when it loads', async ({ page }) => {
@@ -73,6 +87,7 @@ test('a delayed provider script shows native options when it loads', async ({ pa
   await expect(page.locator('#paypal-redirect-fallback')).toBeHidden();
   release();
   await expect(page.getByRole('button', { name: 'PayPal SDK option', exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).checkoutSdkRenderCalls)).toBe(1);
   await expect(page.locator('#paypal-redirect-fallback')).toBeHidden();
   await expect(page.locator('#checkout-feedback')).toBeHidden();
 });
