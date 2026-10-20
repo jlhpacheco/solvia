@@ -55,7 +55,7 @@ else
             <dt>Car</dt>
             <dd>@Model.CarLine — plate @Model.PlateLine</dd>
             <dt>Permit</dt>
-            <dd>@Model.TypeName · @Model.Term</dd>
+            <dd>@(Model.Draft.PermitType == Solvia.Models.Enums.PermitTypeCode.Daily ? Model.TypeName : $"{Model.TypeName} · {Model.Term}")</dd>
             <dt>Dates</dt>
             <dd>@Date(Model.StartDate) → @Date(Model.EndDate)</dd>
         </dl>

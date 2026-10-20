@@ -31,8 +31,8 @@ namespace Solvia.Controllers;
 ///                              landing here changes nothing, and no
 ///                              success state ever renders from here.
 ///   GET  /Checkout/Cancel      buyer bailed at PayPal: same plumbing —
-///                              a redirect with a banner; nothing charged,
-///                              nothing paid.
+///                              a redirect based on saved status; a cancel
+///                              URL is not proof that no capture occurred.
 ///   GET  /Checkout/Done/{id}   the receipt page (Views/Checkout/Done).
 /// </summary>
 public sealed class CheckoutController : DemoControllerBase
@@ -167,8 +167,8 @@ public sealed class CheckoutController : DemoControllerBase
             // A bogus (or someone else's) token renders NO success
             // state — it goes home with an honest banner (item 60).
             TempData["ErrorMessage"] =
-                "We could not find that PayPal order — nothing was charged " +
-                "and no permit was marked paid.";
+                "We could not match that PayPal return to your permit. " +
+                "Check My permits and PayPal payment activity before trying another payment.";
             return Redirect("/");
         }
 
@@ -180,7 +180,7 @@ public sealed class CheckoutController : DemoControllerBase
             if (result.Completed)
             {
                 TempData["StatusMessage"] =
-                    "Payment complete — your permit is live.";
+                    "Payment complete. Review your permit details and validity below.";
                 return RedirectToAction(nameof(Done), new { id = application.Id });
             }
 
@@ -236,8 +236,16 @@ public sealed class CheckoutController : DemoControllerBase
             return Redirect("/");
         }
 
+        if (application.PaymentStatus == PaymentStatus.Paid)
+        {
+            TempData["StatusMessage"] =
+                "Payment is already confirmed. Review your permit details and validity below.";
+            return RedirectToAction(nameof(Done), new { id = application.Id });
+        }
+
         TempData["CheckoutInfo"] =
-            "Payment cancelled at PayPal — nothing was charged and your permit is not paid.";
+            "You returned from PayPal's cancel page. Payment is not confirmed here. " +
+            "Check your permit status and PayPal activity before retrying.";
         return RedirectToAction(nameof(Index), new { id = application.Id });
     }
 

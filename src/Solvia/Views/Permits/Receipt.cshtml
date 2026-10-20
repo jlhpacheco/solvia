@@ -7,6 +7,11 @@
 @if (Model.IsLive)
 {
     <h1 class="display-4 fw-bold mt-4">Permit live &#10003;</h1>
+    <a class="btn btn-primary btn-lg w-100 py-3 fs-3 mt-3" href="/Permits/PermitPdf/@Model.Id" aria-describedby="permit-download-help">Download permit (PDF)</a>
+    <p id="permit-download-help" class="fs-6 text-muted mt-2 mb-3">
+        Save the PDF, or print it on US Letter paper at Actual size (100%).
+        For another copy, open <strong>My permits</strong>.
+    </p>
 }
 else if (Model.CanPay)
 {
@@ -74,10 +79,5 @@ else
         <p class="fs-6 text-muted text-break mt-2 mb-0">@Model.VerifyUrl</p>
     }
 </div>
-
-@if (Model.IsLive)
-{
-    <a class="btn btn-primary btn-lg w-100 py-3 fs-3 mt-4" href="/Permits/PermitPdf/@Model.Id">Download permit (PDF)</a>
-}
 
 <a class="btn btn-outline-primary btn-lg w-100 py-3 fs-3 mt-4" href="/Permits/My">Back to my permits</a>

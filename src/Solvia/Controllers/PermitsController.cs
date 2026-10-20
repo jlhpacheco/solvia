@@ -48,6 +48,7 @@ public sealed class PermitsController : DemoControllerBase
     private readonly PricingService _pricing;
     private readonly UserCategoryResolver _categories;
     private readonly ApplicationService _applications;
+    private readonly AiRequestLimiter _aiRequests;
 
     public PermitsController(
         SolviaDbContext db,
@@ -56,7 +57,8 @@ public sealed class PermitsController : DemoControllerBase
         ITermDatesService termDates,
         PricingService pricing,
         UserCategoryResolver categories,
-        ApplicationService applications)
+        ApplicationService applications,
+        AiRequestLimiter? aiRequests = null)
     {
         _db = db;
         _catalog = catalog;
@@ -65,6 +67,7 @@ public sealed class PermitsController : DemoControllerBase
         _pricing = pricing;
         _categories = categories;
         _applications = applications;
+        _aiRequests = aiRequests ?? new AiRequestLimiter();
     }
 
     // ==================================================================
@@ -373,6 +376,24 @@ public sealed class PermitsController : DemoControllerBase
         // missed (the plate above all) is typed there, not lost.
         // The college stays the one picked on Ask; the taps stay
         // exactly as set. The extractor can never produce a price.
+        cancellationToken.ThrowIfCancellationRequested();
+        var client = HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!_aiRequests.TryAcquire(client, out var lease, out var retryAfterSeconds))
+        {
+            Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            Response.Headers.RetryAfter = retryAfterSeconds.ToString(CultureInfo.InvariantCulture);
+            return View("Questions", new QuestionsViewModel
+            {
+                ApplicationId = applicationId,
+                College = fee.Campus,
+                CarText = carText,
+                PermitType = permitType,
+                Term = term,
+                Notice = AiRequestLimiter.RejectionMessage + " Your answers are still here.",
+            });
+        }
+
+        using var admission = lease;
         var result = await _extractor.ExtractAsync(carText ?? "", cancellationToken);
 
         var draft = new PermitDraftViewModel

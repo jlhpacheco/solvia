@@ -123,6 +123,7 @@ builder.Services.AddSingleton<UserCategoryResolver>();
 // extraction entry point. Any model failure lands in the fallback,
 // so these registrations can never take the demo down.
 builder.Services.AddSingleton<FallbackExtractor>();
+builder.Services.AddSingleton<AiRequestLimiter>();
 builder.Services.AddHttpClient<OllamaExtractionService>();
 builder.Services.AddHttpClient<TogetherExtractionService>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })

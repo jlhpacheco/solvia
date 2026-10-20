@@ -4,14 +4,25 @@
     var isPaid = Model.PaymentStatus == Solvia.Models.Enums.PaymentStatus.Paid;
     var isFree = Model.PaymentStatus == Solvia.Models.Enums.PaymentStatus.NotRequired;
     var isEmployee = Model.Category == Solvia.Models.Enums.UserCategory.Employee;
+    var validity = Solvia.Services.PermitValidity.Check(Model,
+        System.DateOnly.FromDateTime(System.DateTime.Today));
     string Date(System.DateOnly d) => d.ToString("MMM d, yyyy");
 }
 
 @if (isPaid)
 {
     <div class="receipt-card">
-        <h1 class="display-5 fw-bold">Permit live &#10003;</h1>
-        <p class="fs-4">Your payment is complete and this permit is active.</p>
+        @if (validity.IsActive)
+        {
+            <h1 class="display-5 fw-bold">Permit live &#10003;</h1>
+            <p class="fs-4">Your payment is complete and this permit is active.</p>
+        }
+        else
+        {
+            <h1 class="display-5 fw-bold">Payment confirmed</h1>
+            <p class="fs-4">Your payment is complete. Review the permit's dates and current validity.</p>
+            <p class="fs-4">@validity.Reason</p>
+        }
         <p class="fs-5 text-muted mb-1">Permit number (= receipt number)</p>
         <p class="receipt-number">@Model.ReceiptNumber</p>
         <dl class="fs-4">
@@ -42,7 +53,15 @@
 else if (isFree)
 {
     <div class="receipt-card">
-        <h1 class="display-5 fw-bold">Permit live &#10003;</h1>
+        @if (validity.IsActive)
+        {
+            <h1 class="display-5 fw-bold">Permit live &#10003;</h1>
+        }
+        else
+        {
+            <h1 class="display-5 fw-bold">Permit issued</h1>
+            <p class="fs-4">@validity.Reason</p>
+        }
         @if (isEmployee)
         {
             <p class="fs-4">Employee permits are <strong>exempt</strong> — no payment was needed or taken.</p>

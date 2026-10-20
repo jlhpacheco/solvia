@@ -560,7 +560,9 @@ public sealed partial class CheckoutTests
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Index", redirect.ActionName);
-        Assert.Contains("nothing was charged",
+        Assert.Contains("Payment is not confirmed here",
+            controller.TempData["CheckoutInfo"] as string);
+        Assert.DoesNotContain("nothing was charged",
             controller.TempData["CheckoutInfo"] as string);
         Assert.Equal(PaymentStatus.Pending, (await Reload(w, app.Id)).PaymentStatus);
     }

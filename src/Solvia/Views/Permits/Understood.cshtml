@@ -40,7 +40,7 @@
 
         <p class="fs-4 mb-3">
             College: <strong>@Model.College</strong><br />
-            Permit: <strong>@(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Daily ? "Day pass" : "Term permit") · @Model.Term</strong>
+            Permit: <strong>@(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Daily ? "Day pass" : $"Term permit · {Model.Term}")</strong>
         </p>
 
         <div class="mb-3">

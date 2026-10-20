@@ -56,13 +56,15 @@
             <label class="btn btn-outline-primary btn-lg fs-4" for="typeDaily">Day pass — one day</label>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 mt-3" role="radiogroup" aria-label="Term">
-            @foreach (var term in Enum.GetNames<Solvia.Models.Enums.TermKind>())
-            {
-                <input type="radio" class="btn-check" name="term" id="term@(term)" value="@term"
-                       checked="@(Model.Term.ToString() == term)" />
-                <label class="btn btn-outline-secondary btn-lg fs-4" for="term@(term)">@term</label>
-            }
+        <div id="term-options" hidden="@(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Daily)">
+            <div class="d-flex flex-wrap gap-2 mt-3" role="radiogroup" aria-label="Term">
+                @foreach (var term in Enum.GetNames<Solvia.Models.Enums.TermKind>())
+                {
+                    <input type="radio" class="btn-check" name="term" id="term@(term)" value="@term"
+                           checked="@(Model.Term.ToString() == term)" />
+                    <label class="btn btn-outline-secondary btn-lg fs-4" for="term@(term)">@term</label>
+                }
+            </div>
         </div>
 
         <button type="submit" id="read-answers" class="btn btn-primary sv-cta w-100 mt-4">Read my answers</button>

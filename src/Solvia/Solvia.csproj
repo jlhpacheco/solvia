@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\Fonts\*.ttf" />
+    <None Update="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

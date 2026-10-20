@@ -3,14 +3,27 @@
     const form = document.getElementById('vehicle-questions');
     const button = document.getElementById('read-answers');
     const status = document.getElementById('ai-reading-status');
+    const termOptions = document.getElementById('term-options');
     if (!form || !button || !status) return;
+
+    function syncTermOptions() {
+        if (!termOptions) return;
+        // Hidden choices retain their selection and still post with the form.
+        termOptions.hidden = form.querySelector('input[name="permitType"]:checked')?.value !== 'Term';
+    }
 
     function reset() {
         button.disabled = false;
         button.textContent = 'Read my answers';
         status.hidden = true;
         form.removeAttribute('aria-busy');
+        syncTermOptions();
     }
+
+    form.querySelectorAll('input[name="permitType"]').forEach(function (input) {
+        input.addEventListener('change', syncTermOptions);
+    });
+    syncTermOptions();
 
     form.addEventListener('submit', function (event) {
         if (button.disabled) {

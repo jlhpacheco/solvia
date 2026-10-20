@@ -23,11 +23,14 @@ public sealed class ChatController : ControllerBase
 {
     private readonly IAiExtractor _extractor;
     private readonly ILogger<ChatController> _logger;
+    private readonly AiRequestLimiter _aiRequests;
 
-    public ChatController(IAiExtractor extractor, ILogger<ChatController> logger)
+    public ChatController(IAiExtractor extractor, ILogger<ChatController> logger,
+        AiRequestLimiter? aiRequests = null)
     {
         _extractor = extractor;
         _logger = logger;
+        _aiRequests = aiRequests ?? new AiRequestLimiter();
     }
 
     /// <summary>Request body: the student's message, in their own words.</summary>
@@ -48,6 +51,16 @@ public sealed class ChatController : ControllerBase
             return BadRequest(new { error = PermitDraftViewModel.CarTextLengthMessage });
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+        var client = HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!_aiRequests.TryAcquire(client, out var lease, out var retryAfterSeconds))
+        {
+            Response.Headers.RetryAfter = retryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                new { error = AiRequestLimiter.RejectionMessage });
+        }
+
+        using var admission = lease;
         var result = await _extractor.ExtractAsync(request.Text, cancellationToken);
         _logger.LogInformation(
             "Extraction answered by {Source}; college={College}",
