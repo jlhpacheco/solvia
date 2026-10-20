@@ -1,11 +1,10 @@
 # NOTICES — third-party licenses
 
-Completed by the R10 checker (REDO-PLAN §3), verified against the
-shipped tree: package references in `src/Solvia/Solvia.csproj` and
-`tests/Solvia.Tests/Solvia.Tests.csproj`, the vendored libraries
-under `src/Solvia/wwwroot/lib/`, the CDN reference in
-`Views/Shared/_FeeTable.cshtml`, and the model/runtime the app
-calls locally. If it is not in this tree, it is not listed here.
+This inventory covers application and test package references, vendored
+libraries and fonts, CDN components, and optional external model/runtime
+services called by the current code. An external service is not bundled
+with Solvia and is governed by its own terms; listing an integration does
+not claim that its live deployment has been verified.
 
 Solvia itself is MIT-licensed (see LICENSE at the repo root).
 Copyright (c) 2026 Jose Luis Pacheco.
@@ -33,10 +32,11 @@ Copyright (c) 2026 Jose Luis Pacheco.
   Microsoft is the model's author; the model card and license ship
   with the model, not with Solvia.
 
-- **Ollama** — MIT License. External local runtime, NOT bundled:
-  the app calls it over HTTP at `http://localhost:11434` when it
-  is present, and uses a built-in deterministic fallback reader
-  when it is not.
+- **Ollama** — MIT License. External runtime, NOT bundled. This is the
+  default AI adapter (`AI_PROVIDER=ollama`), with endpoint
+  `http://localhost:11434` local to the application host by default. Its
+  endpoint is configurable. An unavailable runtime or unusable model
+  answer uses the built-in deterministic reader.
 
 - **AG Grid Community 34.3.1** — MIT License. The fee-table grid.
   Free Community edition, loaded from the official jsDelivr CDN
@@ -73,6 +73,15 @@ Copyright (c) 2026 Jose Luis Pacheco.
 
 - **PayPal Sandbox** (Orders API + webhooks) — PayPal's developer
   terms. Sandbox only: fictitious accounts, no real money.
+- **Meta Model API — Standard Muse Spark** — optional proprietary hosted
+  service, not a bundled model or MIT-licensed component. The default
+  configured Standard model is `muse-spark-1.3`, selected only with
+  `AI_PROVIDER=meta` and a server-side API key. See the official
+  [API overview](https://dev.meta.ai/docs/overview) and
+  [Meta Model API Terms](https://dev.meta.ai/legal/terms-of-service).
+  This demo uses fictional adults (18+) when this provider is selected;
+  see [privacy](docs/PRIVACY.md) for age, retention, training, and credential
+  boundaries. No live Meta request has been verified.
 - **Elastic** — the app ships a config-selectable search provider
   that speaks to an Elastic node over HTTP; the built-in search is
   the shipped default and no Elastic code is bundled. The live

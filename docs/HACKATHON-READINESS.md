@@ -56,8 +56,10 @@ Two additional real-provider negative checks confirmed that unapproved and
 refused payments cannot issue a paid permit. The actual remote SDK displayed
 PayPal and card options, and a no-JavaScript smoke check confirmed its
 protected continuation. The latest isolated desktop/mobile browser coverage
-verified 80 distinct checks, including 28 smokes, across the full run and
-targeted harness corrections. None of these checks establishes interactive
+verified 82 distinct checks, including 30 smokes, across retained full and
+targeted runs. A final clean 30-check smoke run passed in 2.6 minutes.
+The coordinated backend suite passed 367/367 with zero skipped.
+None of these checks establishes interactive
 wallet approval or live model inference; see [testing details](TESTING.md).
 
 ## Participant checklist
@@ -66,7 +68,7 @@ wallet approval or live model inference; see [testing details](TESTING.md).
 - [ ] Rotate the sandbox secret pasted in chat; set it privately with `scripts/Set-SandboxCredentials.ps1`.
 - [x] Complete a real Sandbox capture and verify the paid receipt and PDF. The $30.00 USD order `1G1852006N6969449` completed with capture `7WR24202DB5257942` and receipt `SOL-2026-197973` using official test-card confirmation and the Solvia REST endpoint.
 - [ ] Verify interactive wallet/Personal-buyer checkout separately; the merchant account cannot buy from itself.
-- [ ] Run Ollama/Phi-4-mini and confirm an extraction explicitly labeled `ollama`.
+- [ ] Verify the selected hosted Meta reader through the actual app with a genuine `meta` result and retained latency/field evidence. The adapter is implemented; private setup and live verification remain pending. Direct local Phi-4-mini worked but was too slow for the app budget.
 - [ ] If demonstrating webhook recovery, register an HTTPS sandbox listener, configure its webhook ID privately, and test a real verified event. No subscription was present when the dashboard was inspected.
 - [x] Confirm the employee/free permit flow and generate a Letter-size PDF. A physical printer check is not claimed.
 - [x] Exercise AG Grid sorting and campus search in the actual app.

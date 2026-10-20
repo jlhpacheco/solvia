@@ -105,7 +105,7 @@ by it — a person only ever sees their own vehicles.
 | `PermitTypeId` | `int` | Which catalog type was bought (Daily / Term). Foreign key → `PermitType.Id`, delete behavior Restrict. Part of the composite unique index. |
 | `PermitType` | `PermitType?` | Navigation property. |
 | `Term` | `TermKind`, stored as TEXT | The term the buyer picked (Fall / Spring / Summer) — stored on the row so the price can be recomputed from the fee catalog without trusting anything the browser posts. Default `Fall`. Required (conversion), max length 20. |
-| `Source` | `string` | Which door/reader produced the application — the honest source label, kept with the row so it survives redirects: `"form"` (form door), `"ollama"` (local AI answered), or `"fallback"` (deterministic fallback answered). Default `"form"`. Required, max length 16. |
+| `Source` | `string` | Which door/reader produced the application — the honest source label, kept with the row so it survives redirects: `"form"` (form door), `"ollama"` (configured Ollama model passed validation), `"meta"` (hosted Meta model passed validation), or `"fallback"` (deterministic reader answered). Default `"form"`. Required, max length 16. |
 | `StartDate` | `DateOnly` | First day the permit is valid. Part of the composite unique index. |
 | `EndDate` | `DateOnly` | Last day the permit is valid (always computed, never typed). Part of the composite unique index. |
 | `Status` | `ApplicationStatus`, stored as TEXT | Application standing. Default `Pending`. Required (conversion), max length 20. |
@@ -198,22 +198,31 @@ All 50 states plus `DC` (51 values). Default `CA`.
 
 ### Service-layer enums (not stored columns)
 
-- `ExtractionSource` (`IAiExtractor.cs`): `Ollama`, `Fallback` — which path
-  produced an extraction. Serialized on the wire as `"ollama"` /
-  `"fallback"`; these are the AI-door values stamped onto
+- `ExtractionSource` (`IAiExtractor.cs`): `Ollama`, `Meta`, `Fallback` — which
+  path produced an extraction. Serialized on the wire as `"ollama"`,
+  `"meta"`, or `"fallback"`; these are the AI-door values stamped onto
   `PermitApplication.Source` (the form door stamps `"form"`).
 - `RosterPermitState` (`PermitValidity.cs`): `Paid`, `FreeIssued`,
   `Pending`, `NoPermit` — a student's computed standing at one campus on
   the college roster. Computed by `PermitValidity.Classify`; never stored.
 
+Both model adapters use `ModelExtractionContract` for the structured field
+set and plate safeguards. The extraction has no price field; college,
+permit type, and term remain the person's UI choices. The server rejects
+vehicle text longer than 1,000 characters before model invocation, limits
+reviewed make/model values to 50 characters, and accepts valid named
+state/color values rather than numeric enum coercion. Adding the `meta`
+source does not add a table or a database column. Provider setup and data
+processing boundaries are in [README](../README.md) and [PRIVACY.md](PRIVACY.md).
+
 ## College fee data — `data/fees.csv` → `CampusFee`
 
 Not a database table: a plain CSV of real published parking-permit fees for
 **exactly 10 California colleges** — every one with a real published permit
-price. Semester prices run from **FREE to $229.50**, median **$50**. The AI
-reads the student's college row from this file so the total it quotes — and
-the amount sent to PayPal — is the college's real fee, never a generic or
-invented price. If a campus does not publish a price for something, that
+price. Semester prices run from **FREE to $229.50**, median **$50**.
+`PricingService` reads this dated CSV catalog to compute the exact amount
+sent to PayPal; the model does not quote or choose a price. This is not a
+real-time campus feed. If a campus does not publish a price for something, that
 price is `null` ("not listed") — never `0` and never invented; an
 unpublished price **blocks** the application. A campus that publishes FREE
 permits has price `0` with `IsFree = true` — a real $0, distinct from null.
@@ -349,13 +358,16 @@ no-op duplicate instead of a second action.
 ## Configuration surface (`src/Solvia/Config/AppOptions.cs`)
 
 Not tables — the typed options the schema's behavior depends on. Secrets
-(`PayPal.ClientId` / `PayPal.ClientSecret`) are supplied **only** through
-environment variables or .NET user-secrets, never through committed files.
+(`PayPal.ClientId`, `PayPal.ClientSecret`, and optional `Meta.ApiKey`) are
+supplied through server environment configuration or Development .NET
+user-secrets, never through the database, browser code, or committed files.
 
 | Section / class | Members (defaults) |
 |---|---|
 | `PayPal` / `PayPalOptions` | `ClientId` (`""`), `ClientSecret` (`""`), `Environment` (`"sandbox"`), `BaseUrl` (`"https://api-m.sandbox.paypal.com"`), `Currency` (`"USD"`), `WebhookId` (`""` — id of the registered PayPal webhook, used by verify-webhook-signature; an identifier, not a credential) |
-| `Ollama` / `OllamaOptions` | `BaseUrl` (`"http://localhost:11434"`), `Model` (`"phi4-mini"`) |
+| `AI` / `AiOptions` | `Provider` (`"ollama"`; optional `"meta"`) |
+| `Ollama` / `OllamaOptions` | `BaseUrl` (`"http://localhost:11434"`), `Model` (`"phi4-mini"`), `TimeoutSeconds` (`10`, clamped to 1–90) |
+| `Meta` / `MetaOptions` | `ApiKey` (`""`, server-only), `Model` (`"muse-spark-1.3"`, Standard mode), `TimeoutSeconds` (`10`, clamped to 1–90) |
 | `Category` / `CategoryOptions` | `EmployeeDomains` (`["college.example"]`), `StudentDomains` (`["student.example"]`) |
 | `FeeTable` / `FeeTableOptions` | `Renderer` (`"native"`; `"aggrid"` is the AG Grid Community seam) |
 | `Calendar` / `CalendarOptions` | `Renderer` (`"native"`; `"bryntum"` is the licensed-build drop-in point) |
@@ -363,6 +375,15 @@ environment variables or .NET user-secrets, never through committed files.
 | `Elastic` / `ElasticOptions` | `Url` (`"http://localhost:9200"`), `Index` (`"colleges"`) |
 | `Webhook` / `WebhookOptions` | `Url` (`""` = disabled — the outbound payment-complete / Zapier seam; events carry no student PII), `PublicBaseUrl` (`""` = no fallback origin; an origin is never invented) |
 | Root / `SolviaOptions` | `FeesCsvPath` (`"data/fees.csv"`) |
+
+Environment aliases are `AI_PROVIDER`, `META_API_KEY`, `META_MODEL`, and
+`META_TIMEOUT_SECONDS`. `scripts/Set-MetaCredentials.ps1` is the Development
+setup path: a hidden prompt writes the key through stdin to .NET
+user-secrets and selects the Meta provider/model/timeout. User-secrets are
+per-user settings, not an encrypted vault. The Meta adapter accepts only
+the supported Standard model allowlist, uses a fixed hosted API endpoint,
+and falls back if its key or a usable response is absent. No key is
+configured and no live Meta request is verified in the current evidence.
 
 ## Out of scope — by design
 

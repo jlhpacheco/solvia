@@ -251,7 +251,7 @@ only for what is missing (3 questions max):
 | `permitType` | `"Daily"` \| `"Term"` \| null | Serialized from the `PermitTypeCode` enum name |
 | `term` | `"Fall"` \| `"Spring"` \| `"Summer"` \| null | Serialized from the `TermKind` enum name |
 | `carMake`, `carModel`, `carColor`, `plate`, `carState` | string \| null | Plate normalized to upper case with separators stripped; state is a 2-letter code |
-| `source` | `"ollama"` \| `"fallback"` | **Honest label of which path answered.** `"ollama"`: the local Phi-4-mini model answered and passed validation. `"fallback"`: the deterministic extractor answered because the model was down, timed out, or its answer failed validation — extraction always answers |
+| `source` | `"ollama"` \| `"meta"` \| `"fallback"` | **Honest label of which path answered.** `"ollama"` or `"meta"`: the selected model answered and passed validation. `"fallback"`: the deterministic extractor answered because the selected model was unavailable, timed out, lacked configuration, or returned an unusable answer. Meta live verification remains pending. |
 
 **There is deliberately NO price field** in this response, and none
 can appear: the extraction result type

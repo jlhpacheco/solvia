@@ -9,8 +9,9 @@ business model or payment implementation.
 This file is the map of the code in this repo: what each piece is, and
 which rules it owns. `docs/REDO-PLAN.md` is the build record (the
 60-item checklist dispositions and the track-by-track plan this tree
-was built against); `docs/CHECK-REPORT.md` carries the independent
-sign-off.
+was built against); `docs/CHECK-REPORT.md` is a historical review snapshot,
+not verification of the current optional model providers. Current test
+boundaries and live-provider opt-ins are in [TESTING.md](TESTING.md).
 
 ## One application model, two front doors
 
@@ -27,15 +28,35 @@ how the inputs are gathered.
   A free application is issued at the POST and lands on My Permits;
   a payable one redirects to `/Checkout/{id}`. There is no Review
   step on this door.
-- **The AI door** — `/Permits/Ask` (Solvia's). Microsoft Phi-4-mini
-  through the configured Ollama endpoint drafts vehicle details from
-  the car sentence. College, permit type, and term are UI selections.
-  The extraction result type has **no price field by
-  construction**: the model can never name a price. The student
-  confirms what the AI understood on an editable gate screen before
-  anything is saved; a deterministic fallback extractor serves when
-  Ollama is off, and the screen labels which one answered
-  (`Source`: `ollama` or `fallback`).
+- **The AI door** — `/Permits/Ask` (Solvia's). The configured model
+  drafts vehicle details from the car sentence: Ollama/Phi-4-mini by
+  default, or the optional hosted Meta Standard `muse-spark-1.3` provider.
+  College, permit type, and term remain UI selections. Both adapters use
+  the same structured extraction contract and plate safeguards. The
+  extraction result type has **no price field**; server pricing alone
+  determines the amount. The person confirms the vehicle details on an
+  editable review screen before the application is saved. An unavailable
+  provider or unusable answer invokes the deterministic reader, with an
+  honest `Source` label: `ollama`, `meta`, or `fallback`.
+
+`AI_PROVIDER` selects `ollama` (default) or `meta`. The optional Meta adapter
+calls the fixed `https://api.meta.ai/v1/chat/completions` endpoint with a
+server-only API key, strict structured output, redirects disabled, and
+authorization-header redaction. `META_MODEL` selects a supported Standard
+model; `META_TIMEOUT_SECONDS` sets the total request budget (10 seconds by
+default, clamped to 1–90). Ollama has its own bounded request budget. Input
+is limited before either model is called; human-reviewed make/model fields
+are limited to 50 characters, and state/color must be valid named values.
+The model cannot create orders or mark a payment Paid.
+
+For Development setup, `scripts/Set-MetaCredentials.ps1` prompts for the key
+without echoing it and writes it through stdin to .NET user-secrets; these
+are per-user development settings, not an encrypted vault. See the
+[README](../README.md) for setup and [privacy](PRIVACY.md) for hosted data
+processing and the adult-only Meta demo boundary. No live Meta request has
+been verified. A direct warm Phi-4-mini CPU response took 32.26 seconds;
+the application's 10-second budget fell back, so that direct response is
+not proof of model inference through the app.
 
 ## Price truth: the college's published fee
 
@@ -103,9 +124,9 @@ verification. `CheckoutService` owns the rules around it:
 - **Create-order is idempotent**: a Pending application that already
   holds an order id returns that id; a second click never mints a
   second order.
-- A non-COMPLETED capture marks the application Failed, with no
-  issuance. An Employee or already-Paid create answers "not
-  required" and creates no order.
+- A PENDING capture keeps the application Pending; other unsuccessful
+  captures fail without issuance. An Employee or already-Paid create
+  answers "not required" and creates no order.
 - Inbound webhooks are idempotent through the `WebhookEventLog`
   table (Provider + EventId unique): a redelivered event is a
   logged no-op. A webhook whose amount disagrees with the
@@ -184,7 +205,8 @@ contracts (details and honesty limits in `docs/SPONSORS.md`):
 - **KERNEL fee-refresh** — `tools/fee-refresh/` re-checks the
   published campus fees offline against `data/fees.csv`.
 - **AI data path** — the browser sends the sentence to Solvia; the app
-  calls the configured Ollama endpoint, local to the app host by default.
-  Hosting and endpoint configuration determine where data is processed.
-  The app performs inference and does not implement training; see
-  `docs/PRIVACY.md` for deployment boundaries.
+  calls the selected provider. Ollama is local to the app host by default
+  but its endpoint is configurable. Selecting Meta sends the sentence and
+  extraction context to Meta's hosted API. Standard mode excludes content
+  from model training; this is not a zero-retention or US-only-residency
+  guarantee. See [PRIVACY.md](PRIVACY.md) for current terms and boundaries.

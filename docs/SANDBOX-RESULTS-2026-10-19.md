@@ -96,4 +96,7 @@ This is provider-confirmed Sandbox test-card/API evidence. It does not claim tha
 
 The official PayPal SDK supplies branded checkout buttons. A button creates a server-priced order for the selected campus/permit; separate fixed-price dashboard buttons are unnecessary. See [the opt-in test instructions](SANDBOX-MATRIX.md) for reproducing the checks.
 
-Live Phi-4-mini inference, first-time user feedback, and the final public demo video remain separate hackathon readiness work.
+Live verification of the selected hosted Meta reader through the actual app,
+first-time user feedback, and the final public demo video remain separate
+hackathon readiness work. Direct local Phi-4-mini answered but exceeded the
+app's inference budget; this does not verify the hosted provider.

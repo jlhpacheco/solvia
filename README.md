@@ -11,6 +11,7 @@ Latest review: [changes and verification](docs/REVIEW-2026-10-19.md),
 [design direction](docs/DESIGN-SYSTEM.md), and
 [printable student and employee permits](docs/PRINTABLE-PERMITS.md).
 Repeatable smoke/browser checks: [TypeScript + Playwright testing](docs/TESTING.md).
+Review and regression workflow: [quality control](docs/QUALITY-CONTROL.md).
 
 ## The name
 
@@ -23,10 +24,10 @@ Together: *pay what is due for the vehicle on the road.*
 
 ## Simple use case
 
-Maria is a fictional student. It is her first day.
+Maria is a fictional adult student (18+). It is her first day.
 
 1. Maria opens Solvia and picks how to start:
-   - **Ask Solvia (the AI door):** the AI asks three questions only: **School? Car? Term?**
+   - **Ask Solvia (the AI door):** choose a college, describe a car, and choose a permit. The configured reader drafts vehicle fields for review.
    - **The classic form:** pick campus, car, permit type, and start date — the same shape colleges already use.
 2. Both doors build the **same application** through the same brain, and both show the **exact total first**, taken from a real fee table (see `data/fees.csv` — 10 campuses, every one publishing its student semester price, from the 2026-10-18 scan of 25 mycampuspermit.com pages; only the 10 with a published price ship, and no price is ever guessed).
 3. Maria approves the total.
@@ -43,7 +44,7 @@ Full flow: [docs/USE-CASE.md](docs/USE-CASE.md)
 | Part | Tool |
 |---|---|
 | Payments (central) | PayPal Sandbox — Orders API (create order → student approves → capture), called directly over HTTPS from the app; a signature-verified PayPal webhook is the second road to the same truth. Paid lands only from a COMPLETED capture — never from a return page |
-| AI adapter | **Phi-4-mini via Ollama** drafts vehicle details for human review. College and permit choices come from the form, and server catalog rules determine the fee. A live model demonstration remains to be verified; the labeled rules fallback is not AI evidence. |
+| AI adapter | **Phi-4-mini via Ollama** is the default; **Meta Model API Standard Muse Spark 1.3** is an explicit optional hosted provider. Both draft vehicle details for human review through the shared schema/plate safeguards. The catalog sets fees. Application-level live-model proof remains pending; a labeled fallback is not AI evidence. |
 | Fee table | **AG Grid Community edition** (free, sponsor) — the 10-college fee table, with a built-in table renderer behind the same seam showing identical values |
 | Printable permits | **PDFsharp 6.2.3 (MIT)** with embedded **Roboto (Apache-2.0)** — US Letter student and employee permits; no separate PDF application or OS font installation required |
 | College search | Built-in deterministic search ships by default; an **Elastic** (sponsor) provider sits behind the same config seam — the live Elastic node was not run for this build and ELSER is not claimed — see [docs/SPONSORS.md](docs/SPONSORS.md) |
@@ -55,16 +56,28 @@ Full flow: [docs/USE-CASE.md](docs/USE-CASE.md)
 
 ### AI model choice
 
-**Microsoft Phi-4-mini**, served through Ollama, is the configured model. The default endpoint is local to the **application host**, which may be a server rather than the student's computer. The project selects Microsoft's model; Qwen is not used. Model extraction produces permit details, never a price. The deterministic fallback keeps the form usable but does not prove live AI operation.
+**Ollama/Phi-4-mini remains the default.** Its endpoint is local to the
+application host unless configured otherwise. Optional `AI_PROVIDER=meta`
+selects server-side Meta Model API Standard `muse-spark-1.3`; inputs then leave
+the app host for Meta. Validated sources are `ollama`, `meta`, or `fallback`.
+The shared contract preserves explicit/ambiguous plate rules and has no price
+field. People review the draft; the catalog supplies the fee.
+
+Current evidence: a direct warmed CPU Phi-4-mini request returned in **32.26
+seconds**, while the app's default **10-second** budget fell back. No Meta key
+is configured and no live Meta request has been verified. See
+[provider-aware opt-in checks](docs/TESTING.md#opt-in-live-ai-checks).
 
 ## Privacy — why our AI is built this way
 
-Use fictional people and vehicles for this public demo. Browser submissions reach the app server; a remote Ollama endpoint would receive extraction inputs. Solvia implements inference, not model training, and makes no institutional compliance certification. See [docs/PRIVACY.md](docs/PRIVACY.md) for the actual data paths.
+Use fictional adult (18+) people and vehicles for this demo. Browser answers
+reach the app server and its selected model endpoint. Hosted Meta use has
+additional age and data-processing terms; see [privacy](docs/PRIVACY.md).
 
 ## Rules compliance — PayPal AI Hackathon
 
 - [x] **Verify a real PayPal Sandbox capture** — the running app captured a $30.00 USD Fresno City College term permit and produced a paid receipt/PDF. An independent provider query confirmed `COMPLETED` and the exact amount. This used PayPal's official Sandbox test-card confirmation followed by Solvia's capture endpoint; wallet/Personal-buyer UI approval has not been verified.
-- [ ] Record **live AI evidence** — verify an Ollama/Phi-4-mini extraction explicitly labeled `ollama`. The fee catalog, not the model, sets the total.
+- [ ] Record **live application AI evidence** — verify the selected provider's validated `ollama` or `meta` result. A direct slow CPU response or `fallback` label does not close this check. The catalog sets the total.
 - [x] **PayPal Sandbox only** — fictitious test accounts and test transactions, no real money, no real student data (Maria is fictional).
 - [x] **Locally runnable prototype** — tested routes and services; complete the external-service checks in the readiness document before submission. Render hosting is planned.
 - [x] **Public repository with an open-source license** — this repo is public, MIT License at the top level.
@@ -80,7 +93,7 @@ Eligibility, registration, team details, and the actual Devpost submission remai
 ## Run it locally
 
 The free/fallback preview requires the .NET 10 SDK. The complete PayPal-plus-AI
-journey also needs Sandbox credentials and a running Phi-4-mini/Ollama endpoint
+journey also needs Sandbox credentials and a working selected model endpoint
 as described below. The free preview alone does not establish those integrations.
 An earlier clean-copy run is recorded in [docs/CLEAN-INSTALL-LOG.md](docs/CLEAN-INSTALL-LOG.md).
 
@@ -122,8 +135,8 @@ sandbox checkout. To get keys (free — test money only):
 5. PayPal shows a **Client ID** and a **Secret**. Copy both.
 
 Then set them as environment variables in the same terminal where
-you will run the app. The app reads environment variables only —
-it never reads a `.env` file, and no secret is ever committed
+you will run the app, or use Development-mode .NET user-secrets. The app
+does not automatically load a `.env` file; never commit secrets
 (`.env.example` at the repo root lists every variable name).
 
 Windows (PowerShell):
@@ -145,7 +158,9 @@ sandbox test accounts: developer.paypal.com → **Sandbox →
 Accounts**. The **Personal** account is the buyer; its email and
 password are shown there. Test money only, never real money.
 
-### Step 4 — (Optional) The local AI: Ollama + Phi-4-mini
+### Step 4 — Select an optional AI provider
+
+#### Default: Ollama + Phi-4-mini
 
 The default AI endpoint runs on the same host as Solvia. To use the real model on your development computer:
 
@@ -157,13 +172,47 @@ The default AI endpoint runs on the same host as Solvia. To use the real model o
 3. Leave Ollama running — it serves the model at
    http://localhost:11434.
 
-**You can skip this step.** If Ollama is not running, Solvia uses a
-built-in fallback reader that understands the same answers
-(school / car / term) with simple rules — the demo never dies
-because the AI is off, the screens work the same either way, and
-every answer is labeled honestly with which reader produced it
-(`ollama` or `fallback`).
-For the hackathon demo, verify an actual `ollama` response: fallback alone is not evidence of AI use.
+Use `AI_PROVIDER=ollama` to select this provider explicitly. The model budget
+defaults to 10 seconds, including loading; `OLLAMA_TIMEOUT_SECONDS` can set
+1–90 seconds (values clamp to that range). A slower response or unusable
+answer produces the labeled rules fallback. A longer budget is a deliberate
+local testing choice; measure the actual app response before recording a demo.
+
+#### Optional hosted Meta: Standard Muse Spark 1.3
+
+Obtain a Model API credential from the [Meta developer dashboard/docs](https://dev.meta.ai/docs/overview).
+From the repository root, use the hidden prompt:
+
+```powershell
+.\scripts\Set-MetaCredentials.ps1
+```
+
+The script selects Meta and stores `AI:Provider`, `Meta:ApiKey`, `Meta:Model`
+and `Meta:TimeoutSeconds` through stdin into per-user .NET Development
+user-secrets. This is local configuration, **not an encrypted vault**. Restart
+Solvia in Development mode afterward. Do not paste the key into chat, command
+arguments, logs, screenshots or Git. A coding-harness subscription credential
+is not the application API credential.
+
+For deployment, provision `META_API_KEY` in the server's secret manager/process
+environment and set these non-secret settings:
+
+```powershell
+$env:AI_PROVIDER = 'meta'
+$env:META_MODEL = 'muse-spark-1.3'
+$env:META_TIMEOUT_SECONDS = '10'
+```
+
+The Meta timeout clamps to 1–90 seconds. The adapter accepts Standard 1.3
+(default), 1.2 and 1.1; Contributor model IDs are rejected. Missing keys or
+unusable responses fall back visibly. Meta requests are metered. Standard
+data handling and adult-only restrictions are described in [privacy](docs/PRIVACY.md)
+and the [primary API schema](https://dev.meta.ai/docs/api-reference/chat-completions/schemas).
+No live Meta call is claimed at this checkpoint. To return to the default,
+set `AI_PROVIDER=ollama` in the app's process before restarting.
+
+Either provider is optional for the free/fallback preview. A successful
+provider-labeled application response is required for our live-model evidence.
 
 ### Step 5 — Build and run
 
@@ -181,7 +230,7 @@ Open the address the app prints — **http://localhost:5156**:
 | Page | What it is |
 |---|---|
 | http://localhost:5156/ | Home — pick which fictional person you are (Maria is the default) |
-| http://localhost:5156/Permits/Ask | The AI door: three questions (school / car / term) |
+| http://localhost:5156/Permits/Ask | The AI door: college / car description / permit choice |
 | http://localhost:5156/Permits/Apply | The classic form door: campus, your car, permit type, start date |
 | http://localhost:5156/Permits/My | My Permits — your applications, receipts, and permit PDFs |
 | http://localhost:5156/Vehicles | Your vehicle garage — add / edit your cars |
@@ -230,8 +279,11 @@ See [the provider results](docs/SANDBOX-RESULTS-2026-10-19.md).
 Two further real-provider checks verified unapproved-order and refused-card
 handling. The official PayPal/card buttons were also checked against the
 actual remote SDK, together with the no-JavaScript continuation. The latest
-controlled browser validation verified 80 distinct desktop/mobile checks,
-including 28 smoke checks, across a full run and corrected targeted reruns.
+controlled browser validation verified 82 distinct desktop/mobile checks,
+including 30 smoke checks, across full and corrected targeted runs; 34 SDK
+contract checks are included. This is aggregate coverage, not one clean run.
+The latest coordinated backend run passed 367/367 tests, superseding earlier
+baselines; the testing record retains the initial failure and correction.
 See [test coverage and limits](docs/TESTING.md).
 For pending order IDs, buyer approval errors, or resuming payment, see
 [Sandbox payment troubleshooting](docs/PAYPAL-TROUBLESHOOTING.md).

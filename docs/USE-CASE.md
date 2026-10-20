@@ -2,7 +2,9 @@
 
 **One student. One permit. One payment.**
 
-Maria is a fictional student. All data in this demo is fictional, and all money is PayPal Sandbox test money.
+Maria is a fictional adult student (18+). All people and vehicle details in
+this demo are fictional, and all money is PayPal Sandbox test money. The
+demo switcher is not production authentication or age verification.
 
 ## Meet the seeded cast
 
@@ -38,12 +40,11 @@ in `data/fees.csv`. Semester prices run from **FREE to $229.50**, with a
 - Antelope Valley College — $28 · Modesto Junior College / Columbia College / YCCD — **FREE**
 
 Maria's college is **Fresno City College, $30** for a Fall/Spring term.
-On screen, Maria and her college stay fictional and generic — the demo
-never claims Maria attends a real school, and **no real college logos are
-used anywhere**. It is the *fee data* that is real, and that is the point:
-the total Maria approves is her college's real published fee, not a
-generic or invented price. If a price were not published, Solvia would say
-so and stop — it never invents a number.
+The demo does not claim Maria attends a real school or that a campus
+endorses Solvia. The fee catalog is a dated research snapshot in CSV,
+not a real-time campus feed. The total Maria approves comes from that
+campus's researched published fee row. If a price is not published in the
+catalog, Solvia says so and stops — it never invents a number.
 
 ## Two doors, one brain
 
@@ -78,12 +79,13 @@ MARIA — student, first day
     provider actually answered. See docs/SPONSORS.md.)
         |
         v
-2. AI ASKS — 3 questions only
-   School?  Car?  Term?
-   (Phi-4-mini, a simple open model, runs locally via Ollama.
-    It extracts her answers as structured data —
-    no free-text guessing. Three questions max;
-    it asks only for what is missing.)
+2. THREE SHORT INPUTS
+   College?  Car?  Permit choice?
+   (College, permit type, and term are UI selections.
+    The configured reader drafts vehicle fields only:
+    Ollama/Phi-4-mini by default, or optional hosted
+    Meta Standard. An unavailable or unusable model
+    answer uses the clearly labeled built-in reader.)
         |
         v
 3. UNDERSTOOD — THE GATE
@@ -118,12 +120,13 @@ MARIA — student, first day
    webhook saying the same thing) makes the permit live
    — never the "success" return page. The receipt shows
    the permit number and the PayPal transaction ID.
-   Maria downloads her permit as a PDF, and she can park.
+   Maria downloads a demo permit PDF. It grants no real
+   campus parking authorization.
 ```
 
-Step by step, in plain words: first Maria picks her college. Then the AI
-asks three short questions — school, car, term. Then the app shows her
-what it understood, and she checks it. Then she sees the exact total,
+Step by step, in plain words: first Maria picks her college. Then she
+describes her car and chooses her permit. The app shows her the drafted
+vehicle details, and she checks them. Then she sees the exact total,
 $30.00, from Fresno City College's real published fee. Then she says yes.
 Then PayPal Sandbox takes the test payment and returns a transaction ID.
 Then the permit goes live, the receipt carries that transaction ID, and
@@ -137,12 +140,21 @@ same doors and pays the college's full published fee, like any student.
 
 ## AI model choice — the honest framing
 
-**Microsoft Phi-4-mini via Ollama is the configured model.** The browser sends
-the vehicle sentence to Solvia, which calls its configured Ollama endpoint.
-The default endpoint is local to the application host, which can be a server;
-it is not necessarily the student's computer. The app performs inference and
-does not implement training. Endpoint retention and data handling depend on
-deployment. Use fictional demo details; see [privacy](PRIVACY.md).
+**Ollama/Phi-4-mini is the default; hosted Meta Standard `muse-spark-1.3`
+is optional.** `AI_PROVIDER` selects the adapter. The browser sends the
+vehicle sentence to Solvia, which calls that provider on the server.
+Ollama's default endpoint is local to the application host, which can be a
+server; selecting Meta sends the sentence to its hosted API. Both adapters
+use the same schema and plate safeguards. Use fictional adult details and
+read [privacy](PRIVACY.md), including Meta's 18+ restriction and data-handling
+limits. [README setup](../README.md) documents the hidden-prompt Meta
+credential helper and the 10-second default timeout (clamped to 1–90).
+
+No Meta key is configured and no live Meta request is verified. A direct
+warm CPU Phi-4-mini response took 32.26 seconds; the application fell back
+at its 10-second budget. The optional [live TypeScript checks](TESTING.md#opt-in-live-ai-checks)
+require an actual selected-provider response; fallback is not presented as
+a successful model demonstration.
 
 What the AI does — and does not — do:
 
@@ -152,12 +164,11 @@ What the AI does — and does not — do:
 - Every price comes from the **catalog** (`data/fees.csv`), using the selected
   canonical campus and permit choice. The model cannot set the total.
 - The honest source stamp travels with the application (`Source`):
-  `"ollama"` when the local model answered and passed validation,
-  `"fallback"` when the deterministic rule-based extractor answered
-  instead (Ollama off, timed out, or its answer failed validation), and
-  `"form"` for the form door. The flow always answers — a model failure
-  lands in the fallback, never in a dead end — and the label never
-  pretends otherwise.
+  `"ollama"` or `"meta"` when that configured model answered and passed
+  validation, `"fallback"` when the deterministic reader answered instead
+  (either provider unavailable, timed out, or unusable), and `"form"` for
+  the form door. The review screen lets the person correct missing or
+  uncertain details before creating the application.
 
 ## The college side — the roster
 
