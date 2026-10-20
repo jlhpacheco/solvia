@@ -94,14 +94,14 @@ two harness navigation races and two real WebKit My permits overflow
 failures; the selection wait and table/card breakpoint were corrected before
 the clean rerun. See [testing details](TESTING.md).
 
-A separate 156.086-second raw recording exercised three actual Together
+A separate 156.086-second recorded action sequence exercised three actual Together
 calls and one additional $30 Sandbox capture, followed by paid PDF retrieval
 and anonymous privacy checks. Order `5CV7753505063622B`, capture
 `9AP215253S500404B`, was independently checked for a single completed capture.
 This separate-database run is excluded from the historical matrix total.
 The narrated/captioned MP4 is complete at 156.1 seconds. Final listening,
 rights review and the public YouTube link remain open before submission.
-The English story, technical/AI/testing fields and 8,260,400-byte review ZIP
+The English story, technical/AI/testing fields and 8.26 MB review ZIP
 were saved and read back from Devpost. The project remains Draft, 2 of 5;
 the video URL is blank, and no eligibility or final-terms box was checked.
 

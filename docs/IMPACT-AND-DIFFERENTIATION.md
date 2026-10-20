@@ -140,6 +140,3 @@ Its contribution is the focused combination and the visible trust boundaries.
 captures and downloadable permits. We hypothesize that clearer review and
 payment records can reduce corrections and support work. A campus pilot
 must measure those effects and total operating cost before we claim savings.
-
-The independent mock judging assessment is an internal readiness exercise,
-not an official score or a prediction that these claims will win an award.

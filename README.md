@@ -107,8 +107,8 @@ privacy setting or zero-retention guarantee is claimed.
 - [x] **Public repository with an open-source license** — this repo is public, MIT License at the top level.
 - [x] **Tools are listed and explained** — see the table above.
 - [x] **New project chronology confirmed** — the participant confirmed Solvia was first built during this hackathon, after October 1, 2026. Solvia is an independent implementation and business model; its commits document development within the event.
-- [ ] Demo video: under 3 minutes and public on YouTube. A 156.086-second actual-flow raw recording is complete; the narrated/captioned MP4 is complete at 156.1 seconds; the public URL remains pending.
-- [ ] Submission text in English — this README and the Devpost text.
+- [ ] Demo video: under 3 minutes and public on YouTube. A 156.086-second recorded action sequence is complete; the narrated/captioned MP4 is complete at 156.1 seconds; the public URL remains pending.
+- [x] Submission text in English — this README and the saved/read-back Devpost story and instructions. Final submission remains open.
 - [ ] Demo stays free for judges to test through the judging period (Dec 1–15, 2026).
 
 Deadline: **Nov 12, 2026, 12:00 PM Pacific Time.**
@@ -325,12 +325,12 @@ Historical 371-test and 82-case aggregate checkpoints, plus the earlier
 cases passed twice on the earlier model-tested source and remain separate
 from the controlled browser count; no new live suite on `92cba211` is claimed.
 See [test coverage and limits](docs/TESTING.md).
-An additional 156.086-second raw recording exercised three actual Together
+An additional 156.086-second recorded action sequence exercised three actual Together
 calls and a separate $30 Sandbox purchase: order `5CV7753505063622B`, capture
 `9AP215253S500404B`. Provider lookup/retries confirmed one completed capture;
 paid PDF retrieval and anonymous verification privacy were checked. This
-separate-database run is excluded from the historical matrix total. Final
-narration/rendering and public YouTube publication remain pending.
+separate-database run is excluded from the historical matrix total. The final narrated/captioned MP4 is complete at 156.1 seconds; public YouTube
+publication remains pending.
 For pending order IDs, buyer approval errors, or resuming payment, see
 [Sandbox payment troubleshooting](docs/PAYPAL-TROUBLESHOOTING.md).
 

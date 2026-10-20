@@ -37,7 +37,7 @@ verification therefore controls the product's main outcome.
 | Optional sponsor use | AG Grid Community provides actual searchable/sortable campus-fee comparison; it is additional to the central PayPal/AI flow. |
 
 The live AI suite stops before creating a payment order. Payment/issuance is
-covered by separate real-provider tests. A later raw 156.086-second recording
+covered by separate real-provider tests. A later 156.086-second recorded action sequence
 exercised three actual Together calls and a separate $30 capture (order
 `5CV7753505063622B`, capture `9AP215253S500404B`), independently checked for one
 capture, plus PDF retrieval and anonymous privacy checks. It uses a separate
