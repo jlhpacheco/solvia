@@ -404,15 +404,18 @@ public sealed class ApplicationService
         var normalizedModel = BoundedVehicleDetail(model, nameof(model));
         var state = ParseState(stateCode);
         var color = ParseColor(colorName);
+        await using var transaction = _db.Database.CurrentTransaction is null
+            ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
         var vehicle = await _db.Vehicles.FirstOrDefaultAsync(
             v => v.StudentId == studentId && v.Plate == normalized,
             cancellationToken);
-        if (vehicle is not null && vehicle.State != state &&
-            await _db.PermitApplications.AnyAsync(application => application.VehicleId == vehicle.Id, cancellationToken))
+        if (vehicle is not null)
         {
-            // Match the garage: any permit reference freezes plate/state.
-            // Make, model and color remain editable when the state is kept.
-            throw new DraftVehicleStateLockedException();
+            // A warm context may hold pre-checkout facts. Read and validate
+            // the current vehicle while no concurrent order can be bound.
+            await _db.Entry(vehicle).ReloadAsync(cancellationToken);
+            await VehicleEditGuard.ValidateAsync(_db, vehicle, normalized, state,
+                normalizedMake, normalizedModel, color, cancellationToken);
         }
         if (vehicle is null)
         {
@@ -430,6 +433,7 @@ public sealed class ApplicationService
         vehicle.Make = normalizedMake;
         vehicle.Model = normalizedModel;
         await _db.SaveChangesAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         return vehicle;
     }
 

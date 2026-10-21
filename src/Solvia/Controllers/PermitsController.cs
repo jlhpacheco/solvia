@@ -606,6 +606,11 @@ public sealed class PermitsController : DemoControllerBase
             ModelState.AddModelError(nameof(draft.CarState), ex.Message);
             return View("Understood", draft);
         }
+        catch (VehiclePurchaseLockedException ex)
+        {
+            ModelState.AddModelError("", ex.Message);
+            return View("Understood", draft);
+        }
 
         var input = new ApplicationInput(
             StudentId: student.Id,

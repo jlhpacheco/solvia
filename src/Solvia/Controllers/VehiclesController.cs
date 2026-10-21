@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Solvia.Data;
 using Solvia.Models;
 using Solvia.Models.ViewModels;
+using Solvia.Services;
 
 namespace Solvia.Controllers;
 
@@ -119,6 +120,8 @@ public sealed class VehiclesController : DemoControllerBase
         Guid id, VehicleEditViewModel form, CancellationToken cancellationToken)
     {
         var student = await CurrentStudentAsync(_db, cancellationToken);
+        await using var transaction = _db.Database.CurrentTransaction is null
+            ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
         var vehicle = await FindOwnVehicleAsync(id, student.Id, cancellationToken);
         if (vehicle is null)
         {
@@ -134,19 +137,27 @@ public sealed class VehiclesController : DemoControllerBase
             return View(form);
         }
 
-        if ((vehicle.Plate != plate || vehicle.State != form.State) &&
-            await _db.PermitApplications.AnyAsync(a => a.VehicleId == id, cancellationToken))
+        var make = ResolveMake(form);
+        var model = ResolveModel(form);
+        await _db.Entry(vehicle).ReloadAsync(cancellationToken);
+        try
+        {
+            await VehicleEditGuard.ValidateAsync(_db, vehicle, plate, form.State,
+                make, model, form.Color, cancellationToken);
+        }
+        catch (Exception error) when (error is VehiclePurchaseLockedException or DraftVehicleStateLockedException)
         {
             form.Id = id;
-            form.Error = "This plate is linked to permit applications. Add a new vehicle to use a different plate or state.";
+            form.Error = error.Message;
             return View(form);
         }
         vehicle.Plate = plate;
         vehicle.State = form.State;
         vehicle.Color = form.Color;
-        vehicle.Make = ResolveMake(form);
-        vehicle.Model = ResolveModel(form);
+        vehicle.Make = make;
+        vehicle.Model = model;
         await _db.SaveChangesAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
 
         TempData["StatusMessage"] = $"Vehicle {vehicle.Plate} saved.";
         return RedirectToAction(nameof(Index));
