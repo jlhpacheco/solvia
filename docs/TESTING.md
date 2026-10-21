@@ -1,10 +1,47 @@
 # Testing Solvia
 
-## Current US-model release — October 20, 2026
+<!-- SOLVIA-REPAIR-CHECKPOINT:BEGIN -->
+## Current guide-feedback repair checkpoint — 2026-10-21
 
-The current feature release uses OpenAI's US-developed **`openai/gpt-oss-120b`**, served by Together AI. It includes visit planning and read-only Operations review. See [implementation boundaries](US-MODEL-AND-PLANNER.md) and the [quality-control record](QUALITY-CONTROL.md). Verified application/test source: [`b8bf8d3f480344e50c76e6f01f2336e96902f651`](https://github.com/jlhpacheco/solvia/tree/b8bf8d3f480344e50c76e6f01f2336e96902f651). Historical SHAs below identify what actually ran then.
+Final application source: [`462d87dcb5de7fd24ab388ef826c7208db9e43d8`](https://github.com/jlhpacheco/solvia/tree/462d87dcb5de7fd24ab388ef826c7208db9e43d8). This checkpoint supersedes the earlier b8bf8d3 release while preserving the exact broad-baseline and final-delta verification scopes below.
 
-| Current layer | Result / evidence |
+**Source scope:** final application source is `462d87dcb5de7fd24ab388ef826c7208db9e43d8`. Its full backend suite and a focused browser check passed at that final source (24/24 focused checks in 313.108 seconds). The broad main/tablet browser coverage, actual hosted-AI cases and guide screenshots belong to baseline `9de5bd40f72a43565a56b5c6b6ffdceba08a41db`. They were not all rerun on the later shared-vehicle guard. The production delta is `src/Solvia/Controllers/PermitsController.cs`, `src/Solvia/Controllers/VehiclesController.cs`, `src/Solvia/Services/ApplicationService.cs`, `src/Solvia/Services/VehicleEditGuard.cs`, `src/Solvia/Views/Vehicles/Edit.cshtml`. Final focused checks are additional delta evidence, not extra distinct cases added to the baseline browser total.
+
+| Final layer | Result and retained evidence |
+|---|---|
+| Backend | **603/603 passed**, zero failed/skipped, in **76.503 seconds**. `.playwright-data/navigation-fix/backend/repair-vehicle-lock-full.trx`. |
+| Main controlled browser | **132 distinct cases covered** via a full run plus targeted rerun, in **1668.823 seconds** combined runner time. Final coverage has no unresolved failed/skipped/flaky/global-error cases. `.playwright-data/navigation-fix/browser-final.json`. |
+| Tablet controlled browser | **24 distinct cases covered** via a full run plus targeted rerun, with reported durations retained but not treated as reliable elapsed measurements. `.playwright-data/navigation-fix/tablet-final.json`. Chromium/WebKit emulation is not a physical-device claim. |
+| Smoke subset | **44/44 passed** within the main suite; not additional distinct executions. |
+| Actual hosted AI | **12/12 passed**, zero failed/skipped, in **168.487 seconds**. `.playwright-data/ai-evidence/gpt-oss-repair/results.json`. Observed source `together`, pinned `openai/gpt-oss-120b`. No payment order/capture. |
+| Refreshed guide | **21 pages**; full rendered visual review complete for its baseline source. PDF SHA-256 `e405a9faa5002f413cc1dc6bae2ebc989816410e99fd8a8e2eaf08a80ca39028`. |
+
+The current controlled browser total is **156**: main plus tablet. Live-model cases are separate and are not added to that total. Repeated runs do not create additional distinct cases. These are controlled checks and AI-assisted reviews, not a human usability study.
+
+The main evidence is a distinct-case aggregate, not a clean 132/132 full run: the full run passed 131/132 with 1 overall test timeout(s), with runner duration 1570.596 seconds; the targeted rerun passed 1/1 with runner duration 98.226 seconds, resolving the same failed case identity/identities. Rerun executions are not added to the distinct total. The reviewed trace showed final UI assertions passed and HTTP 200/302 responses; the 30-second overall budget expired before cleanup/AfterHook completion. The trace does not establish a specific cleanup hang. Only that test's overall budget was increased to 60 seconds; assertion waits remain 10 seconds. Application code was unchanged between this layer's baseline full run and targeted rerun. Retained full-run evidence: `.playwright-data/navigation-fix/browser-final.json`; targeted evidence: `.playwright-data/navigation-fix/desktop-targeted.json`.
+
+The tablet evidence is a distinct-case aggregate, not a clean 24/24 full run: the full run passed 22/24 with 2 overall test timeout(s), with reported, unreliable runner duration 17189.952 seconds; the targeted rerun passed 2/2 with runner duration 42.299 seconds, resolving the same failed case identity/identities. Rerun executions are not added to the distinct total. Two 60-second overall timeouts occurred while assertions were still active; those assertions are not counted as passed. Browser and test traces contain event gaps of 13,670,249 ms and 3,000,234 ms. The coincidence supports retaining a timing anomaly; a host interruption or other root cause is not proven. Reported runner durations are preserved but are not reliable elapsed/performance measurements. Application code was unchanged between this layer's baseline full run and targeted rerun. Retained full-run evidence: `.playwright-data/navigation-fix/tablet-final.json`; targeted evidence: `.playwright-data/navigation-fix/.playwright-data/navigation-fix/tablet-targeted.json`.
+
+New regressions cover person-first Home roles, numeric plate/state extraction, retained original wording and manual corrections, repeated Back/read, explicit/no-JavaScript revise, changed wording, date/identity retention, owner/flow isolation, college changes, eligible SDK controls at the total, stale-tab purchase fingerprints, and owner-safe 429 recovery. `CheckoutReviewSnapshot` is a freshness check, not authentication; its transaction-time comparison rejects changed purchase facts before creating a new order. Payment status/order/capture values are excluded from the fingerprint to preserve unchanged retry recovery.
+
+The historical real-provider matrix remains **14 completed captures totaling $945 gross Sandbox funds**, with its free permits and PDF checks. Separate recorded $30 transactions remain outside that matrix. These repairs, controlled callbacks, SDK-display checks and model reruns add no new capture to the matrix.
+
+### Retained candidate failures
+
+The first final-repair candidate executed 582 backend cases: 551 passed, 31 failed and zero skipped. Twenty-seven failures were direct EF Core `InvalidOperationException` results from resetting `IsLoaded` on a populated required navigation; four HTTP 500-versus-409 failures came from that same path. `repair-final.trx` and `first-final-candidate-source.json` retain the failing scope. The corrected implementation reloads the application and resolves/reloads Vehicle and PermitType by their authoritative foreign keys, assigning matching nonnull navigations; it does not reset `IsLoaded` or clear the tracker. A warm foreign-key-change regression was added.
+
+The next backend run executed 583 cases: 582 passed, one failed and zero skipped. That remaining test expected a later `DbUpdateConcurrencyException`; the authoritative reload correctly rejected a changed $40 saved quote against the $30 catalog with `CheckoutPricingException` before any provider call. The test contract was corrected and strengthened to require zero Create/Get/Capture calls, an unchanged 4,000-cent database quote and no order ID. No production change was made for this expectation correction. The intermediate `repair-final-fixed.trx` remains a failed historical run. Only the final passing proof above counts as the current release result; these attempts are neither clean passes nor additional distinct cases. After that expectation correction, the broad verification baseline passed 583/583 backend cases at `9de5bd40f72a43565a56b5c6b6ffdceba08a41db`. A later shared-vehicle guard has its own final-source full backend and focused browser results; it does not relabel the baseline broad UI/model run.
+
+The first 24-case guard browser run passed 22 and failed two garage-check assertions (desktop and phone). The test used page reload after an invalid Edit POST, which replayed the rejected red description; the application had correctly retained that invalid form. The test was corrected to request the garage index and reopen Edit with GET before asserting the saved blue description. Production did not change for this test correction. The complete same 24-case scope was rerun cleanly; its result is separate from the baseline browser aggregate. The original vehicle-guard-browser.json remains retained.
+
+Sanitized checkpoint: [review/Solvia-repair-verification.json](review/Solvia-repair-verification.json). Repair mapping: [review/USER-REVIEW-2026-10-20.md](review/USER-REVIEW-2026-10-20.md). The dated video predates these UI changes; refreshed guide proof does not establish a public YouTube URL, clean hosted judge access, interactive wallet approval or final submission.
+<!-- SOLVIA-REPAIR-CHECKPOINT:END -->
+
+## Historical US-model release — October 20, 2026 (b8bf8d3 checkpoint)
+
+At this historical checkpoint, the feature release used OpenAI's US-developed **`openai/gpt-oss-120b`**, served by Together AI. It includes visit planning and read-only Operations review. See [implementation boundaries](US-MODEL-AND-PLANNER.md) and the [quality-control record](QUALITY-CONTROL.md). Verified application/test source: [`b8bf8d3f480344e50c76e6f01f2336e96902f651`](https://github.com/jlhpacheco/solvia/tree/b8bf8d3f480344e50c76e6f01f2336e96902f651). Historical SHAs below identify what actually ran then.
+
+| Historical layer | Result / evidence |
 |---|---|
 | Backend | **517/517 passed**, zero failed/skipped, **13 seconds**. `.playwright-data/backend-validation/gptoss-release-verified.trx`; separate `bin/UsModelTests` output. The first restricted-sandbox launch ran no tests because testhost IPC timed out; `gptoss-sandbox-ipc-aborted.trx` is retained. |
 | Actual hosted AI | **12/12 distinct live cases** passed in **26.4 seconds**: eight vehicle + four schedule. All observed sources were `together`; both adapters require returned `response.model == openai/gpt-oss-120b` before accepting validated final content. No PayPal orders/payments. Sanitized local evidence: `outputs/Solvia-US-model-verification.json`. |
@@ -16,7 +53,7 @@ The current 2,048-token completion cap covers reasoning and final content; reaso
 
 The first expanded tablet run passed 23/24; a trace proved a deferred-checkout-script/mock double-load harness race. The harness now waits for the original adapter and checks one render/container; production checkout code did not change for that correction. A later attempt collected zero tests because a blank model configuration was rejected by strict startup validation; the controlled test configuration was corrected. Neither attempt is described as a clean pass.
 
-Current reports: `.playwright-data/main-final-us-report/index.html`, `.playwright-data/main-final-us-results.json`, and `.playwright-data/tablet-report/index.html`; parsed local summary `work/agent-usability/final-us-browser-summary.json`. The first tablet report/trace and startup issue remain separately retained under `work/agent-usability/tablet-first-failure-20261020`. Passing these controlled SDK cases does not add real payment or live-inference evidence.
+Historical reports: `.playwright-data/main-final-us-report/index.html`, `.playwright-data/main-final-us-results.json`, and `.playwright-data/tablet-report/index.html`; parsed local summary `work/agent-usability/final-us-browser-summary.json`. The first tablet report/trace and startup issue remain separately retained under `work/agent-usability/tablet-first-failure-20261020`. Passing these controlled SDK cases does not add real payment or live-inference evidence.
 
 ## Historical browser and backend checkpoints — prior source/model
 

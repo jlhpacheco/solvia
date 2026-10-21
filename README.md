@@ -309,19 +309,15 @@ See [the provider results](docs/SANDBOX-RESULTS-2026-10-19.md).
 Two further real-provider checks verified unapproved-order and refused-card
 handling. Two actual remote-SDK/no-JavaScript checks created no orders.
 
-Current application/test source **`b8bf8d3`** passed **517/517 backend checks**
-in 13 seconds, zero failures/skips. The full desktop/phone TypeScript suite
-passed **108/108** in 5.2 minutes, including **36 smoke executions**; a separate
-tablet suite passed **24/24** in 2.0 minutes across Chromium/WebKit portrait
-and landscape. These total **132 controlled checks**, separate from the
-**12 actual GPT-OSS live cases**. TypeScript typechecking includes tablet tests.
-These are emulated devices, not physical iPad/Safari certification.
+<!-- SOLVIA-CURRENT-VERIFICATION:BEGIN -->
+Final application source [`462d87dcb5de7fd24ab388ef826c7208db9e43d8`](https://github.com/jlhpacheco/solvia/tree/462d87dcb5de7fd24ab388ef826c7208db9e43d8) passed **603/603 backend checks** and **24/24 focused desktop/phone checks** for the follow-up shared-vehicle history guard, with zero failed/skipped cases.
 
-Earlier 390-backend/100-browser and Qwen live-model checkpoints remain
-historical in [the test record](docs/TESTING.md). Initial failures, their
-corrections and exact suite boundaries are retained. Paid does not by itself
-mean currently valid. Process-local AI request/concurrency limits are not a
-provider billing cap or production authentication.
+The broader browser/model/guide baseline is [`9de5bd40f72a43565a56b5c6b6ffdceba08a41db`](https://github.com/jlhpacheco/solvia/tree/9de5bd40f72a43565a56b5c6b6ffdceba08a41db). It has **156 distinct controlled browser cases**: 132 desktop/phone, including 44 smoke executions, plus 24 Chromium/WebKit tablet emulations. Coverage is an explicit aggregate: the main full run passed 131/132 and its targeted rerun passed 1/1; tablet passed 22/24 then 2/2 on the same baseline. Reruns and final focused checks do not add to that distinct baseline total. Original timeouts and test-authoring corrections remain documented; the tablet run's anomalous reported timing is not used as performance evidence. Emulation is not physical iPad or Safari-device certification.
+
+A separate baseline live suite passed **12/12 actual GPT-OSS application cases** (eight vehicle and four schedule), with every observed source `together`. The adapters enforce the returned `openai/gpt-oss-120b` identity before accepting validated final content. The broad browser and live suites were not all rerun on the later guard. No older latency result is presented as a new measurement, and these repairs add no PayPal capture to the historical matrix.
+
+Earlier model and implementation checkpoints remain historical in [the test record](docs/TESTING.md). Paid does not by itself mean currently valid. Process-local inference limits are neither a provider billing cap nor production authentication.
+<!-- SOLVIA-CURRENT-VERIFICATION:END -->
 
 A separate historical $30 term purchase has order `5CV7753505063622B`, capture
 `9AP215253S500404B`. Provider lookup/retries confirmed one capture, followed by

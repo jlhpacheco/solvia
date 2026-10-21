@@ -1,20 +1,26 @@
-# Solvia current US-model review materials
+# Solvia review materials
 
-Updated October 20, 2026. App/test source: b8bf8d3f480344e50c76e6f01f2336e96902f651.
+Updated 2026-10-21. Final application source: [`462d87dcb5de7fd24ab388ef826c7208db9e43d8`](https://github.com/jlhpacheco/solvia/tree/462d87dcb5de7fd24ab388ef826c7208db9e43d8).
 
-Runtime: OpenAI's US-developed GPT-OSS 120B through Together AI. Model origin does not establish US-only processing. This uses existing hosted inference, not fine-tuning or an OpenAI API key.
+Runtime: OpenAI's US-developed **GPT-OSS 120B**, served through Together AI. Model origin does not establish US-only processing. This uses existing hosted inference, not training, fine-tuning or an OpenAI API key.
 
-Current evidence: 517 backend checks, 132 controlled TypeScript browser checks (108 desktop/phone including 36 smoke executions, plus 24 tablet emulations), and 12 separate actual GPT-OSS cases. Full scope, retained failures and remaining gates are in the quality-control PDF and versioned test record.
+Current verification: **603 final-source backend checks**, **156 baseline controlled TypeScript browser cases** (132 main, including 44 smoke executions, plus 24 tablet emulations), and **12 separate baseline actual GPT-OSS cases**. Full scope, retained failures and remaining gates are in [TESTING.md](../TESTING.md) and [QUALITY-CONTROL.md](../QUALITY-CONTROL.md).
 
-The 2:40 video shows freshly recorded GPT-OSS schedule/vehicle inference and editable review. The payment segment is explicitly a separate recorded $30 term purchase, not the planner's $1 first-day pass. Official Sandbox test-card approval uses REST before Solvia capture; interactive wallet login is not demonstrated. Natural synthetic narration retains its original tempo. Sampled frames and local transcription were checked; continuous listening/motion review remains separate.
+**Source scope:** final application source is `462d87dcb5de7fd24ab388ef826c7208db9e43d8`. Its full backend suite and a focused browser check passed at that final source (24/24 focused checks in 313.108 seconds). The broad main/tablet browser coverage, actual hosted-AI cases and guide screenshots belong to baseline `9de5bd40f72a43565a56b5c6b6ffdceba08a41db`. They were not all rerun on the later shared-vehicle guard. The production delta is `src/Solvia/Controllers/PermitsController.cs`, `src/Solvia/Controllers/VehiclesController.cs`, `src/Solvia/Services/ApplicationService.cs`, `src/Solvia/Services/VehicleEditGuard.cs`, `src/Solvia/Views/Vehicles/Edit.cshtml`. Final focused checks are additional delta evidence, not extra distinct cases added to the baseline browser total.
 
-The 21-page guide refreshes current model-disclosure input screens while preserving clearly identified earlier verified workflow/payment examples. All people and vehicles are fictional; Sandbox funds are not college revenue or actual parking authorization. Agent reviews are automated diagnostics, not human impact evidence.
+The main evidence is a distinct-case aggregate, not a clean 132/132 full run: the full run passed 131/132 with 1 overall test timeout(s), with runner duration 1570.596 seconds; the targeted rerun passed 1/1 with runner duration 98.226 seconds, resolving the same failed case identity/identities. Rerun executions are not added to the distinct total. The reviewed trace showed final UI assertions passed and HTTP 200/302 responses; the 30-second overall budget expired before cleanup/AfterHook completion. The trace does not establish a specific cleanup hang. Only that test's overall budget was increased to 60 seconds; assertion waits remain 10 seconds. Application code was unchanged between this layer's baseline full run and targeted rerun. Retained full-run evidence: `.playwright-data/navigation-fix/browser-final.json`; targeted evidence: `.playwright-data/navigation-fix/desktop-targeted.json`.
 
-Source/setup: https://github.com/jlhpacheco/solvia#run-it-locally
-Current model/planner: https://github.com/jlhpacheco/solvia/blob/main/docs/US-MODEL-AND-PLANNER.md
-Tests: https://github.com/jlhpacheco/solvia/blob/main/docs/TESTING.md
-Quality control: https://github.com/jlhpacheco/solvia/blob/main/docs/QUALITY-CONTROL.md
-Video: https://github.com/jlhpacheco/solvia/blob/main/docs/review/Solvia-demo.mp4
-Guide: https://github.com/jlhpacheco/solvia/blob/main/docs/review/Solvia-step-by-step-guide.pdf
+The tablet evidence is a distinct-case aggregate, not a clean 24/24 full run: the full run passed 22/24 with 2 overall test timeout(s), with reported, unreliable runner duration 17189.952 seconds; the targeted rerun passed 2/2 with runner duration 42.299 seconds, resolving the same failed case identity/identities. Rerun executions are not added to the distinct total. Two 60-second overall timeouts occurred while assertions were still active; those assertions are not counted as passed. Browser and test traces contain event gaps of 13,670,249 ms and 3,000,234 ms. The coincidence supports retaining a timing anomaly; a host interruption or other root cause is not proven. Reported runner durations are preserved but are not reliable elapsed/performance measurements. Application code was unchanged between this layer's baseline full run and targeted rerun. Retained full-run evidence: `.playwright-data/navigation-fix/tablet-final.json`; targeted evidence: `.playwright-data/navigation-fix/.playwright-data/navigation-fix/tablet-targeted.json`.
 
-Public YouTube publication, clean free full-path judge access and participant eligibility/rights answers remain submission gates. No final submission or award is claimed. No private keys, raw card details, private account credentials or real student data are included.
+The [guide-feedback repair record](USER-REVIEW-2026-10-20.md) maps the annotated 21-page walkthrough to verified changes. The refreshed **21-page guide** was captured from the stated baseline UI and every rendered page was visually reviewed. New unpaid applications and separate historical paid/exempt examples are explicitly labeled. Machine-readable, allowlisted proof is in [Solvia-repair-verification.json](Solvia-repair-verification.json).
+
+The existing **2:40 video** is dated media from the earlier feature source. It shows actual GPT-OSS schedule/vehicle inference and an explicitly separate recorded $30 term purchase, rather than the planner's $1 first-day pass. Official Sandbox test-card approval used REST before Solvia capture; interactive wallet login is not demonstrated. Natural synthetic narration retains its original tempo. Sampled frames and local transcription were checked; continuous listening/motion review remains separate. Later UI repairs are evidenced by the refreshed guide and tests, not retroactively by that video.
+
+All people and vehicles are fictional. Sandbox funds are not college revenue or actual parking authorization. Agent reviews are automated diagnostics, not human impact evidence, adoption or measured savings. The historical matrix remains 14 captures/$945 gross Sandbox funds; separate recorded $30 cases remain separate.
+
+- [Source and local setup](https://github.com/jlhpacheco/solvia#run-it-locally)
+- [Current model/planner](../US-MODEL-AND-PLANNER.md)
+- [Captioned video](Solvia-demo.mp4)
+- [Refreshed step-by-step guide](Solvia-step-by-step-guide.pdf)
+
+Public YouTube publication, clean free full-path judge access and participant eligibility/rights answers remain submission gates. No final submission, production authorization or award is claimed. No private keys, card details, account credentials, original handwriting or real student data are included.
