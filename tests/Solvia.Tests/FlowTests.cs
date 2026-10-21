@@ -365,9 +365,13 @@ public sealed class FlowTests
         var applicationId = Guid.NewGuid();
         var text = new string('a', characters);
 
-        var result = Assert.IsType<ViewResult>(await controller.Understand(
+        var flowId = await BeginFlowAsync(controller, "Fresno City College", PermitTypeCode.Daily, TermKind.Spring);
+        var response = await controller.Understand(
             "Fresno City College", text, PermitTypeCode.Daily, TermKind.Spring,
-            applicationId, default));
+            applicationId, default, flowId: flowId);
+        var result = response is RedirectToActionResult redirect
+            ? Assert.IsType<ViewResult>(await controller.Understood((Guid)redirect.RouteValues!["flowId"]!, default))
+            : Assert.IsType<ViewResult>(response);
 
         Assert.Equal(expectedView, result.ViewName);
         Assert.Equal(expectedCalls, extractor.Calls);
@@ -405,7 +409,7 @@ public sealed class FlowTests
             Term = TermKind.Spring,
         };
 
-        var result = Assert.IsType<ViewResult>(await controller.Review(draft, default));
+        var result = Assert.IsType<ViewResult>(await ReviewDraftAsync(controller, draft));
 
         Assert.Equal("Questions", result.ViewName);
         var model = Assert.IsType<QuestionsViewModel>(result.Model);
@@ -433,7 +437,7 @@ public sealed class FlowTests
             CarModel = make ? "Civic" : new string('m', 51), CarColor = "Blue", CarState = "CA",
         };
 
-        var result = Assert.IsType<ViewResult>(await controller.Review(draft, default));
+        var result = Assert.IsType<ViewResult>(await ReviewDraftAsync(controller, draft));
 
         Assert.Equal("Understood", result.ViewName);
         Assert.Same(draft, result.Model);
@@ -463,7 +467,7 @@ public sealed class FlowTests
             CarMake = "Honda", CarModel = "Civic", CarState = state, CarColor = color,
         };
 
-        var result = Assert.IsType<ViewResult>(await controller.Review(draft, default));
+        var result = Assert.IsType<ViewResult>(await ReviewDraftAsync(controller, draft));
 
         Assert.Equal("Understood", result.ViewName);
         Assert.NotEmpty(controller.ModelState[invalidField]!.Errors);
@@ -504,7 +508,7 @@ public sealed class FlowTests
             College = "Fresno City College", Plate = vehicle.Plate,
             CarMake = "Honda", CarModel = "Civic", CarState = "CA", CarColor = "Blue",
         };
-        Assert.IsType<RedirectResult>(await firstController.Review(first, default));
+        Assert.IsType<RedirectResult>(await ReviewDraftAsync(firstController, first));
         var older = Assert.Single(w.Db.PermitApplications);
         var olderReceipt = older.ReceiptNumber;
         Assert.False(string.IsNullOrWhiteSpace(olderReceipt));
@@ -517,7 +521,7 @@ public sealed class FlowTests
             CarModel = "Changed model", CarState = "NV", CarColor = "Red",
         };
 
-        var held = Assert.IsType<ViewResult>(await controller.Review(differentState, default));
+        var held = Assert.IsType<ViewResult>(await ReviewDraftAsync(controller, differentState));
 
         Assert.Equal("Understood", held.ViewName);
         Assert.Contains(controller.ModelState[nameof(differentState.CarState)]!.Errors,
@@ -537,6 +541,128 @@ public sealed class FlowTests
         Assert.Equal("EMP1234 (CA)", receipt.PlateLine);
     }
 
+    private static async Task<Guid> BeginFlowAsync(PermitsController controller, string college,
+        PermitTypeCode type = PermitTypeCode.Term, TermKind term = TermKind.Fall, DateOnly? start = null)
+    {
+        var response = Assert.IsType<RedirectToActionResult>(await controller.Questions(college, type, term, start));
+        return Assert.IsType<Guid>(response.RouteValues!["flowId"]);
+    }
+
+    private static async Task<IActionResult> ReviewDraftAsync(PermitsController controller, PermitDraftViewModel draft)
+    {
+        if (draft.FlowId == Guid.Empty)
+            draft.FlowId = await BeginFlowAsync(controller, draft.College, draft.PermitType, draft.Term, draft.StartDate);
+        return await controller.Review(draft, default);
+    }
+
+    [Fact]
+    public async Task AiDoor_ReviseLoop_KeepsSentenceCorrectionsChoicesDateAndOneApplication()
+    {
+        var w = NewWorld(); using var connection = w.Connection; using var db = w.Db;
+        var extractor = new CountingExtractor();
+        var controller = NewController(w, extractor: extractor);
+        const string sentence = "white Volvo 760, license plate 234221";
+        var draft = await UnderstandAsync(controller, carText: sentence, type: PermitTypeCode.Daily, term: TermKind.Summer);
+        draft.Plate = "REV1234"; draft.CarMake = "Volvo"; draft.CarModel = "740";
+        draft.CarColor = "White"; draft.CarState = "NV";
+        draft.StartDate = DateOnly.FromDateTime(DateTime.Now).AddDays(4);
+        Assert.IsType<RedirectToActionResult>(await controller.Review(draft, default));
+        var application = Assert.Single(db.PermitApplications);
+        var review = Assert.IsType<ReviewViewModel>(Assert.IsType<ViewResult>(await controller.Review(application.Id, default)).Model);
+        Assert.Equal(sentence, review.Draft.CarText);
+        Assert.Equal(draft.StartDate, review.Draft.StartDate);
+        Assert.Equal("740", review.Draft.CarModel);
+        Assert.IsType<RedirectToActionResult>(await controller.QuestionsBack(review.Draft));
+        var questions = Assert.IsType<QuestionsViewModel>(Assert.IsType<ViewResult>(await controller.Questions(
+            review.College, flowId: draft.FlowId)).Model);
+        Assert.Equal(sentence, questions.CarText);
+        Assert.Equal(PermitTypeCode.Daily, questions.PermitType);
+        Assert.Equal(TermKind.Summer, questions.Term);
+        Assert.Equal(draft.StartDate, questions.StartDate);
+        Assert.IsType<RedirectToActionResult>(await controller.Understand(questions.College, questions.CarText,
+            questions.PermitType, questions.Term, questions.ApplicationId, default, questions.StartDate, questions.FlowId));
+        var restored = Assert.IsType<PermitDraftViewModel>(Assert.IsType<ViewResult>(await controller.Understood(draft.FlowId, default)).Model);
+        Assert.Equal("740", restored.CarModel);
+        Assert.Equal("NV", restored.CarState);
+        Assert.Equal("White", restored.CarColor);
+        Assert.Equal(application.Id, restored.ApplicationId);
+        Assert.Equal(1, extractor.Calls); // GET/unchanged re-review never replays inference.
+        Assert.IsType<RedirectToActionResult>(await controller.Review(restored, default));
+        Assert.Single(db.PermitApplications);
+        Assert.Equal(100, application.PriceCents);
+        Assert.Null(application.PayPalOrderId);
+    }
+
+    [Fact]
+    public async Task AiDoor_EditedSentenceRunsReaderAgain_AndIgnoresOldTabCorrections()
+    {
+        var w = NewWorld(); using var connection = w.Connection; using var db = w.Db;
+        var extractor = new CountingExtractor();
+        var controller = NewController(w, extractor: extractor);
+        var draft = await UnderstandAsync(controller, carText: "white Volvo 760, plate REV1234");
+        var revision = new PermitDraftViewModel { CarText = draft.CarText, CarModel = "740", Plate = "REV1234" };
+        await controller.Understand(draft.College, "blue Honda Civic, plate NEW1234", draft.PermitType,
+            draft.Term, null, default, flowId: draft.FlowId, revision: revision);
+        var fresh = Assert.IsType<PermitDraftViewModel>(Assert.IsType<ViewResult>(await controller.Understood(draft.FlowId, default)).Model);
+        Assert.Equal(2, extractor.Calls);
+        Assert.Equal("Civic", fresh.CarModel);
+        Assert.Equal("blue Honda Civic, plate NEW1234", fresh.CarText);
+        Assert.Empty(db.PermitApplications);
+    }
+
+    [Fact]
+    public async Task AiDoor_StalePersonAndMissingFlow_CannotPersistOrInvokeReader()
+    {
+        var w = NewWorld(); using var connection = w.Connection; using var db = w.Db;
+        var extractor = new CountingExtractor();
+        var maria = NewController(w, extractor: extractor);
+        var draft = await UnderstandAsync(maria, carText: "blue Honda Civic, plate REV1234");
+        var pat = NewController(w, "pat", extractor);
+        pat.TempData = maria.TempData; // Same protected browser cookie; different selected person.
+        Assert.Equal("Ask", Assert.IsType<RedirectToActionResult>(await pat.Review(draft, default)).ActionName);
+        Assert.Equal("Ask", Assert.IsType<RedirectToActionResult>(await pat.Understand(
+            draft.College, draft.CarText, draft.PermitType, draft.Term, null, default, flowId: draft.FlowId)).ActionName);
+        draft.FlowId = Guid.Empty;
+        Assert.Equal("Ask", Assert.IsType<RedirectToActionResult>(await maria.Review(draft, default)).ActionName);
+        Assert.Equal(1, extractor.Calls);
+        Assert.Empty(db.Vehicles); Assert.Empty(db.PermitApplications);
+    }
+
+    [Fact]
+    public async Task AiDoor_ForeignApplicationId_IsNotClonedIntoCurrentPerson()
+    {
+        var w = NewWorld(); using var connection = w.Connection; using var db = w.Db;
+        var maria = NewController(w);
+        var draft = await UnderstandAsync(maria, carText: "blue Honda Civic, plate REV1234");
+        await maria.Review(draft, default);
+        var original = Assert.Single(db.PermitApplications);
+        var pat = NewController(w, "pat");
+        var patDraft = await UnderstandAsync(pat, carText: "red Honda Civic, plate PAT1234");
+        patDraft.ApplicationId = original.Id;
+        Assert.IsType<NotFoundResult>(await pat.Review(patDraft, default));
+        Assert.Single(db.PermitApplications);
+        Assert.DoesNotContain(db.Vehicles, vehicle => vehicle.StudentId == "pat");
+    }
+
+    [Fact]
+    public async Task AiDoor_StartedOrder_ReturnsToCheckoutBeforeChangingSharedVehicle()
+    {
+        var w = NewWorld(); using var connection = w.Connection; using var db = w.Db;
+        var controller = NewController(w);
+        var draft = await UnderstandAsync(controller, carText: "blue Honda Civic, plate REV1234");
+        await controller.Review(draft, default);
+        var app = Assert.Single(db.PermitApplications);
+        app.PayPalOrderId = "SANDBOX-SAVED-ORDER";
+        await db.SaveChangesAsync();
+        draft.CarModel = "Changed"; draft.PermitType = PermitTypeCode.Daily;
+        var result = Assert.IsType<RedirectResult>(await controller.Review(draft, default));
+        Assert.Equal($"/Checkout/{app.Id}", result.Url);
+        Assert.Equal("Civic", app.Vehicle!.Model);
+        Assert.Equal(3000, app.PriceCents);
+        Assert.Equal("SANDBOX-SAVED-ORDER", app.PayPalOrderId);
+        Assert.Single(db.PermitApplications);
+    }
+
     private static async Task<PermitDraftViewModel> UnderstandAsync(
         PermitsController controller,
         string college = "Fresno City College",
@@ -544,9 +670,11 @@ public sealed class FlowTests
         PermitTypeCode type = PermitTypeCode.Term,
         TermKind term = TermKind.Fall)
     {
-        var result = await controller.Understand(
-            college, carText, type, term, applicationId: null, default);
-        var view = Assert.IsType<ViewResult>(result);
+        var flowId = await BeginFlowAsync(controller, college, type, term);
+        var result = Assert.IsType<RedirectToActionResult>(await controller.Understand(
+            college, carText, type, term, applicationId: null, default, flowId: flowId));
+        Assert.Equal("Understood", result.ActionName);
+        var view = Assert.IsType<ViewResult>(await controller.Understood(flowId, default));
         Assert.Equal("Understood", view.ViewName);
         return Assert.IsType<PermitDraftViewModel>(view.Model);
     }
@@ -565,7 +693,7 @@ public sealed class FlowTests
         Assert.Equal("Honda", draft.CarMake);
         Assert.Equal("fallback", draft.Source);
 
-        var held = await controller.Review(draft, default);
+        var held = await ReviewDraftAsync(controller, draft);
 
         var view = Assert.IsType<ViewResult>(held);
         Assert.Equal("Understood", view.ViewName);          // stays at the gate
@@ -584,7 +712,7 @@ public sealed class FlowTests
         var draft = await UnderstandAsync(controller);
         draft.Plate = "8XYZ123";                            // typed at the gate
 
-        var posted = await controller.Review(draft, default);
+        var posted = await ReviewDraftAsync(controller, draft);
 
         var toReview = Assert.IsType<RedirectToActionResult>(posted);
         Assert.Equal("Review", toReview.ActionName);
@@ -623,7 +751,7 @@ public sealed class FlowTests
             carText: "white Toyota Camry, plate 9ABC123");
         Assert.Equal("9ABC123", draft.Plate);               // the reader caught it
 
-        var posted = await controller.Review(draft, default);
+        var posted = await ReviewDraftAsync(controller, draft);
 
         var redirect = Assert.IsType<RedirectResult>(posted);
         var app = w.Db.PermitApplications.Single();
@@ -645,7 +773,7 @@ public sealed class FlowTests
             type: PermitTypeCode.Daily);
         draft.Plate ??= "8XYZ123";
 
-        var posted = await controller.Review(draft, default);
+        var posted = await ReviewDraftAsync(controller, draft);
         Assert.IsType<RedirectToActionResult>(posted);
         var app = w.Db.PermitApplications.Single();
 

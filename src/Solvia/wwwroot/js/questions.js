@@ -26,6 +26,7 @@
     syncTermOptions();
 
     form.addEventListener('submit', function (event) {
+        if (event.submitter && event.submitter.id !== 'read-answers') return;
         if (button.disabled) {
             event.preventDefault();
             return;

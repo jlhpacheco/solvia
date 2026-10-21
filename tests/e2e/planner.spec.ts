@@ -1,6 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 
+test.describe.configure({ timeout: 60_000 });
+
 function planWindow() {
   const now = new Date();
   const year = now.getFullYear();
@@ -134,4 +136,77 @@ test('future issued permit retains its PDF without claiming current validity', a
   await expect(card).toContainText('Issued · inactive');
   await expect(card.getByText('Live', { exact: true })).toHaveCount(0);
   await expect(card.getByRole('link', { name: 'Permit (PDF)', exact: true })).toBeVisible();
+});
+
+test('@smoke blank optional description permits reading and manual comparison', async ({ page }) => {
+  await configure(page);
+  await page.getByLabel('Describe your visits', { exact: false }).fill('   ');
+  await page.getByLabel('Number of weeks', { exact: true }).fill('4');
+  await page.getByLabel('Tuesday', { exact: true }).uncheck();
+  await page.getByLabel('Wednesday', { exact: true }).check();
+  await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByTestId('schedule-reader')).toHaveAttribute('data-source', 'manual');
+  await expect(page.getByTestId('schedule-reader')).toContainText('No description is needed');
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('4');
+  await expect(page.getByLabel('Wednesday', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('Tuesday', { exact: true })).not.toBeChecked();
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await expect(page.getByTestId('plan-result')).toContainText('8 visits. Two ways to plan.');
+  await expect(page.getByTestId('daily-total')).toHaveText('$8.00');
+});
+
+test('returning from permit questions restores the full confirmed planner draft', async ({ page }) => {
+  const { iso } = await configure(page);
+  await page.getByLabel('Describe your visits', { exact: false }).fill('Tuesdays and Thursdays for four weeks');
+  await page.getByLabel('Number of weeks', { exact: true }).fill('4');
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Three quick questions', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Change the plan', exact: true }).click();
+  await expect(page.getByLabel('Your college', { exact: true })).toHaveValue('Fresno City College');
+  await expect(page.getByLabel('Describe your visits', { exact: false })).toHaveValue('Tuesdays and Thursdays for four weeks');
+  await expect(page.getByLabel('Start of your planning period')).toHaveValue(iso);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('4');
+  await expect(page.getByLabel('Tuesday', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('Thursday', { exact: true })).toBeChecked();
+});
+
+test('browser Back preserves unsent planner edits and invalidates the old comparison', async ({ page }) => {
+  await configure(page);
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await page.getByLabel('Number of weeks', { exact: true }).fill('5');
+  await page.getByLabel('Describe your visits', { exact: false }).fill('My revised fictional visits');
+  await page.getByLabel('Monday', { exact: true }).check();
+  await expect(page.getByTestId('plan-result')).toBeHidden();
+  await expect(page.getByRole('status')).toContainText('Your schedule changed');
+  await page.getByRole('link', { name: 'My permits', exact: true }).first().click();
+  await page.goBack();
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('5');
+  await expect(page.getByLabel('Describe your visits', { exact: false })).toHaveValue('My revised fictional visits');
+  await expect(page.getByLabel('Monday', { exact: true })).toBeChecked();
+  await expect(page.getByTestId('plan-result')).toBeHidden();
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await expect(page.getByTestId('plan-result')).toContainText('15 visits. Two ways to plan.');
+});
+
+test('without JavaScript blank reading is optional and changed comparisons require confirmation', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
+  try {
+    const page = await context.newPage();
+    await configure(page);
+    await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByTestId('schedule-reader')).toContainText('No description is needed');
+    await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+    await page.getByLabel('Number of weeks', { exact: true }).fill('5');
+    await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Your plan changed');
+    await expect(page.getByTestId('plan-result')).toContainText('10 visits. Two ways to plan.');
+    await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('5');
+    await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Three quick questions', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Change the plan', exact: true }).click();
+    await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('5');
+  } finally { await context.close(); }
 });

@@ -26,11 +26,25 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
 
     private async Task<HttpResponseMessage> Post(string route, IEnumerable<KeyValuePair<string, string>> fields, string tokenPage = "/Planner")
     {
-        var html = await _client.GetStringAsync(tokenPage);
+        var page = await _client.GetAsync(tokenPage);
+        for (var attempt = 0; page.StatusCode == HttpStatusCode.Redirect && attempt < 5; attempt++)
+            page = await _client.GetAsync(page.Headers.Location!);
+        page.EnsureSuccessStatusCode();
+        var html = await page.Content.ReadAsStringAsync();
         var match = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"");
         Assert.True(match.Success);
-        return await _client.PostAsync(route, new FormUrlEncodedContent(fields.Append(
+        var values = fields.ToList();
+        var flow = Regex.Match(html, "name=\"flowId\"[^>]*value=\"([^\"]+)\"", RegexOptions.IgnoreCase);
+        if (flow.Success && !values.Any(field => field.Key.Equals("FlowId", StringComparison.OrdinalIgnoreCase)))
+            values.Add(new("FlowId", flow.Groups[1].Value));
+        var response = await _client.PostAsync(route, new FormUrlEncodedContent(values.Append(
+            new KeyValuePair<string, string>("draftOwner", Regex.Match(html, "data-person=\"([^\"]+)\"").Groups[1].Value)).Append(
             new KeyValuePair<string, string>("__RequestVerificationToken", WebUtility.HtmlDecode(match.Groups[1].Value)))));
+        if (route is "/Permits/Understand" or "/Permits/Questions" or "/Planner/Read" or "/Planner/Compare" ||
+            (route == "/Planner/Continue" && response.Headers.Location?.OriginalString.StartsWith("/Planner", StringComparison.Ordinal) == true))
+            for (var attempt = 0; response.StatusCode == HttpStatusCode.Redirect && attempt < 5; attempt++)
+                response = await _client.GetAsync(response.Headers.Location!);
+        return response;
     }
 
     private static List<KeyValuePair<string, string>> PlanFields() =>
@@ -38,6 +52,16 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
         new("Campus", "Fresno City College"), new("StartDate", "2026-10-20"),
         new("Weeks", "3"), new("Weekdays", "Tuesday"), new("Weekdays", "Thursday"), new("Term", "Fall")
     ];
+
+    private async Task<HttpResponseMessage> CompareAndContinue(List<KeyValuePair<string, string>> fields)
+    {
+        var comparison = await Post("/Planner/Compare", fields);
+        var html = await comparison.Content.ReadAsStringAsync();
+        var key = Regex.Match(html, "name=\"comparedPlan\" value=\"([^\"]+)\"");
+        Assert.True(key.Success);
+        fields.Add(new("comparedPlan", key.Groups[1].Value));
+        return await Post("/Planner/Continue", fields);
+    }
 
     [Fact]
     public async Task Comparison_ExplainsSixVisitsAndSingleDayContinuationWithoutCreatingApplication()
@@ -70,7 +94,7 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
     public async Task ChoiceCarriesConfirmedDateThroughVehicleReadFixItAndSavedSingleDay()
     {
         var fields = PlanFields(); fields.Add(new("choice", "Daily"));
-        var continueResponse = await Post("/Planner/Continue", fields);
+        var continueResponse = await CompareAndContinue(fields);
         Assert.Equal(HttpStatusCode.Redirect, continueResponse.StatusCode);
         var target = continueResponse.Headers.Location!.OriginalString;
         Assert.Contains("startDate=2026-10-20", target);
@@ -82,13 +106,15 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
         };
         var read = await Post("/Permits/Understand", vehicleFields, target);
         Assert.Equal(HttpStatusCode.OK, read.StatusCode);
-        Assert.Contains("name=\"StartDate\" value=\"2026-10-20\"", await read.Content.ReadAsStringAsync());
+        var readHtml = await read.Content.ReadAsStringAsync();
+        Assert.Contains("name=\"StartDate\" value=\"2026-10-20\"", readHtml);
         var reviewFields = new Dictionary<string, string>
         {
             ["College"] = "Fresno City College", ["Plate"] = "PLAN432", ["CarState"] = "CA",
             ["CarMake"] = "Honda", ["CarModel"] = "Civic", ["CarColor"] = "Blue",
             ["PermitType"] = "Daily", ["Term"] = "Fall", ["StartDate"] = "2026-10-20"
         };
+        reviewFields["FlowId"] = Regex.Match(readHtml, "name=\"FlowId\"[^>]*value=\"([^\"]+)\"", RegexOptions.IgnoreCase).Groups[1].Value;
         var fix = await Post("/Permits/Questions", reviewFields);
         Assert.Contains("name=\"startDate\" value=\"2026-10-20\"", await fix.Content.ReadAsStringAsync());
         var review = await Post("/Permits/Review", reviewFields);
@@ -106,7 +132,7 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
     public async Task InvalidPlanAndForgedChoiceStayOnPlanner()
     {
         var fields = PlanFields(); fields.Add(new("choice", "Employee"));
-        var response = await Post("/Planner/Continue", fields);
+        var response = await CompareAndContinue(fields);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("Choose an available permit option", await response.Content.ReadAsStringAsync());
         fields = PlanFields(); fields.RemoveAll(x => x.Key == "Weekdays");
@@ -123,7 +149,7 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
             ["College"] = "Fresno City College", ["Plate"] = "BADPLAN1", ["CarState"] = "CA",
             ["PermitType"] = "Term", ["Term"] = "Fall", ["StartDate"] = "2026-07-01"
         };
-        var response = await Post("/Permits/Review", fields);
+        var response = await Post("/Permits/Review", fields, "/Permits/Questions?college=Fresno%20City%20College");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("planned start must fall inside", await response.Content.ReadAsStringAsync());
         using var scope = _factory.Services.CreateScope();

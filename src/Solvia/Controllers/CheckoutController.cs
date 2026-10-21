@@ -86,7 +86,7 @@ public sealed class CheckoutController : DemoControllerBase
 
     [HttpPost("Checkout/Start/{id:guid}")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken, string? reviewedSnapshot = null)
     {
         var application = await LoadOwnedAsync(id, cancellationToken);
         if (application is null)
@@ -101,8 +101,9 @@ public sealed class CheckoutController : DemoControllerBase
 
         try
         {
+            if (string.IsNullOrWhiteSpace(reviewedSnapshot)) throw new CheckoutReviewChangedException();
             var result = await _checkout.StartAsync(
-                id, returnUrl, cancelUrl, cancellationToken);
+                id, returnUrl, cancelUrl, cancellationToken, reviewedSnapshot);
             return result.Kind switch
             {
                 // Both fresh and resumed orders use PayPal's approval link.
@@ -116,6 +117,11 @@ public sealed class CheckoutController : DemoControllerBase
                     RedirectToAction(nameof(Done), new { id }),
                 _ => RedirectToAction(nameof(Index), new { id }),
             };
+        }
+        catch (CheckoutReviewChangedException)
+        {
+            Response.StatusCode = StatusCodes.Status409Conflict;
+            return View("~/Views/Checkout/ReviewChanged.cshtml", id);
         }
         catch (DbUpdateConcurrencyException)
         {

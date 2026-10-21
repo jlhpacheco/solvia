@@ -78,7 +78,10 @@
                 lastError = '';
                 show('Preparing your PayPal order…', false);
                 try {
-                    const data = await post('/api/paypal/orders', { permitApplicationId: applicationId });
+                    const data = await post('/api/paypal/orders', {
+                        permitApplicationId: applicationId,
+                        reviewedSnapshot: checkout.dataset.reviewedSnapshot
+                    });
                     if (data.status === 'not-required' || data.status === 'already-paid') {
                         window.location.assign(doneUrl);
                         return null;

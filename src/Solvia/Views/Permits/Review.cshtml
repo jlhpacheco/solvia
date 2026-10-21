@@ -41,7 +41,7 @@
                 a price. Pick another term on the questions screen, or another college.
             </p>
         }
-        <a class="btn btn-outline-secondary btn-lg w-100 mt-3 py-3" href="/Permits/Ask">Pick another college</a>
+        <a class="btn btn-outline-secondary btn-lg w-100 mt-3 py-3" href="@Url.Action("Ask", new { flowId = Model.Draft.FlowId })">Pick another college</a>
     </div>
 }
 else
@@ -62,23 +62,32 @@ else
     </div>
 
     <div class="sv-card mt-3 text-center">
-        <p class="fs-4 mb-1">Total, from @Model.College's published fee</p>
+        <p class="fs-4 mb-1">@(Model.OrderQuoteLocked ? "Total reserved for your existing PayPal order" : $"Total, from {Model.College}'s published fee")</p>
         <p class="display-4 mb-0"><strong>@Model.TotalDisplay</strong></p>
     </div>
 
-    <p class="fs-5 mt-3">
-        You approve on PayPal's own page. Solvia marks this permit Paid only
-        when PayPal's capture confirms the money — never just because a page loaded.
-    </p>
-
-    <form asp-action="Confirm" method="post">
-        <input type="hidden" name="id" value="@Model.ApplicationId" />
-        <button type="submit" class="btn btn-primary sv-cta w-100">Pay with PayPal</button>
-    </form>
+    @if (Model.OrderQuoteLocked)
+    {
+        <p class="mt-3">Checkout has started for this exact permit. Its saved amount stays unchanged when you resume the existing PayPal order.</p>
+    }
+    @if (Model.PriceChangeRequiresReview)
+    {
+        <div class="alert alert-info mt-3" role="status">The published price changed since this application was saved. Review the updated total above before continuing. No new payment order has been created.</div>
+        <form asp-action="Confirm" method="post">
+            <input type="hidden" name="id" value="@Model.ApplicationId" />
+            <button type="submit" class="btn btn-primary sv-cta w-100">Review updated total</button>
+        </form>
+    }
+    else if (Model.PriceCents is > 0)
+    {
+        @await Html.PartialAsync("_PayPalPaymentPanel", new Solvia.Models.ViewModels.PayPalPaymentPanelViewModel(
+            Model.ApplicationId, Model.PriceCents.Value, Model.ReviewedSnapshot, Model.PayPalOrderId, Model.PayPalCaptureId))
+    }
 }
 
 @* The way back to fix an answer: the draft rides along, nothing is lost. *@
 <form asp-action="Questions" method="post" class="mt-3">
+    <input type="hidden" name="FlowId" value="@Model.Draft.FlowId" />
     @if (Model.Draft.ApplicationId is { } draftId)
     {
         <input type="hidden" name="ApplicationId" value="@draftId" />
@@ -93,6 +102,7 @@ else
     <input type="hidden" name="PermitType" value="@Model.Draft.PermitType" />
     <input type="hidden" name="Term" value="@Model.Draft.Term" />
     <input type="hidden" name="Source" value="@Model.Draft.Source" />
+    <input type="hidden" name="StartDate" value="@Model.Draft.StartDate?.ToString("yyyy-MM-dd")" />
     <button type="submit" class="btn btn-outline-secondary btn-lg w-100 py-3" formnovalidate>
         Check my answers
     </button>

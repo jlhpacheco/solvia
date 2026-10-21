@@ -63,6 +63,9 @@ public enum CreateApplicationStatus
 
     /// <summary>(Revision only) The application is already a live permit — never revised.</summary>
     AlreadyLive,
+
+    /// <summary>(Revision only) An existing PayPal order locks the purchase snapshot.</summary>
+    PaymentStarted,
 }
 
 /// <summary>
@@ -249,7 +252,7 @@ public sealed class ApplicationService
     /// (the AI door's Fix-it loop: the student corrected the car,
     /// the type, or the term on Understood and submitted again).
     /// Campus and the category snapshot never move — both were set
-    /// at creation. An already-live application is never revised.
+    /// at creation. An already-live or PayPal-order-bound application is never revised.
     /// A revision that lands on $0 issues in the same flow.
     /// </summary>
     public async Task<CreateApplicationResult> ReviseDraftAsync(
@@ -274,6 +277,12 @@ public sealed class ApplicationService
                 CreateApplicationStatus.AlreadyLive, application,
                 "That permit is already live — it cannot be changed here.");
         }
+
+        // The saved order identifies this exact purchase. Even a same-price
+        // vehicle/date edit would change what its eventual capture authorizes.
+        // Resume that order instead of reusing it for a revised application.
+        if (!string.IsNullOrWhiteSpace(application.PayPalOrderId))
+            return PaymentStarted(application);
 
         var fee = _catalog.Find(application.Campus);
         if (fee is null)
@@ -332,6 +341,21 @@ public sealed class ApplicationService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Checkout can bind an order after this context loaded the draft.
+            // Its token wins; discard our attempted edits and return the saved
+            // purchase for resumption, rather than leaving a stale tracked row.
+            _db.Entry(application).State = EntityState.Detached;
+            var current = await _db.PermitApplications.AsNoTracking()
+                .SingleOrDefaultAsync(a => a.Id == applicationId, cancellationToken);
+            if (current?.ReceiptNumber is not null || current?.PaymentStatus == PaymentStatus.Paid)
+                return new CreateApplicationResult(CreateApplicationStatus.AlreadyLive, current,
+                    "That permit is already live — it cannot be changed here.");
+            if (current is not null && !string.IsNullOrWhiteSpace(current.PayPalOrderId))
+                return PaymentStarted(current);
+            throw;
         }
         catch (DbUpdateException)
         {
@@ -418,6 +442,13 @@ public sealed class ApplicationService
         "You have already submitted an application for this permit, " +
         "this car, and these dates — duplicates are not allowed. " +
         "Find the one you already sent under My permits.";
+
+    public const string PaymentStartedMessage =
+        "PayPal checkout has already started for this application. Resume its existing checkout; " +
+        "the vehicle, permit and price cannot be changed.";
+
+    private static CreateApplicationResult PaymentStarted(PermitApplication application) =>
+        new(CreateApplicationStatus.PaymentStarted, application, PaymentStartedMessage);
 
     private async Task<PermitType?> ActiveTypeAsync(
         PermitTypeCode code, CancellationToken cancellationToken) =>

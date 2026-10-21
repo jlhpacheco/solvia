@@ -21,14 +21,21 @@ const sdkResponse = `window.paypal = {
   }
 };`;
 
-async function openCheckout(page: Page, buttonMode: ButtonMode = 'ready') {
+async function openCheckout(page: Page, buttonMode: ButtonMode = 'ready', surface: 'checkout' | 'review' = 'checkout') {
   await page.goto('/Permits/Questions?college=Fresno%20City%20College');
   await page.getByLabel('2 · Your car', { exact: false }).fill(
     `blue Honda Civic, license plate T${randomUUID().replaceAll('-', '').slice(0, 6)}`);
   await page.getByRole('button', { name: 'Read my answers' }).click();
   await page.getByRole('button', { name: 'Yes — show my total' }).click();
-  await page.getByRole('button', { name: 'Pay with PayPal', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Check your total', exact: true })).toBeVisible();
+  const applicationId = await page.locator('#checkout-payment').getAttribute('data-application-id');
+  expect(applicationId).toMatch(/^[a-f0-9-]{36}$/);
+  if (surface === 'checkout') {
+    // Keep bookmark/resumption coverage; the ordinary buying path now pays
+    // directly on Review without an extra custom PayPal navigation button.
+    await page.goto(`/Checkout/${applicationId}`);
+    await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
+  }
   await expect(page.locator('#paypal-order-id')).toContainText('Not created yet');
   await expect(page.locator('#paypal-capture-id')).toContainText('Not issued yet');
   // The visible heading can arrive before the page's original deferred
@@ -127,7 +134,16 @@ test('a hung render times out and its late completion leaves only the backup', a
 });
 
 test('provider buttons are primary without a duplicate Solvia pay button', async ({ page }) => {
-  await openCheckout(page);
+  const paymentRequests: string[] = [];
+  page.on('request', request => {
+    if (request.method() === 'POST' && /\/api\/paypal\/(orders|capture)|\/Checkout\/Start\//.test(request.url()))
+      paymentRequests.push(request.url());
+  });
+  await openCheckout(page, 'ready', 'review');
+  await expect(page.getByRole('heading', { name: 'Check your total', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pay with PayPal', exact: true })).toHaveCount(0);
+  await expect(page.locator('#checkout-payment')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Check my answers', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'PayPal SDK option', exact: true })).toBeVisible();
   await expect(page.locator('#paypal-redirect-fallback')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Continue to PayPal', exact: true })).toBeHidden();
@@ -135,6 +151,7 @@ test('provider buttons are primary without a duplicate Solvia pay button', async
   expect(await page.evaluate(() => (window as any).checkoutCallbacks.style)).toMatchObject({
     layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal'
   });
+  expect(paymentRequests, 'Displaying Review options creates no payment').toEqual([]);
 });
 
 for (const mode of ['missing', 'render-rejects', 'render-throws', 'ineligible'] as const) {
@@ -194,8 +211,18 @@ test('order creation errors remain visible after the SDK error callback', async 
 
 test('created order ID appears immediately and cancellation preserves it', async ({ page }) => {
   await openCheckout(page);
-  await page.route('**/api/paypal/orders', route => route.fulfill({ json: { id: 'ORDER-TEST', status: 'created' } }));
+  let submitted: Record<string, unknown> | undefined;
+  await page.route('**/api/paypal/orders', route => {
+    submitted = route.request().postDataJSON();
+    return route.fulfill({ json: { id: 'ORDER-TEST', status: 'created' } });
+  });
   expect(await page.evaluate(() => (window as any).checkoutCallbacks.createOrder())).toBe('ORDER-TEST');
+  const reviewedSnapshot = await page.locator('#checkout-payment').getAttribute('data-reviewed-snapshot');
+  expect(reviewedSnapshot).toMatch(/^[a-f0-9]{64}$/);
+  expect(submitted).toEqual({
+    permitApplicationId: await page.locator('#checkout-payment').getAttribute('data-application-id'),
+    reviewedSnapshot
+  });
   await expect(page.locator('#paypal-order-id')).toHaveText('ORDER-TEST');
   await page.evaluate(() => (window as any).checkoutCallbacks.onCancel());
   await expect(page.locator('#checkout-feedback')).toContainText('resume the same order');

@@ -418,12 +418,22 @@ public sealed class FallbackExtractor
             return "CA";
         }
 
-        // A two-letter code right after the plate ("8XYZ123, CA").
+        // Anchor a code to the actual unambiguous plate, including explicitly
+        // labelled numeric/spaced plates. A Volvo model number is not a plate.
+        var plate = ResolvePlate(text);
+        if (plate is null) return null;
+        var platePattern = string.Join(@"[\s-]*", plate.Select(character => Regex.Escape(character.ToString())));
         var afterPlate = Regex.Match(
-            text, @"\b\d[A-Za-z]{3}\d{3}\b[^A-Za-z0-9]{0,4}([A-Za-z]{2})\b");
+            text, $@"\b{platePattern}\b[^A-Za-z0-9]{{0,4}}(?:(?:in|state)\s+)?(?<state>[A-Za-z]{{2}})\b",
+            RegexOptions.IgnoreCase);
         if (afterPlate.Success)
         {
-            var code = afterPlate.Groups[1].Value.ToUpperInvariant();
+            var raw = afterPlate.Groups["state"].Value;
+            var code = raw.ToUpperInvariant();
+            // Common prose must not become Indiana/Oregon/Maine merely because
+            // it follows a plate. Explicit uppercase codes remain accepted.
+            if (code is "IN" or "OR" or "ME" && raw != code) return null;
+            if (code == "IN" && Regex.IsMatch(text[(afterPlate.Index + afterPlate.Length)..], @"^\s+[A-Za-z]")) return null;
             if (Enum.TryParse<UsState>(code, ignoreCase: false, out _))
             {
                 return code;

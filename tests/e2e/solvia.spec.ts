@@ -122,8 +122,9 @@ for (const person of ['Maria', 'Pat']) {
       await expect(page.getByRole('heading', { name: 'Check your total' })).toBeVisible();
       await expect(page.locator('main')).toContainText(daily ? '$1.00' : '$30.00');
       await expect(page.locator('main')).toContainText(plate);
-      await page.getByRole('button', { name: 'Pay with PayPal', exact: true }).click();
-      await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Choose how to pay', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Pay with PayPal', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Check my answers', exact: true })).toBeVisible();
       await expect(page.locator('#checkout-payment')).toContainText(`$${daily ? '1.00' : '30.00'}`);
       await expect(page.getByRole('button', { name: /^Pay \$/ })).toHaveCount(0);
       // No credentials are configured in this isolated server. Separate opt-in

@@ -43,7 +43,7 @@ public sealed class PayPalController : DemoControllerBase
     }
 
     /// <summary>Request body for create-order: which permit is being paid for.</summary>
-    public sealed record CreateOrderRequest(Guid PermitApplicationId);
+    public sealed record CreateOrderRequest(Guid PermitApplicationId, string? ReviewedSnapshot = null);
 
     /// <summary>Request body for capture: the approved PayPal order id.</summary>
     public sealed record CaptureRequest(string OrderId);
@@ -77,13 +77,16 @@ public sealed class PayPalController : DemoControllerBase
                 new { error = "That permit belongs to a different demo person." });
         }
 
+        if (string.IsNullOrWhiteSpace(request.ReviewedSnapshot))
+            return Conflict(new { error = CheckoutReviewChangedException.ReviewMessage, code = "REVIEW_CHANGED" });
+
         try
         {
             var result = await _checkout.StartAsync(
                 request.PermitApplicationId,
                 returnUrl: $"{Request.Scheme}://{Request.Host}/Checkout/Return",
                 cancelUrl: $"{Request.Scheme}://{Request.Host}/Checkout/Cancel",
-                cancellationToken);
+                cancellationToken, request.ReviewedSnapshot);
             return result.Kind switch
             {
                 CheckoutStartKind.OrderReady => Ok(new
@@ -120,6 +123,10 @@ public sealed class PayPalController : DemoControllerBase
         {
             return StatusCode(
                 StatusCodes.Status503ServiceUnavailable, new { error = ex.Message });
+        }
+        catch (CheckoutReviewChangedException ex)
+        {
+            return Conflict(new { error = ex.Message, code = "REVIEW_CHANGED" });
         }
         catch (CheckoutPricingException ex)
         {

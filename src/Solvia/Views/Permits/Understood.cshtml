@@ -26,7 +26,8 @@
 }
 
 <div class="sv-card mt-3">
-    <form asp-action="Review" method="post">
+    <form asp-action="Review" method="post" data-permit-draft="understood" data-flow-id="@Model.FlowId" data-draft-owner="@Model.DraftOwner">
+        <input type="hidden" name="FlowId" value="@Model.FlowId" />
         <div asp-validation-summary="All" class="text-danger" role="alert"></div>
         @if (Model.ApplicationId is { } draftId)
         {
@@ -67,12 +68,12 @@
 
         <div class="mb-3">
             <label class="form-label fs-4" for="CarMake">Make</label>
-            <input class="form-control form-control-lg" id="CarMake" name="CarMake" value="@Model.CarMake" autocomplete="off" />
+            <input class="form-control form-control-lg" id="CarMake" name="CarMake" value="@Model.CarMake" autocomplete="off" maxlength="50" />
         </div>
 
         <div class="mb-3">
             <label class="form-label fs-4" for="CarModel">Model</label>
-            <input class="form-control form-control-lg" id="CarModel" name="CarModel" value="@Model.CarModel" autocomplete="off" />
+            <input class="form-control form-control-lg" id="CarModel" name="CarModel" value="@Model.CarModel" autocomplete="off" maxlength="50" />
         </div>
 
         <div class="mb-3">
@@ -96,6 +97,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/permit-draft.js" asp-append-version="true" defer></script>
     <script>
         // A nicety only — the server gate is the law: no plate, no advance.
         (function () {

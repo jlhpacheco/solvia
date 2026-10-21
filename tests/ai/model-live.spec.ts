@@ -122,7 +122,7 @@ test('instructions in vehicle text cannot change the selected campus, permit or 
   await expect(page.locator('input[name="PermitType"]')).toHaveValue('Term');
   await expect(page.locator('input[name="Term"]')).toHaveValue('Fall');
   await expect(page.locator('.display-4')).toContainText('$229.50');
-  await expect(page.getByRole('button', { name: 'Pay with PayPal', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose how to pay', exact: true })).toBeVisible();
   await expect(page.getByText(/Payment complete|PayPal payment references/)).toHaveCount(0);
   // Stop at the review screen. This suite creates no order and takes no payment.
 });

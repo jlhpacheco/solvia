@@ -90,12 +90,16 @@ college's published `fees.csv` row, fixed at purchase time.
 **Request** (`application/json`):
 
 ```json
-{ "permitApplicationId": "3fa85f64-5717-4562-b3fc-2c963f66afa6" }
+{
+  "permitApplicationId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "reviewedSnapshot": "<current page's data-reviewed-snapshot>"
+}
 ```
 
 | Field | Type | Notes |
 |---|---|---|
 | `permitApplicationId` | string (UUID) | The permit application being paid for. Property names are the controller's record fields, serialized camelCase |
+| `reviewedSnapshot` | string, required | Copy the current owned review page's 64-character purchase fingerprint. It binds the action to the displayed vehicle, dates, category and total; it is neither a price nor authorization. Missing/stale fingerprints receive 409 before a provider call. |
 
 **Responses:**
 
@@ -107,8 +111,9 @@ college's published `fees.csv` row, fixed at purchase time.
 | 400 | `{ "error": "<plain-words message>" }` | The application's stored price cannot be honestly charged (it disagrees with, or is not published in, the fee catalog — `CheckoutPricingException`). PayPal was not called; the permit is not paid |
 | 403 | `{ "error": "That permit belongs to a different demo person." }` | The application belongs to another demo person |
 | 404 | `{ "error": "That permit application was not found." }` | Unknown application id |
+| 409 | `{ "error": "<review changed message>", "code": "REVIEW_CHANGED" }` | Missing/stale reviewed purchase. Reopen and check the current review before paying; do not silently accept a different total. No provider call is made for this rejected action. |
 | 503 | `{ "error": "...PAYPAL_CLIENT_ID (PayPal:ClientId)..." }` | **Sandbox credentials are not configured on this machine** — see Error model. The message names the missing settings, never any value |
-| 502 | `{ "error": "PayPal sandbox could not create the order. The permit is not paid." }` | PayPal's API errored; no order exists, nothing was charged |
+| 502 | `{ "error": "PayPal sandbox could not create the order. The permit is not paid." }` | The request could not be confirmed. Check saved/provider status before retrying; a missing response does not prove no order was created. |
 
 ### POST /api/paypal/capture — capture
 

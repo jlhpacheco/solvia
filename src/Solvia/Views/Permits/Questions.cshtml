@@ -16,12 +16,14 @@
     <p class="fs-4 mb-1"><strong>1 · Your college</strong></p>
     <p class="fs-4 mb-0">
         @Model.College
-        <a class="fs-5 ms-2" href="/Permits/Ask">change</a>
+        <button class="btn btn-link fs-5 ms-2" type="submit" form="vehicle-questions"
+                formaction="@Url.Action("ChooseCollege", "Permits")" formnovalidate>change</button>
     </p>
 </div>
 
 <div class="sv-card mt-3">
-    <form asp-action="Understand" method="post" id="vehicle-questions">
+    <form asp-action="Understand" method="post" id="vehicle-questions" data-permit-draft="questions" data-flow-id="@Model.FlowId" data-draft-owner="@Model.DraftOwner">
+        <input type="hidden" name="flowId" value="@Model.FlowId" />
         <input type="hidden" name="college" value="@Model.College" />
         @if (Model.StartDate is { } plannedStart)
         {
@@ -81,5 +83,6 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/permit-draft.js" asp-append-version="true" defer></script>
     <script src="~/js/questions.js" asp-append-version="true" defer></script>
 }

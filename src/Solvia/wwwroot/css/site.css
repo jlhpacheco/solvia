@@ -515,6 +515,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .sv-avatar { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: #edf1f9; font-size: .75rem; }
 .sv-person:hover, .sv-person.is-selected { background: var(--sv-teal-soft); border-color: var(--sv-teal); }
 .sv-person.is-selected .sv-avatar { background: var(--sv-teal); color: #fff; }
+.sv-person-label { display: grid; gap: .15rem; text-align: left; line-height: 1.3; }
+.sv-person-role { color: var(--sv-muted); font-size: .68rem; font-weight: 450; }
 .sv-demo-disclosure { flex-basis: 100%; border-top: 1px solid #edf1f6; padding-top: 1rem; font-size: .72rem !important; }
 .sv-feature-grid { display: grid; gap: 1.2rem; margin-top: 1.5rem; }
 .sv-feature-card { display: block; text-decoration: none; background: #fff; border: 1px solid var(--sv-line); border-radius: 1rem; padding: 1.8rem; }

@@ -585,6 +585,12 @@ public sealed partial class CheckoutTests
 
     // -------------------------------------------- PayPalController walks
 
+    private static string ReviewedSnapshot(World world, Guid applicationId) =>
+        CheckoutReviewSnapshot.Compute(world.Db.PermitApplications
+            .Include(application => application.Vehicle)
+            .Include(application => application.PermitType)
+            .Single(application => application.Id == applicationId));
+
     private static PayPalController NewPayPalController(World w, string student)
     {
         var context = new DefaultHttpContext();
@@ -620,7 +626,7 @@ public sealed partial class CheckoutTests
         var controller = NewPayPalController(w, "diego");
 
         var result = await controller.CreateOrder(
-            new PayPalController.CreateOrderRequest(app.Id), default);
+            new PayPalController.CreateOrderRequest(app.Id, ReviewedSnapshot(w, app.Id)), default);
 
         var status = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status403Forbidden, status.StatusCode);
@@ -638,7 +644,7 @@ public sealed partial class CheckoutTests
         var controller = NewPayPalController(w, "maria");
 
         var result = await controller.CreateOrder(
-            new PayPalController.CreateOrderRequest(app.Id), default);
+            new PayPalController.CreateOrderRequest(app.Id, ReviewedSnapshot(w, app.Id)), default);
 
         var status = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status503ServiceUnavailable, status.StatusCode);
@@ -654,7 +660,7 @@ public sealed partial class CheckoutTests
         var controller = NewPayPalController(w, "maria");
 
         var result = await controller.CreateOrder(
-            new PayPalController.CreateOrderRequest(app.Id), default);
+            new PayPalController.CreateOrderRequest(app.Id, ReviewedSnapshot(w, app.Id)), default);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var json = JsonSerializer.Serialize(ok.Value);

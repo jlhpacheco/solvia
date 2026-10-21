@@ -139,7 +139,7 @@ test('tablet touch navigation and campus fee search fit the viewport', async ({ 
 });
 
 test('student term review reaches simulated wallet and card controls by touch', async ({ page }) => {
-  // Deterministically exercise the original failure ordering: the Checkout
+  // Deterministically exercise the original failure ordering: the Review
   // heading is present while its versioned deferred adapter is still in flight.
   // The fixture helper must wait rather than race this real local script.
   let originalAdapterLoads = 0;
@@ -153,8 +153,8 @@ test('student term review reaches simulated wallet and card controls by touch', 
   await expect(page.locator('main')).toContainText('$30.00');
   await expect(page.locator('main')).toContainText(plate);
   await fitsViewport(page);
-  await tapPrimary(page.getByRole('button', { name: 'Pay with PayPal', exact: true }));
-  await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose how to pay', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pay with PayPal', exact: true })).toHaveCount(0);
   await paymentControls(page, 'ready');
   expect(originalAdapterLoads).toBe(1);
   await expect(page.locator('#paypal-redirect-fallback')).toBeHidden();
@@ -173,8 +173,7 @@ test('visitor day pass retains a reachable protected backup after simulated SDK 
   await expect(page.getByRole('heading', { name: 'Check your total' })).toBeVisible();
   await expect(page.locator('main')).toContainText('$1.00');
   await fitsViewport(page);
-  await tapPrimary(page.getByRole('button', { name: 'Pay with PayPal', exact: true }));
-  await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose how to pay', exact: true })).toBeVisible();
   await paymentControls(page, 'reject');
   const backup = page.getByRole('button', { name: 'Continue to PayPal', exact: true });
   await expect(backup).toBeVisible();

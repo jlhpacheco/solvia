@@ -1,5 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.IO.Compression;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Solvia.Data;
@@ -37,6 +41,9 @@ namespace Solvia.Controllers;
 /// </summary>
 public sealed class PermitsController : DemoControllerBase
 {
+    private const string FlowPrefix = "PermitFlow:";
+    private static readonly JsonSerializerOptions FlowJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    private sealed record FlowState(string OwnerId, PermitDraftViewModel Draft, bool HasVehicleDraft, DateTimeOffset ExpiresAtUtc);
     /// <summary>Duvara's general invalid-selection error (item 16), in plain words.</summary>
     private const string InvalidSelection =
         "That selection is not valid — please pick again from the lists.";
@@ -270,7 +277,7 @@ public sealed class PermitsController : DemoControllerBase
     // ==================================================================
 
     [HttpGet]
-    public async Task<IActionResult> Ask(CancellationToken cancellationToken)
+    public async Task<IActionResult> Ask(CancellationToken cancellationToken, Guid? flowId = null)
     {
         var student = await CurrentStudentAsync(_db, cancellationToken);
         var campuses = _catalog.All().Select(fee =>
@@ -291,6 +298,7 @@ public sealed class PermitsController : DemoControllerBase
 
         return View(new AskViewModel
         {
+            FlowId = ReadFlow(flowId, student.Id)?.Draft.FlowId,
             StudentName = student.DisplayName,
             Campuses = campuses,
         });
@@ -301,8 +309,8 @@ public sealed class PermitsController : DemoControllerBase
     // ==================================================================
 
     [HttpGet]
-    public IActionResult Questions(string? college, PermitTypeCode permitType = PermitTypeCode.Term,
-        TermKind term = TermKind.Fall, DateOnly? startDate = null)
+    public async Task<IActionResult> Questions(string? college, PermitTypeCode permitType = PermitTypeCode.Term,
+        TermKind term = TermKind.Fall, DateOnly? startDate = null, Guid? flowId = null)
     {
         var fee = college is null ? null : _catalog.Find(college);
         if (fee is null)
@@ -310,22 +318,48 @@ public sealed class PermitsController : DemoControllerBase
             return RedirectToAction(nameof(Ask));
         }
 
-        return View(new QuestionsViewModel
+        var student = await CurrentStudentAsync(_db, HttpContext.RequestAborted);
+        var state = ReadFlow(flowId, student.Id);
+        if (state is null)
         {
-            College = fee.Campus,
-            PermitType = Enum.IsDefined(permitType) ? permitType : PermitTypeCode.Term,
-            Term = Enum.IsDefined(term) ? term : TermKind.Fall,
-            StartDate = startDate,
-            CarText = TempData["CarText"] as string,
-            Notice = TempData["Notice"] as string,
-        });
+            var draft = new PermitDraftViewModel
+            {
+                FlowId = Guid.NewGuid(), College = fee.Campus,
+                PermitType = Enum.IsDefined(permitType) ? permitType : PermitTypeCode.Term,
+                Term = Enum.IsDefined(term) ? term : TermKind.Fall, StartDate = startDate,
+                CarText = TempData["CarText"] as string,
+            };
+            SaveFlow(student.Id, draft, false);
+            return RedirectToAction(nameof(Questions), new { college = fee.Campus, flowId = draft.FlowId });
+        }
+        if (!string.Equals(state.Draft.College, fee.Campus, StringComparison.OrdinalIgnoreCase))
+        {
+            // A saved application belongs to its original campus. Carry the
+            // vehicle answers into a NEW flow, never move its order/draft id.
+            state.Draft.FlowId = Guid.NewGuid();
+            state.Draft.ApplicationId = null;
+            state.Draft.College = fee.Campus;
+            SaveFlow(student.Id, state.Draft, state.HasVehicleDraft);
+            return RedirectToAction(nameof(Questions), new { college = fee.Campus, flowId = state.Draft.FlowId });
+        }
+        return View(ToQuestions(state.Draft, TempData["Notice"] as string));
     }
+
+    private static QuestionsViewModel ToQuestions(PermitDraftViewModel draft, string? notice = null) =>
+        new()
+        {
+            FlowId = draft.FlowId, ApplicationId = draft.ApplicationId,
+            DraftOwner = draft.DraftOwner,
+            College = draft.College, CarText = draft.CarText,
+            PermitType = draft.PermitType, Term = draft.Term,
+            StartDate = draft.StartDate, Notice = notice,
+        };
 
     /// <summary>The Fix-it path back: re-render the questions, answers kept.</summary>
     [HttpPost]
     [ActionName("Questions")]
     [ValidateAntiForgeryToken]
-    public IActionResult QuestionsBack(PermitDraftViewModel draft)
+    public async Task<IActionResult> QuestionsBack(PermitDraftViewModel draft)
     {
         var fee = _catalog.Find(draft.College);
         if (fee is null)
@@ -333,15 +367,37 @@ public sealed class PermitsController : DemoControllerBase
             return RedirectToAction(nameof(Ask));
         }
 
-        return View("Questions", new QuestionsViewModel
-        {
-            ApplicationId = draft.ApplicationId,
-            College = fee.Campus,
-            CarText = draft.CarText,
-            PermitType = draft.PermitType,
-            Term = draft.Term,
-            StartDate = draft.StartDate,
-        });
+        var student = await CurrentStudentAsync(_db, HttpContext.RequestAborted);
+        var retained = ReadFlow(draft.FlowId, student.Id);
+        if (retained is null) return ExpiredFlow();
+        draft.College = fee.Campus;
+        draft.Source = retained.Draft.Source;
+        draft.SourceNote = SourceNote(draft.Source);
+        if (!SaveFlow(student.Id, draft, true))
+            return View("Questions", ToQuestions(draft, "This draft is too large to keep safely. Shorten the vehicle description, then review it again. Your entered sentence is still below."));
+        return RedirectToAction(nameof(Questions), new { college = fee.Campus, flowId = draft.FlowId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChooseCollege(QuestionsViewModel form, CancellationToken cancellationToken,
+        [Bind(Prefix = "revision")] PermitDraftViewModel? revision = null)
+    {
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        var state = ReadFlow(form.FlowId, student.Id);
+        if (state is null) return ExpiredFlow();
+        if (form.CarText?.Length > PermitDraftViewModel.MaxCarTextLength)
+            return QuestionsForLongDescription(new PermitDraftViewModel
+            { FlowId = form.FlowId, College = state.Draft.College, CarText = form.CarText,
+                PermitType = form.PermitType, Term = form.Term, StartDate = form.StartDate, DraftOwner = student.Id });
+        var unchanged = string.Equals(state.Draft.CarText, form.CarText, StringComparison.Ordinal);
+        if (state.HasVehicleDraft && unchanged) MergeRevision(state.Draft, revision, form.CarText);
+        state.Draft.CarText = form.CarText;
+        state.Draft.PermitType = form.PermitType;
+        state.Draft.Term = form.Term;
+        state.Draft.StartDate = form.StartDate;
+        if (!SaveFlow(student.Id, state.Draft, state.HasVehicleDraft && unchanged))
+            return View("Questions", ToQuestions(state.Draft, "Shorten the vehicle description before changing colleges. Your entered sentence is still below."));
+        return RedirectToAction(nameof(Ask), new { flowId = form.FlowId });
     }
 
     // ==================================================================
@@ -354,7 +410,8 @@ public sealed class PermitsController : DemoControllerBase
         string college, string? carText,
         PermitTypeCode permitType, TermKind term,
         Guid? applicationId,
-        CancellationToken cancellationToken, DateOnly? startDate = null)
+        CancellationToken cancellationToken, DateOnly? startDate = null, Guid? flowId = null,
+        [Bind(Prefix = "revision")] PermitDraftViewModel? revision = null)
     {
         var fee = _catalog.Find(college);
         if (fee is null)
@@ -362,10 +419,31 @@ public sealed class PermitsController : DemoControllerBase
             return RedirectToAction(nameof(Ask));
         }
 
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        var retained = ReadFlow(flowId, student.Id);
+        if (retained is null) return ExpiredFlow();
+        if (!string.Equals(retained.Draft.College, fee.Campus, StringComparison.OrdinalIgnoreCase))
+            return RedirectToAction(nameof(Questions), new { college = fee.Campus, flowId });
+        // An unchanged sentence must not overwrite the person's corrections
+        // with another extraction. Permit/date choices remain independently editable.
+        if (retained.HasVehicleDraft && string.Equals(carText, retained.Draft.CarText, StringComparison.Ordinal))
+        {
+            MergeRevision(retained.Draft, revision, carText);
+            retained.Draft.College = fee.Campus;
+            retained.Draft.PermitType = permitType;
+            retained.Draft.Term = term;
+            retained.Draft.StartDate = startDate;
+            if (!SaveFlow(student.Id, retained.Draft, true))
+                return View("Questions", ToQuestions(retained.Draft, "Shorten the vehicle description before continuing. Your entered sentence is still below."));
+            return RedirectToAction(nameof(Understood), new { flowId = retained.Draft.FlowId });
+        }
+
         if (carText?.Length > PermitDraftViewModel.MaxCarTextLength)
         {
             return QuestionsForLongDescription(new PermitDraftViewModel
             {
+                FlowId = retained.Draft.FlowId,
+                DraftOwner = student.Id,
                 ApplicationId = applicationId,
                 College = fee.Campus,
                 CarText = carText,
@@ -390,6 +468,8 @@ public sealed class PermitsController : DemoControllerBase
             Response.Headers.RetryAfter = retryAfterSeconds.ToString(CultureInfo.InvariantCulture);
             return View("Questions", new QuestionsViewModel
             {
+                FlowId = retained.Draft.FlowId,
+                DraftOwner = student.Id,
                 ApplicationId = applicationId,
                 College = fee.Campus,
                 CarText = carText,
@@ -405,7 +485,8 @@ public sealed class PermitsController : DemoControllerBase
 
         var draft = new PermitDraftViewModel
         {
-            ApplicationId = applicationId,
+            FlowId = retained.Draft.FlowId,
+            ApplicationId = retained.Draft.ApplicationId,
             College = fee.Campus,
             CarText = carText,
             Plate = result.Plate,
@@ -421,7 +502,20 @@ public sealed class PermitsController : DemoControllerBase
         };
         draft.SourceNote = SourceNote(draft.Source);
 
-        return View("Understood", draft);
+        if (!SaveFlow(student.Id, draft, true))
+            return View("Questions", ToQuestions(draft, "This description is too large to retain safely. Shorten it and try again; your entered sentence is still below."));
+        return RedirectToAction(nameof(Understood), new { flowId = draft.FlowId });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Understood(Guid flowId, CancellationToken cancellationToken)
+    {
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        var state = ReadFlow(flowId, student.Id);
+        if (state is null || !state.HasVehicleDraft) return ExpiredFlow();
+        state.Draft.SourceNote = SourceNote(state.Draft.Source);
+        state.Draft.PlateMissing = string.IsNullOrWhiteSpace(state.Draft.Plate);
+        return View("Understood", state.Draft);
     }
 
     // ==================================================================
@@ -442,6 +536,10 @@ public sealed class PermitsController : DemoControllerBase
     public async Task<IActionResult> Review(
         PermitDraftViewModel draft, CancellationToken cancellationToken)
     {
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        var retained = ReadFlow(draft.FlowId, student.Id);
+        if (retained is null) return ExpiredFlow();
+        draft.Source = retained.Draft.Source;
         var fee = _catalog.Find(draft.College);
         if (fee is null)
         {
@@ -473,17 +571,26 @@ public sealed class PermitsController : DemoControllerBase
             return View("Understood", draft);
         }
 
-        var student = await CurrentStudentAsync(_db, cancellationToken);
-
         PermitApplication? existing = null;
         if (draft.ApplicationId is { } draftId)
         {
             existing = await _db.PermitApplications.SingleOrDefaultAsync(
                 a => a.Id == draftId && a.StudentId == student.Id, cancellationToken);
-            if (existing?.ReceiptNumber is not null)
+            if (existing is null) return NotFound();
+            if (!string.Equals(existing.Campus, fee.Campus, StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError("", "Choose a different college from the questions screen to start a separate application. Your existing permit is unchanged.");
+                return View("Understood", draft);
+            }
+            if (existing.ReceiptNumber is not null)
             {
                 // Already a live permit — never revised, never re-sold.
                 return Redirect($"/Permits/Receipt/{existing.Id}");
+            }
+            if (!string.IsNullOrWhiteSpace(existing.PayPalOrderId))
+            {
+                TempData["StatusMessage"] = "Payment has already started for this permit. Finish or review that checkout before starting a different application.";
+                return Redirect($"/Checkout/{existing.Id}");
             }
         }
 
@@ -514,12 +621,20 @@ public sealed class PermitsController : DemoControllerBase
             ? await _applications.ReviseDraftAsync(existing.Id, input, cancellationToken)
             : await _applications.CreateAsync(input, cancellationToken);
 
+        if (result.Application is { } saved)
+        {
+            draft.ApplicationId = saved.Id;
+            draft.StartDate = saved.StartDate;
+            SaveFlow(student.Id, draft, true);
+        }
+
         return result.Status switch
         {
+            CreateApplicationStatus.PaymentStarted => Redirect($"/Checkout/{result.Application!.Id}"),
             CreateApplicationStatus.Created or
             CreateApplicationStatus.Duplicate or
             CreateApplicationStatus.AlreadyLive => result.Application!.ReceiptNumber is not null
-                ? Redirect($"/Permits/Receipt/{result.Application.Id}")
+                ? Redirect($"/Permits/Receipt/{result.Application!.Id}")
                 : RedirectToAction(nameof(Review), new { id = result.Application!.Id }),
             // Defensive only (the draft persists even when blocked):
             // back to the gate screen rather than a dead end.
@@ -580,10 +695,11 @@ public sealed class PermitsController : DemoControllerBase
             application.Id, input, cancellationToken);
         return result.Status switch
         {
+            CreateApplicationStatus.PaymentStarted => Redirect($"/Checkout/{result.Application!.Id}"),
             CreateApplicationStatus.Duplicate or
             CreateApplicationStatus.AlreadyLive =>
                 result.Application!.ReceiptNumber is not null
-                    ? Redirect($"/Permits/Receipt/{result.Application.Id}")
+                    ? Redirect($"/Permits/Receipt/{result.Application!.Id}")
                     : RedirectToAction(nameof(Review), new { id = result.Application!.Id }),
             _ => RedirectToAction(nameof(Review), new { id = application.Id }),
         };
@@ -616,6 +732,9 @@ public sealed class PermitsController : DemoControllerBase
             return Redirect($"/Permits/Receipt/{application.Id}");
         }
 
+        if (!string.IsNullOrWhiteSpace(application.PayPalOrderId))
+            return Redirect($"/Checkout/{application.Id}");
+
         var review = BuildReview(application);
         if (review.Blocked)
         {
@@ -628,6 +747,22 @@ public sealed class PermitsController : DemoControllerBase
                 error: "We still need your car's plate number before you " +
                        "can pay. Use “Check my answers” below and type it " +
                        "on the “Did I get this right?” screen."));
+        }
+
+        if (review.PriceCents == 0 && application.PriceCents != 0)
+        {
+            // An acknowledged newly-free price uses the existing issuance
+            // authority; it must not leave an unpaid $0 row at Checkout.
+            var free = await _applications.ReviseDraftAsync(application.Id,
+                new ApplicationInput(application.StudentId, application.VehicleId,
+                    application.Campus, application.PermitType!.Code, application.Term,
+                    application.StartDate, application.Source, true), cancellationToken);
+            if (free.Application?.ReceiptNumber is not null)
+                return Redirect($"/Permits/Receipt/{free.Application.Id}");
+            if (free.Status == CreateApplicationStatus.PaymentStarted)
+                return Redirect($"/Checkout/{free.Application!.Id}");
+            return View("Review", BuildReview(application,
+                "This application changed. Check its current details before continuing."));
         }
 
         // Persist the freshly recomputed snapshot if it moved (the
@@ -664,9 +799,100 @@ public sealed class PermitsController : DemoControllerBase
     // AI-door helpers
     // ==================================================================
 
+    private static void MergeRevision(PermitDraftViewModel target, PermitDraftViewModel? revision, string? carText)
+    {
+        if (revision is null || !string.Equals(revision.CarText, carText, StringComparison.Ordinal)) return;
+        // Only editable facts may return from temporary tab storage. Owner,
+        // source, application identity and money remain server-owned.
+        target.Plate = revision.Plate;
+        target.CarMake = revision.CarMake;
+        target.CarModel = revision.CarModel;
+        target.CarColor = revision.CarColor;
+        target.CarState = revision.CarState;
+    }
+
+    // Cookie TempData is encrypted/authenticated by ASP.NET Core. Keep at
+    // most two small browser draft snapshots; no vehicle prose goes in a URL
+    // or permanent browser storage. Flow ids alone never authorize a payment.
+    private FlowState? ReadFlow(Guid? flowId, string ownerId)
+    {
+        if (flowId is null || flowId == Guid.Empty) return null;
+        if (TempData.Peek(FlowPrefix + flowId.Value.ToString("N")) is not string encoded) return null;
+        try
+        {
+            using var input = new MemoryStream(Convert.FromBase64String(encoded));
+            using var compression = new BrotliStream(input, CompressionMode.Decompress);
+            using var text = new StreamReader(compression, Encoding.UTF8);
+            var state = JsonSerializer.Deserialize<FlowState>(text.ReadToEnd(), FlowJson);
+            return state is not null && state.OwnerId == ownerId && state.Draft.FlowId == flowId && state.ExpiresAtUtc > DateTimeOffset.UtcNow
+                ? state : null;
+        }
+        catch (Exception error) when (error is JsonException or FormatException or InvalidDataException) { return null; }
+    }
+
+    private bool SaveFlow(string ownerId, PermitDraftViewModel draft, bool hasVehicleDraft)
+    {
+        if (draft.FlowId == Guid.Empty) throw new InvalidOperationException("A flow id is required.");
+        if (draft.CarText?.Length > PermitDraftViewModel.MaxCarTextLength ||
+            draft.CarMake?.Length > PermitDraftViewModel.MaxVehicleDetailLength ||
+            draft.CarModel?.Length > PermitDraftViewModel.MaxVehicleDetailLength ||
+            draft.Plate?.Length > 20 || draft.CarColor?.Length > 30 || draft.CarState?.Length > 10)
+            return false; // Invalid large values remain on the rendered form, never in cookies.
+        var key = FlowPrefix + draft.FlowId.ToString("N");
+        draft.DraftOwner = ownerId;
+        var json = JsonSerializer.Serialize(new FlowState(ownerId, draft, hasVehicleDraft, DateTimeOffset.UtcNow.AddHours(2)), FlowJson);
+        using var output = new MemoryStream();
+        using (var compression = new BrotliStream(output, CompressionLevel.SmallestSize, leaveOpen: true))
+            compression.Write(Encoding.UTF8.GetBytes(json));
+        var encoded = Convert.ToBase64String(output.ToArray());
+        if (encoded.Length > 3200) return false;
+        var otherKeys = TempData.Keys.Where(k => k.StartsWith(FlowPrefix, StringComparison.Ordinal) && k != key).ToList();
+        foreach (var stale in otherKeys.Take(Math.Max(0, otherKeys.Count - 1))) TempData.Remove(stale);
+        // Cookie/header budget includes the independent planner snapshot.
+        foreach (var stale in otherKeys.Where(k => TempData.ContainsKey(k)))
+        {
+            var othersSize = TempData.Keys.Where(k => k.StartsWith(FlowPrefix, StringComparison.Ordinal) && k != key)
+                .Sum(k => (TempData.Peek(k) as string)?.Length ?? 0);
+            if (othersSize + encoded.Length <= 3200) break;
+            TempData.Remove(stale);
+        }
+        TempData[key] = encoded;
+        return true;
+    }
+
+    private IActionResult ExpiredFlow()
+    {
+        TempData["StatusMessage"] = "This draft belongs to another demo person or is no longer available. Choose your college to start a new draft; no payment was made.";
+        return RedirectToAction(nameof(Ask));
+    }
+
+    private PermitDraftViewModel RestoreApplicationDraft(PermitApplication application)
+    {
+        var draft = DraftFromApplication(application);
+        foreach (var key in TempData.Keys.Where(k => k.StartsWith(FlowPrefix, StringComparison.Ordinal)).ToList())
+        {
+            if (!Guid.TryParseExact(key[FlowPrefix.Length..], "N", out var flowId)) continue;
+            var state = ReadFlow(flowId, application.StudentId);
+            if (state?.Draft.ApplicationId != application.Id) continue;
+            draft.FlowId = flowId;
+            draft.DraftOwner = application.StudentId;
+            draft.CarText = state.Draft.CarText;
+            return draft;
+        }
+        // The original sentence may expire with the browser session. Saved
+        // vehicle fields still support editing an owned unpaid application.
+        draft.FlowId = Guid.NewGuid();
+        draft.CarText = string.Join(", ", new[] { draft.CarColor, draft.CarMake, draft.CarModel,
+            "license plate " + draft.Plate, draft.CarState }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        SaveFlow(application.StudentId, draft, true);
+        return draft;
+    }
+
     private IActionResult QuestionsForLongDescription(PermitDraftViewModel draft) =>
         View("Questions", new QuestionsViewModel
         {
+            FlowId = draft.FlowId,
+            DraftOwner = draft.DraftOwner,
             ApplicationId = draft.ApplicationId,
             College = draft.College,
             CarText = draft.CarText,
@@ -740,9 +966,11 @@ public sealed class PermitsController : DemoControllerBase
     {
         var fee = _catalog.Find(application.Campus);
         var type = application.PermitType;
-        var price = fee is null || type is null
+        var publishedPrice = fee is null || type is null
             ? null
             : _pricing.ResolvePriceCents(fee, type.Code, application.Term, application.Category);
+        var orderQuoteLocked = !string.IsNullOrWhiteSpace(application.PayPalOrderId);
+        var price = orderQuoteLocked ? application.PriceCents : publishedPrice;
 
         var isDayPassBlock = price is null && type?.Code == PermitTypeCode.Daily;
         int? termAlternative = null;
@@ -761,7 +989,7 @@ public sealed class PermitsController : DemoControllerBase
         return new ReviewViewModel
         {
             ApplicationId = application.Id,
-            Draft = DraftFromApplication(application),
+            Draft = RestoreApplicationDraft(application),
             College = application.Campus,
             CategoryLabel = application.Category.ToString(),
             TypeName = type?.Name ?? "Parking permit",
@@ -771,6 +999,11 @@ public sealed class PermitsController : DemoControllerBase
             StartDate = application.StartDate,
             EndDate = application.EndDate,
             PriceCents = price,
+            PayPalOrderId = application.PayPalOrderId,
+            PayPalCaptureId = application.PayPalCaptureId,
+            OrderQuoteLocked = orderQuoteLocked,
+            PriceChangeRequiresReview = !orderQuoteLocked && price is not null && price != application.PriceCents,
+            ReviewedSnapshot = CheckoutReviewSnapshot.Compute(application),
             IsDayPassBlock = isDayPassBlock,
             TotalDisplay = price is null
                 ? "Price not published"
@@ -793,6 +1026,7 @@ public sealed class PermitsController : DemoControllerBase
         var vehicle = application.Vehicle;
         return new PermitDraftViewModel
         {
+            DraftOwner = application.StudentId,
             ApplicationId = application.Id,
             College = application.Campus,
             Plate = vehicle?.Plate,

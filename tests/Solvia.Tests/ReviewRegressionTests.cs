@@ -41,9 +41,16 @@ public sealed partial class CheckoutTests
         using var db = w.Db;
         var app = AddApplication(db);
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE PermitApplications SET ConcurrencyToken = {Guid.NewGuid()}, PriceCents = {4000} WHERE Id = {app.Id}");
-        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => w.Checkout.StartAsync(app.Id, null, null));
+        // Checkout now reloads authoritative facts under the write transaction,
+        // so the changed amount is rejected by pricing before an optimistic-save
+        // conflict is needed. It must still make no provider call or reprice.
+        await Assert.ThrowsAsync<CheckoutPricingException>(() => w.Checkout.StartAsync(app.Id, null, null));
         Assert.Equal(0, w.PayPal.CreateCalls);
-        Assert.Equal(4000, (await Reload(w, app.Id)).PriceCents);
+        Assert.Equal(0, w.PayPal.GetCalls);
+        Assert.Equal(0, w.PayPal.CaptureCalls);
+        var saved = await Reload(w, app.Id);
+        Assert.Equal(4000, saved.PriceCents);
+        Assert.Null(saved.PayPalOrderId);
     }
 
     [Fact]

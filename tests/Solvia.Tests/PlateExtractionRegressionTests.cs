@@ -5,6 +5,63 @@ namespace Solvia.Tests;
 public sealed partial class ExtractionTests
 {
     [Theory]
+    [InlineData("I own a white Volvo 760 with license plate 234221 CA")]
+    [InlineData("I own a white Volvo 760 and my license plate number is 234221 in California")]
+    [InlineData("i own a white volvo 760 with license plate 234221 ca")]
+    [InlineData("I OWN A WHITE VOLVO 760 WITH LICENSE PLATE 234221 CA")]
+    [InlineData("I Own a White Volvo 760 and My License Plate Number Is 234221 in CALIFORNIA")]
+    [InlineData("I own a WHITE Volvo 760; LICENSE PLATE NUMBER: 234221, California.")]
+    public void OwnershipSentence_ExtractsTheActualNumericPlateAndVehicleWithoutInventingPermitChoices(string sentence)
+    {
+        var result = new FallbackExtractor(Catalog).Extract(sentence);
+
+        Assert.Equal("234221", result.Plate);
+        Assert.Equal("Volvo", result.CarMake);
+        Assert.Equal("760", result.CarModel);
+        Assert.Equal("White", result.CarColor);
+        Assert.Equal("CA", result.CarState);
+        Assert.Equal(ExtractionSource.Fallback, result.Source);
+        Assert.Null(result.College);
+        Assert.Null(result.PermitType);
+        Assert.Null(result.Term);
+    }
+
+    [Theory]
+    [InlineData("I own a white Volvo 760 in California")]
+    [InlineData("I own a white Volvo 760 and my license plate number is unknown in California")]
+    [InlineData("I own a white Volvo 760 and my license plate might be 234221 or 234222 in California")]
+    public void OwnershipSentence_AbsentOrUncertainPlateDoesNotTurnTheModelNumberIntoAPlate(string sentence)
+    {
+        var result = new FallbackExtractor(Catalog).Extract(sentence);
+
+        Assert.Null(result.Plate);
+        Assert.Equal("Volvo", result.CarMake);
+        Assert.Equal("760", result.CarModel);
+        Assert.Equal("White", result.CarColor);
+        Assert.Equal("CA", result.CarState);
+        Assert.Equal(ExtractionSource.Fallback, result.Source);
+    }
+
+    [Theory]
+    [InlineData("I own a white Volvo 760, license plate 234221 NV", "NV")]
+    [InlineData("I own a white Volvo 760, license plate 234221 in ca", "CA")]
+    [InlineData("I own a white Volvo 760, license plate ABC-123, WA", "WA")]
+    [InlineData("I own a white Volvo 760, license plate 234221 IN", "IN")]
+    [InlineData("I own a white Volvo 760, license plate 234221 in town", null)]
+    [InlineData("I own a white Volvo 760, license plate 8XYZ123 in town", null)]
+    [InlineData("I own a white Volvo 760, license plate 234221; contact me", null)]
+    [InlineData("I own a white Volvo 760 CA", null)]
+    public void OwnershipSentence_StateCodeIsGroundedBesideAPlateRatherThanModelOrProse(string sentence, string? expected)
+    {
+        var result = new FallbackExtractor(Catalog).Extract(sentence);
+
+        Assert.Equal(expected, result.CarState);
+        Assert.Equal("Volvo", result.CarMake);
+        Assert.Equal("760", result.CarModel);
+        Assert.Equal("White", result.CarColor);
+    }
+
+    [Theory]
     [InlineData("I have a volvo 760 white color and license plate 999111", "999111")]
     [InlineData("License Plate Number: 999111", "999111")]
     [InlineData("LICENSE PLATE # ABC-123", "ABC123")]

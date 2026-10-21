@@ -94,6 +94,7 @@ public sealed class CampusPickItem
 /// <summary>The AI door's front page: pick your college (tonight's pick page, moved here).</summary>
 public sealed class AskViewModel
 {
+    public Guid? FlowId { get; set; }
     public string StudentName { get; set; } = "";
 
     public IReadOnlyList<CampusPickItem> Campuses { get; set; } = [];
@@ -110,6 +111,8 @@ public sealed class AskViewModel
 /// </summary>
 public sealed class QuestionsViewModel
 {
+    public Guid FlowId { get; set; }
+    public string DraftOwner { get; set; } = "";
     /// <summary>Optional confirmed planner start; carried through review and Fix it.</summary>
     public DateOnly? StartDate { get; set; }
     public string College { get; set; } = "";
@@ -136,6 +139,9 @@ public sealed class QuestionsViewModel
 /// </summary>
 public sealed class PermitDraftViewModel
 {
+    /// <summary>Identifies this browser's protected, owner-bound draft; never a payment identifier.</summary>
+    public Guid FlowId { get; set; }
+    public string DraftOwner { get; set; } = "";
     public DateOnly? StartDate { get; set; }
     public const int MaxCarTextLength = 1000;
     public const int MaxVehicleDetailLength = 50;
@@ -215,6 +221,14 @@ public sealed class ReviewViewModel
 
     /// <summary>The server's price, or null when the catalog does not publish it.</summary>
     public int? PriceCents { get; set; }
+
+    /// <summary>Saved payment references, also shown when revisiting the total.</summary>
+    public string? PayPalOrderId { get; set; }
+    public string? PayPalCaptureId { get; set; }
+
+    public bool OrderQuoteLocked { get; set; }
+    public bool PriceChangeRequiresReview { get; set; }
+    public string ReviewedSnapshot { get; set; } = "";
 
     public bool Blocked => PriceCents is null;
 

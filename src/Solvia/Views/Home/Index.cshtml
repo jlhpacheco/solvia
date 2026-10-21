@@ -1,17 +1,19 @@
 @model Solvia.Models.ViewModels.HomeIndexViewModel
+@inject Solvia.Services.UserCategoryResolver Categories
 @{
     ViewData["Title"] = "A clearer way to campus";
+    string Role(Solvia.Models.Student person) => Categories.Resolve(person) switch
+    {
+        Solvia.Models.Enums.UserCategory.Public => "Visitor (public)",
+        var category => category.ToString(),
+    };
+    var currentPerson = Model.Students.FirstOrDefault(person => person.Id == Model.CurrentStudentId);
 }
 <section class="sv-home-hero" aria-labelledby="home-title">
     <div class="sv-hero-copy">
         <span class="sv-eyebrow"><span class="sv-status-dot"></span> COLLEGE PARKING, SIMPLIFIED</span>
         <h1 id="home-title">Your permit.<br />Your campus.<br /><span>A clearer way.</span></h1>
         <p class="sv-hero-description">Tell Solvia where you're headed. See your college's published price, check the details, and pay with PayPal. One clear path from application to permit.</p>
-        <div class="sv-hero-actions">
-            <a class="btn btn-primary" asp-controller="Planner" asp-action="Index">Plan my parking <span aria-hidden="true">↗</span></a>
-            <a class="btn btn-outline-primary" asp-controller="Permits" asp-action="Ask">Ask Solvia <span aria-hidden="true">↗</span></a>
-            <a class="btn btn-outline-secondary" asp-controller="Permits" asp-action="Apply">Use the classic form</a>
-        </div>
         <div class="sv-trust-row"><span>✓ Price before payment</span><span>✓ Your approval, every time</span><span>✓ Permit PDF &amp; receipt</span></div>
     </div>
     <div class="sv-journey-panel">
@@ -25,18 +27,32 @@
     </div>
 </section>
 
-<section class="sv-demo-panel" aria-labelledby="demo-title">
-    <div><span class="sv-eyebrow">EXPLORE THE WORKING DEMO</span><h2 id="demo-title">Welcome, @Model.CurrentStudentName.</h2><p>Choose a fictional person to try their permit journey.</p></div>
+<section class="sv-demo-panel" aria-labelledby="demo-title" data-testid="demo-step-one">
+    <div><span class="sv-eyebrow">STEP 1 · CHOOSE A FICTIONAL PERSON</span><h2 id="demo-title">Welcome, @Model.CurrentStudentName.</h2><p>Choose whose permit journey you want to try.</p></div>
     <div class="sv-demo-people">
         @foreach (var student in Model.Students)
         {
             <form method="post" asp-controller="Home" asp-action="SwitchStudent">
                 <input type="hidden" name="id" value="@student.Id" />
-                <button type="submit" aria-pressed="@(student.Id == Model.CurrentStudentId ? "true" : "false")" class="sv-person @(student.Id == Model.CurrentStudentId ? "is-selected" : "")"><span class="sv-avatar" aria-hidden="true">@student.DisplayName[..1]</span>@student.DisplayName</button>
+                <button type="submit" aria-label="@student.DisplayName" aria-describedby="role-@student.Id"
+                        aria-pressed="@(student.Id == Model.CurrentStudentId ? "true" : "false")" class="sv-person @(student.Id == Model.CurrentStudentId ? "is-selected" : "")"><span class="sv-avatar" aria-hidden="true">@student.DisplayName[..1]</span><span class="sv-person-label">@student.DisplayName<span class="sv-person-role" id="role-@student.Id">@Role(student)</span></span></button>
             </form>
         }
     </div>
     <p class="sv-demo-disclosure">Fictional people · PayPal sandbox test money · No real student records</p>
+</section>
+
+<section class="sv-demo-panel sv-entry-panel mt-3" aria-labelledby="entry-title" data-testid="demo-step-two">
+    <div>
+        <span class="sv-eyebrow">STEP 2 · CHOOSE HOW TO APPLY</span>
+        <h2 id="entry-title">Your next step</h2>
+        <p>Continue as <strong>@Model.CurrentStudentName</strong>@(currentPerson is null ? "" : $" · {Role(currentPerson)}"). Ask Solvia or enter the details yourself.</p>
+    </div>
+    <div class="sv-hero-actions">
+        <a class="btn btn-primary" asp-controller="Permits" asp-action="Ask">Ask Solvia <span aria-hidden="true">↗</span></a>
+        <a class="btn btn-outline-secondary" asp-controller="Permits" asp-action="Apply">Use the classic form</a>
+        <a class="btn btn-outline-primary" asp-controller="Planner" asp-action="Index">Plan my parking <span aria-hidden="true">↗</span></a>
+    </div>
 </section>
 
 <section class="sv-feature-grid" aria-label="Explore Solvia">

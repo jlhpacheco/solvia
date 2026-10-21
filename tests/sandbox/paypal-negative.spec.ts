@@ -72,11 +72,13 @@ async function createUnpaidDayOrder(page: Page, key: string) {
   const applicationId = page.url().match(/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}/i)?.[0];
   expect(applicationId, 'Persisted unpaid application').toBeTruthy();
   await expect(page.locator('main')).toContainText('$1.00');
-  await page.getByRole('button', { name: 'Pay with PayPal', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose how to pay', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Check your total', exact: true })).toBeVisible();
   const token = await page.locator('input[name="__RequestVerificationToken"]').first().inputValue();
   const headers = { RequestVerificationToken: token };
-  const created = await page.request.post('/api/paypal/orders', { headers, data: { permitApplicationId: applicationId } });
+  const reviewedSnapshot = await page.locator('#checkout-payment').getAttribute('data-reviewed-snapshot');
+  expect(reviewedSnapshot).toMatch(/^[a-f0-9]{64}$/);
+  const created = await page.request.post('/api/paypal/orders', { headers, data: { permitApplicationId: applicationId, reviewedSnapshot } });
   expect(created.status(), 'Actual Solvia order creation').toBe(200);
   const orderId = (await created.json()).id as string;
   expect(orderId).toMatch(/^[A-Z0-9]+$/);

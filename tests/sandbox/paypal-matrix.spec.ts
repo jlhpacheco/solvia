@@ -101,17 +101,19 @@ for (const campus of campuses) {
         // provider transaction and encourage a blind second purchase.
         saveProgress(amount === '0.00' ? 'free-issued' : 'draft-created');
         if (amount !== '0.00') {
-          await page.getByRole('button', { name: 'Pay with PayPal', exact: true }).click();
-          await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
+          await expect(page.getByRole('heading', { name: 'Check your total', exact: true })).toBeVisible();
+          await expect(page.getByRole('heading', { name: 'Choose how to pay', exact: true })).toBeVisible();
           await expect(page.locator('main')).toContainText(`$${amount}`);
           const token = await formToken(page);
           const headers = { RequestVerificationToken: token };
-          const started = await page.request.post('/api/paypal/orders', { headers, data: { permitApplicationId: applicationId } });
+          const reviewedSnapshot = await page.locator('#checkout-payment').getAttribute('data-reviewed-snapshot');
+          expect(reviewedSnapshot, 'Actual reviewed purchase fingerprint').toMatch(/^[a-f0-9]{64}$/);
+          const started = await page.request.post('/api/paypal/orders', { headers, data: { permitApplicationId: applicationId, reviewedSnapshot } });
           expect(started.status(), 'Solvia order creation').toBe(200);
           orderId = (await started.json()).id;
           expect(orderId).toMatch(/^[A-Z0-9]+$/);
           saveProgress('order-created');
-          const repeated = await page.request.post('/api/paypal/orders', { headers, data: { permitApplicationId: applicationId } });
+          const repeated = await page.request.post('/api/paypal/orders', { headers, data: { permitApplicationId: applicationId, reviewedSnapshot } });
           expect(repeated.status()).toBe(200);
           expect((await repeated.json()).id, 'Create retry reuses order').toBe(orderId);
           const providerHeaders = { Authorization: `Bearer ${bearer}` };

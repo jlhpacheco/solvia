@@ -132,9 +132,33 @@ public sealed class CheckoutService
         Guid applicationId,
         string? returnUrl,
         string? cancelUrl,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? reviewedSnapshot = null)
     {
+        // Validate the rendered purchase under the same SQLite write lock that
+        // protects first-order creation. Refresh tracked facts: the controller
+        // may have loaded them before another tab revised this application.
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         var application = await LoadAsync(applicationId, cancellationToken);
+        await _db.Entry(application).ReloadAsync(cancellationToken);
+        if (_db.Entry(application).State == EntityState.Detached)
+            throw new KeyNotFoundException("That permit application was not found.");
+        // Resolve the freshly reloaded foreign keys explicitly. Reference.Load
+        // may skip an already-loaded old target, while resetting IsLoaded on
+        // a non-null required navigation is invalid. Refresh either tracked
+        // target in place, then assign the matching relation without nulling it.
+        var vehicle = await _db.Vehicles.FindAsync([application.VehicleId], cancellationToken);
+        var permitType = await _db.PermitTypes.FindAsync([application.PermitTypeId], cancellationToken);
+        if (vehicle is null || permitType is null)
+            throw new CheckoutPricingException("This permit's vehicle or permit type is unavailable. Review its current details before paying.");
+        await _db.Entry(vehicle).ReloadAsync(cancellationToken);
+        await _db.Entry(permitType).ReloadAsync(cancellationToken);
+        if (_db.Entry(vehicle).State == EntityState.Detached || _db.Entry(permitType).State == EntityState.Detached)
+            throw new CheckoutPricingException("This permit's vehicle or permit type changed. Review its current details before paying.");
+        application.Vehicle = vehicle;
+        application.PermitType = permitType;
+        if (reviewedSnapshot is not null && !CheckoutReviewSnapshot.Matches(application, reviewedSnapshot))
+            throw new CheckoutReviewChangedException();
 
         if (application.Status == ApplicationStatus.Denied || application.PaymentStatus is
             PaymentStatus.Refunded or PaymentStatus.PartiallyRefunded or PaymentStatus.Expired)
@@ -152,6 +176,7 @@ public sealed class CheckoutService
         if (application.Category == UserCategory.Employee)
         {
             await SettleAsNotRequiredAsync(application, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             _logger.LogInformation(
                 "Employee application {ApplicationId} settled as NotRequired " +
                 "at checkout start — issued, no PayPal order.",
@@ -187,6 +212,7 @@ public sealed class CheckoutService
 
             // resolved == snapshot == 0: a real published $0 fee.
             await SettleAsNotRequiredAsync(application, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             _logger.LogInformation(
                 "Free permit {ApplicationId} settled as NotRequired at " +
                 "checkout start — published $0 fee, no PayPal call.",
@@ -199,6 +225,10 @@ public sealed class CheckoutService
         // second order is never created for the same application.
         if (!string.IsNullOrWhiteSpace(application.PayPalOrderId))
         {
+            // An order-bound purchase is immutable. Release the read check
+            // before its existing provider recovery/capture path, which keeps
+            // capture and notification behavior unchanged.
+            await transaction.CommitAsync(cancellationToken);
             if (returnUrl is not null || cancelUrl is not null)
             {
                 var existing = await _payPal.GetOrderAsync(application.PayPalOrderId, cancellationToken);
@@ -223,9 +253,18 @@ public sealed class CheckoutService
                 application.PayPalOrderId, null);
         }
 
+        // A fresh order must use the same still-published amount the buyer
+        // reviewed. Do not silently charge a stale positive snapshot or change
+        // its quote while clicking an SDK option. Existing orders above retain
+        // their original quote and resume through provider state instead.
+        var currentPrice = ResolveSnapshotPrice(application);
+        if (currentPrice is null || currentPrice.Value != application.PriceCents)
+            throw new CheckoutPricingException(
+                "The published fee changed or is no longer available. Return to Check your total " +
+                "and review the current price before paying. No new PayPal order was created.");
+
         // SQLite's write transaction and token check prevent maintenance from
         // changing the amount between order creation and saving its durable id.
-        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         application.ConcurrencyToken = Guid.NewGuid();
         await _db.SaveChangesAsync(cancellationToken);
         var order = await _payPal.CreateOrderAsync(

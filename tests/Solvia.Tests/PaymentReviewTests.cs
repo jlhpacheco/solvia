@@ -56,7 +56,7 @@ public sealed class PaymentReviewTests
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         Assert.False(json.RootElement.GetProperty("hasConfirmedAmount").GetBoolean());
         Assert.Equal("Not priced", json.RootElement.GetProperty("amount").GetString());
-        Assert.Empty(db.ChangeTracker.Entries().Where(entry => entry.State == Microsoft.EntityFrameworkCore.EntityState.Modified));
+        Assert.DoesNotContain(db.ChangeTracker.Entries(), entry => entry.State == Microsoft.EntityFrameworkCore.EntityState.Modified);
     }
 
     [Fact]

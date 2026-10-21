@@ -27,9 +27,9 @@ async function pendingApplication(page: Page) {
   await expect(page.getByRole('heading', { name: 'Did I get this right?', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Yes — show my total', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Check your total', exact: true })).toBeVisible();
-  const id = await page.locator('form[action="/Permits/Confirm"] input[name="id"]').inputValue();
+  const id = await page.locator('#checkout-payment').getAttribute('data-application-id');
   expect(id).toMatch(/^[a-f0-9-]{36}$/);
-  return { id, reference: 'Application ' + id.replaceAll('-', '').slice(0, 8), financialRequests };
+  return { id: id!, reference: 'Application ' + id!.replaceAll('-', '').slice(0, 8), financialRequests };
 }
 
 async function filteredReview(page: Page) {

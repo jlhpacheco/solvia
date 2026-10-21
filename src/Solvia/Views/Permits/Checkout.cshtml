@@ -1,22 +1,13 @@
 @model Solvia.Models.PermitApplication
 @{
-    var clientId = ViewData["PayPalClientId"] as string;
     var currency = (ViewData["PayPalCurrency"] as string) ?? "USD";
     var error = ViewData["CheckoutError"] as string;
     var info = ViewData["CheckoutInfo"] as string;
     var amount = (Model.PriceCents / 100m).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
-    var sdkUrl = string.IsNullOrWhiteSpace(clientId) ? null
-        : "https://www.paypal.com/sdk/js?client-id=" + Uri.EscapeDataString(clientId)
-            + "&currency=" + Uri.EscapeDataString(currency) + "&intent=capture&enable-funding=card";
     string Date(System.DateOnly d) => d.ToString("MMM d, yyyy");
-    var vehicleLine = Model.Vehicle is null
-        ? ""
-        : $"{Model.Vehicle.Make} {Model.Vehicle.Model}".Trim();
 }
 
 <h1 class="mt-4">Checkout</h1>
-<div id="checkout-feedback" class="alert alert-info mt-3" role="status" aria-live="polite" tabindex="-1" hidden></div>
-
 @if (error is not null)
 {
     <div class="alert alert-danger fs-5 mt-3" role="alert">@error</div>
@@ -26,121 +17,20 @@
     <div class="alert alert-info fs-5 mt-3" role="alert">@info</div>
 }
 
-@* Summary tiles (item 20): the three facts a buyer checks first. *@
-<div class="row g-3 mt-1">
-    <div class="col-md-4">
-        <div class="price-panel h-100 text-center">
-            <p class="mb-1 fs-5">Amount due</p>
-            <p class="price-total mb-0">$@amount</p>
-            <p class="price-note mb-0">@currency · PayPal sandbox</p>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="sv-card h-100 text-center">
-            <p class="text-muted mb-1 fs-5">Permit</p>
-            <p class="fs-3 fw-bold mb-0">@(Model.PermitType?.Name ?? "Parking permit")</p>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="sv-card h-100 text-center">
-            <p class="text-muted mb-1 fs-5">Valid</p>
-            <p class="fs-4 fw-bold mb-0">@Date(Model.StartDate) → @Date(Model.EndDate)</p>
-        </div>
-    </div>
-</div>
-
-<section class="sv-card mt-3" aria-labelledby="payment-status-heading">
-    <h2 class="fs-3" id="payment-status-heading">Payment status</h2>
-    <p id="payment-state">Payment not confirmed — this permit is not active.</p>
+<div class="sv-card mt-3">
     <dl class="mb-0">
-        <dt>PayPal order ID</dt>
-        <dd id="paypal-order-id" class="text-break">@(Model.PayPalOrderId ?? "Not created yet — choose PayPal below.")</dd>
-        <dt>PayPal capture ID</dt>
-        <dd id="paypal-capture-id" class="text-break">@(Model.PayPalCaptureId ?? "Not issued yet — buyer approval and capture are required.")</dd>
-    </dl>
-    <p class="text-muted mt-3 mb-0">An order ID records the payment request. A completed capture confirms payment of the $@amount @currency fee.</p>
-</section>
-
-@* The full detail list (item 20) — campus and category included. *@
-<div class="sv-card mt-3" id="checkout-payment" data-application-id="@Model.Id" data-paypal-sdk-url="@sdkUrl">
-    <dl class="fs-4 mb-0">
-        <dt>College</dt>
-        <dd>@Model.Campus</dd>
-        <dt>Category</dt>
-        <dd>@Model.Category</dd>
-        <dt>Permit</dt>
-        <dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+        <dt>College</dt><dd>@Model.Campus</dd>
+        <dt>Category</dt><dd>@Model.Category</dd>
         <dt>Vehicle</dt>
-        <dd>
-            @if (Model.Vehicle is not null)
-            {
-                <text>@vehicleLine — plate @Model.Vehicle.Plate · @Model.Vehicle.State</text>
-            }
-        </dd>
-        <dt>Dates</dt>
-        <dd>@Date(Model.StartDate) → @Date(Model.EndDate)</dd>
-        <dt>Amount due</dt>
-        <dd>$@amount @currency (the exact fee from @Model.Campus's published fee row)</dd>
+        <dd>@Model.Vehicle?.Make @Model.Vehicle?.Model — plate @Model.Vehicle?.Plate · @Model.Vehicle?.State</dd>
+        <dt>Permit</dt><dd>@(Model.PermitType?.Name ?? "Parking permit")</dd>
+        <dt>Valid</dt><dd>@Date(Model.StartDate) → @Date(Model.EndDate)</dd>
     </dl>
-</div>
-
-@* Explainer (item 21): who pays, who never sees this page. *@
-<div class="sv-card mt-3">
-    <h2 class="fs-3">Who pays what</h2>
-    <p class="fs-5 mb-2">
-        Students and the public pay the college's published fee — the exact
-        amount from @Model.Campus's published fee row, shown above before
-        anything is charged.
-    </p>
-    <p class="fs-5 mb-0">
-        College employees are exempt: an employee permit costs $0, is issued
-        without PayPal, and never comes to this page.
-    </p>
-</div>
-
-<div class="alert alert-info fs-5 mt-3" role="note">
-    <strong>Check your permit, vehicle, and amount before paying.</strong>
-    Your permit activates after PayPal confirms payment.
-</div>
-
-<div class="sv-card mt-3">
-    <h2 class="fs-3">Choose how to pay</h2>
-    @if (string.IsNullOrWhiteSpace(clientId))
-    {
-        <div class="alert alert-warning fs-5" role="alert">
-            PayPal checkout is unavailable right now. Please try again later.
-            Payment is not confirmed here. Check your permit status before retrying.
-        </div>
-    }
-    else
-    {
-        @* PayPal JS SDK buttons — the buyer path. The client id comes
-           from config via ViewData; it is never hardcoded in this view. *@
-        <div id="paypal-button-container"></div>
-        <noscript>
-            <p>Continue on PayPal to pay $@amount @currency.</p>
-            <form method="post" action="/Checkout/Start/@Model.Id">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-outline-secondary">Continue to PayPal</button>
-            </form>
-        </noscript>
-    }
-
-    @* Shown only when the provider's buttons cannot load or render.
-       The protected form uses the same server order/capture path. *@
-    <div id="paypal-redirect-fallback" hidden>
-        <p>Continue on PayPal to pay $@amount @currency.</p>
-        <form method="post" action="/Checkout/Start/@Model.Id" id="plain-pay-form">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-outline-secondary">Continue to PayPal</button>
-        </form>
+    <div class="text-center mt-3">
+        <p class="mb-1">Amount due</p>
+        <p class="price-total mb-0">$@amount</p>
+        <p class="text-muted mb-0">@currency · PayPal sandbox</p>
     </div>
-    <p class="text-muted mt-3 mb-0">Sandbox test payment — no real money. Use a <strong>Personal buyer</strong> test account, separate from the store's Business account.</p>
-    <details class="mt-3">
-        <summary>How do I make a test payment?</summary>
-        <p class="mt-2 mb-2">Choose <strong>PayPal</strong> and sign in with a Personal Sandbox buyer account to use its test balance. Or choose <strong>Debit or Credit Card</strong> and use an official Sandbox test card on PayPal. Use test details only.</p>
-        <a href="https://developer.paypal.com/credit-card-number-generator" target="_blank" rel="noopener noreferrer">Get PayPal's Sandbox test card details</a>
-    </details>
 </div>
-
-<script src="~/js/checkout.js" asp-append-version="true" defer></script>
+@await Html.PartialAsync("_PayPalPaymentPanel", new Solvia.Models.ViewModels.PayPalPaymentPanelViewModel(
+    Model.Id, Model.PriceCents, Solvia.Services.CheckoutReviewSnapshot.Compute(Model), Model.PayPalOrderId, Model.PayPalCaptureId))

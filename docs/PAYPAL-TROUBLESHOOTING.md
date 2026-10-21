@@ -23,9 +23,16 @@ accounts area. Never add its password or app secrets to source or reports.
 - Buttons fail to load: use the plain PayPal redirect button. Repeating it
   resumes the same order through its current provider approval link.
 - Free/exempt permit: no PayPal IDs are required and no payment is taken.
+- `REVIEW_CHANGED` / HTTP 409: another tab changed the unpaid permit, or this
+  page is stale. Reopen and check the current vehicle, dates and total before
+  choosing a payment option. The rejected action makes no provider call.
 
 Both payment endpoints require the page's antiforgery token and the current
 demo owner. `POST /api/paypal/orders` returns the durable order ID.
+Order creation also requires the current page's `reviewedSnapshot` purchase
+fingerprint; the protected redirect form includes the same value. Ownership
+and prices remain server-controlled. Unchanged order/capture retries keep
+their original purchase fingerprint and durable references.
 `POST /api/paypal/capture` returns the order ID, capture status/ID and
 `completed`. Browser code accepts success only when `completed` is true,
 status is `COMPLETED`, and a capture ID exists. The server independently

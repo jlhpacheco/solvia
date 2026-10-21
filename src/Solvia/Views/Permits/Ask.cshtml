@@ -14,7 +14,7 @@
 @foreach (var campus in Model.Campuses)
 {
     <a class="sv-card d-block text-decoration-none mt-3"
-       href="@Url.Action("Questions", "Permits", new { college = campus.Name })">
+       href="@Url.Action("Questions", "Permits", new { college = campus.Name, flowId = Model.FlowId })">
         <span class="fs-3 d-block">@campus.Name</span>
         <span class="fs-5 @(campus.HasPrice ? "text-success" : "text-muted")">@campus.PriceLabel</span>
     </a>

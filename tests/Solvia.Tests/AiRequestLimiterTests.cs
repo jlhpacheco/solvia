@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -143,31 +144,57 @@ public sealed class AiRequestLimiterTests
             services.RemoveAll<AiRequestLimiter>();
             services.AddSingleton(limiter);
         }));
-        using var client = factory.CreateClient();
-        var page = await client.GetStringAsync("/Permits/Questions?college=Fresno%20City%20College");
-        var token = Regex.Match(page, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var start = await client.GetAsync("/Permits/Questions?college=Fresno%20City%20College");
+        Assert.Equal(HttpStatusCode.Redirect, start.StatusCode);
+        Assert.NotNull(start.Headers.Location);
+        Assert.Contains("flowId=", start.Headers.Location!.ToString());
+        var page = await client.GetStringAsync(start.Headers.Location);
+        var token = WebUtility.HtmlDecode(Regex.Match(page,
+            "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
         Assert.NotEmpty(token);
+        Assert.True(Guid.TryParse(Regex.Match(page, "name=\"flowId\"[^>]*value=\"([^\"]+)\"").Groups[1].Value,
+            out var flowId));
+        Assert.NotEqual(Guid.Empty, flowId);
+        var draftOwner = Regex.Match(page, "data-draft-owner=\"([^\"]+)\"").Groups[1].Value;
+        Assert.NotEmpty(draftOwner);
         const string sentence = "Fictional white Volvo760, license plate654321, CA";
 
         for (var i = 0; i < AiRequestLimiter.MaxRequestsPerClient; i++)
         {
+            // A changed description requests real extraction. Re-reading the
+            // unchanged owner-bound draft intentionally reuses reviewed facts
+            // and must not be mistaken for another metered model call.
+            var changedSentence = $"{sentence}; fictional description revision {i}";
             using var response = i % 2 == 0
-                ? await client.PostAsync("/api/chat/extract", Json(new { text = sentence }))
-                : await client.PostAsync("/Permits/Understand", Form(token, sentence));
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                ? await client.PostAsync("/api/chat/extract", Json(new { text = changedSentence }))
+                : await client.PostAsync("/Permits/Understand", Form(token, flowId, changedSentence));
+            Assert.Equal(i % 2 == 0 ? HttpStatusCode.OK : HttpStatusCode.Redirect, response.StatusCode);
+            if (i % 2 != 0)
+            {
+                Assert.NotNull(response.Headers.Location);
+                Assert.Contains("/Permits/Understood", response.Headers.Location!.ToString());
+                Assert.Contains(flowId.ToString(), response.Headers.Location.ToString());
+                using var understood = await client.GetAsync(response.Headers.Location);
+                Assert.Equal(HttpStatusCode.OK, understood.StatusCode);
+            }
+            Assert.Equal(i + 1, extractor.Calls);
         }
 
         using var api = await client.PostAsync("/api/chat/extract", Json(new { text = sentence }));
         Assert.Equal(HttpStatusCode.TooManyRequests, api.StatusCode);
         Assert.Equal("60", api.Headers.GetValues("Retry-After").Single());
         Assert.Contains(AiRequestLimiter.RejectionMessage, await api.Content.ReadAsStringAsync());
-        using var mvc = await client.PostAsync("/Permits/Understand", Form(token, sentence));
+        Assert.Equal(AiRequestLimiter.MaxRequestsPerClient, extractor.Calls);
+        using var mvc = await client.PostAsync("/Permits/Understand", Form(token, flowId, sentence));
         Assert.Equal(HttpStatusCode.TooManyRequests, mvc.StatusCode);
         Assert.Equal("60", mvc.Headers.GetValues("Retry-After").Single());
         var html = await mvc.Content.ReadAsStringAsync();
         Assert.Contains(sentence, html);
         Assert.Contains("Your answers are still here.", html);
         Assert.Contains("Fresno City College", html);
+        Assert.Contains($"value=\"{flowId}\"", html);
+        Assert.Contains($"data-draft-owner=\"{draftOwner}\"", html);
         Assert.Contains("checked", Regex.Match(html, "<input\\b[^>]*id=\"typeDaily\"[^>]*>").Value);
         Assert.Contains("checked", Regex.Match(html, "<input\\b[^>]*id=\"termSummer\"[^>]*>").Value);
         Assert.Equal(AiRequestLimiter.MaxRequestsPerClient, extractor.Calls);
@@ -176,9 +203,10 @@ public sealed class AiRequestLimiterTests
     private static StringContent Json(object value) =>
         new(JsonSerializer.Serialize(value), Encoding.UTF8, "application/json");
 
-    private static FormUrlEncodedContent Form(string token, string sentence) => new(new Dictionary<string, string>
+    private static FormUrlEncodedContent Form(string token, Guid flowId, string sentence) => new(new Dictionary<string, string>
     {
         ["__RequestVerificationToken"] = token,
+        ["flowId"] = flowId.ToString(),
         ["college"] = "Fresno City College",
         ["carText"] = sentence,
         ["permitType"] = "Daily",
