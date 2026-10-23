@@ -1,6 +1,20 @@
 # Testing Solvia
 
-## Current single-visit/status checkpoint — October 23, 2026
+## Current visit-type UX checkpoint — October 23, 2026
+
+Source [`5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f`](https://github.com/jlhpacheco/solvia/tree/5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f) separates **One visit** (visit date only) from **Repeating visits** (start date, weeks, weekdays). See the [repair record](review/ONE-VISIT-MODE-2026-10-23.md), [actual screen](review/Solvia-one-visit-form.png) and [sanitized proof](review/Solvia-one-visit-mode-verification.json).
+
+| Layer | Complete passing scope |
+|---|---|
+| Backend | **689/689 passed**, zero failed/skipped. `.playwright-data/one-visit-mode/backend/final.trx`. |
+| Main TypeScript Playwright | **168/168 passed** in one run, desktop/phone; **50 smoke checks** are a subset. `.playwright-data/one-visit-mode/main-final.json`. |
+| Tablet TypeScript Playwright | **32/32 passed** in one run, Chromium/WebKit portrait/landscape emulation. `.playwright-data/one-visit-mode/tablet-final.json`. |
+
+The two browser runs cover **200 distinct controlled cases**. New checks exercise exact single-date calculation despite forged recurrence fields, owner/CSRF checks, invalid dates, mode freshness, legacy drafts, Back, handoff/revision, optional reading, no-JavaScript mode changes and hidden-field validation. Build (zero warnings/errors), TypeScript and JS syntax checks passed. Emulation is not physical-device certification; automated agent reviews are not human studies. No new PayPal capture occurred.
+
+The real Together date-only check is **one distinct case, two attempts**: first a labeled fallback/failed strict source assertion, then a same-source accepted model result and passing application case in **4.506 seconds**. A separate bounded direct diagnostic returned HTTPError without a recorded status and did not identify the app fallback cause. Production/prompt were unchanged between the application attempts. This is not a clean two-pass sequence, uninterrupted reliability or a rerun of the full 13-case opt-in catalog. Raw reports: `.playwright-data/ai-evidence/one-visit-mode/results.json` and `one-visit-mode-recheck/results.json`. Older checkpoint results remain separately scoped below.
+
+## Historical single-visit/status checkpoint — earlier October 23, 2026
 
 Application and test source: [`83748c8dc305a5e1f9df98df3ea4faf2f846afa9`](https://github.com/jlhpacheco/solvia/tree/83748c8dc305a5e1f9df98df3ea4faf2f846afa9). See the [repair record](review/SINGLE-VISIT-AI-STATUS-2026-10-23.md) and [sanitized proof](review/Solvia-single-visit-AI-status-verification.json).
 

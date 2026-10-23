@@ -1,0 +1,120 @@
+{
+  "checkedAtUtc": "2026-10-23T20:40:21.653857+00:00",
+  "applicationAndTestSource": "5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f",
+  "scope": "One-visit date-only form versus repeating visit schedule. Backend, main browser and tablet suites each passed a complete run at this source.",
+  "backend": {
+    "total": 689,
+    "passed": 689,
+    "failed": 0,
+    "skipped": 0
+  },
+  "main": {
+    "startTime": "2026-10-23T20:30:49.288Z",
+    "duration": 400585.875,
+    "expected": 168,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "mainDistinctCases": 168,
+  "smokeSubset": 50,
+  "tablet": {
+    "startTime": "2026-10-23T20:37:52.246Z",
+    "duration": 104691.139,
+    "expected": 32,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tabletDistinctCases": 32,
+  "controlledDistinctTotal": 200,
+  "actualAi": {
+    "distinctCases": 1,
+    "applicationExecutions": 2,
+    "initialResult": "fallback; strict Together-source assertion failed",
+    "initialRun": {
+      "startTime": "2026-10-23T20:33:03.618Z",
+      "duration": 6325.2210000000005,
+      "expected": 0,
+      "skipped": 0,
+      "unexpected": 1,
+      "flaky": 0
+    },
+    "finalRun": {
+      "startTime": "2026-10-23T20:36:29.194Z",
+      "duration": 5404.813,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "finalCaseDurationMs": 4506,
+    "finalObservedResult": {
+      "checkedAtUtc": "2026-10-23T20:36:34.441Z",
+      "source": "together",
+      "date": "2026-10-27",
+      "singleVisit": true,
+      "repeatFieldsVisible": false,
+      "status": {
+        "state": "recent",
+        "label": "AI: response verified",
+        "description": "A real draft read returned a validated model response within the last 10 minutes. This is a past observation, not a promise of availability.",
+        "provider": "Together AI",
+        "model": "openai/gpt-oss-120b",
+        "observedAtUtc": "2026-10-23T20:36:34.2719843+00:00",
+        "lastSuccessAtUtc": "2026-10-23T20:36:34.0976875+00:00",
+        "lastAttemptAtUtc": "2026-10-23T20:36:34.0976875+00:00",
+        "readers": [
+          {
+            "reader": "Vehicle",
+            "state": "unchecked",
+            "lastAttemptAtUtc": null,
+            "lastSuccessAtUtc": null
+          },
+          {
+            "reader": "Visits",
+            "state": "success",
+            "lastAttemptAtUtc": "2026-10-23T20:36:34.0976875+00:00",
+            "lastSuccessAtUtc": "2026-10-23T20:36:34.0976875+00:00"
+          }
+        ]
+      }
+    },
+    "productionOrPromptChangedBetweenLiveAttempts": false,
+    "failureCause": "Not established. A separate bounded direct-API diagnostic returned HTTPError without recorded status; this does not diagnose the application fallback.",
+    "auxiliaryDiagnosticRequests": 1,
+    "boundary": "Same-source application rerun accepted validated Together output. This is not uninterrupted provider reliability or a rerun of the full13-case opt-in catalog."
+  },
+  "newPayPalCaptures": 0,
+  "boundaries": [
+    "Chromium/WebKit device emulation is not physical hardware certification.",
+    "Agent implementation/review and automated journeys are not a human usability study.",
+    "UI/smoke counts include browser projects; smoke is a subset, not an additional total."
+  ],
+  "evidence": [
+    {
+      "path": ".playwright-data/one-visit-mode/backend/final.trx",
+      "sha256": "641c5426cda538d9fb653064aa5586ef05066188369094276d7aee59319f8498"
+    },
+    {
+      "path": ".playwright-data/one-visit-mode/main-final.json",
+      "sha256": "55fc59a5c49cc5a544463aaf272dd192cbf64bdf6ba38147397e452640a20149"
+    },
+    {
+      "path": ".playwright-data/one-visit-mode/tablet-final.json",
+      "sha256": "b8c70fcd1686441403b2d769250303f47e82dc0f73df40fb03031d8b0371c39f"
+    },
+    {
+      "path": ".playwright-data/ai-evidence/one-visit-mode/results.json",
+      "sha256": "485d8dd5bae59b7950e28fbb2bb8aecc30b5b43749240ec2973a2ad5c7c516ff"
+    },
+    {
+      "path": ".playwright-data/ai-evidence/one-visit-mode-recheck/results.json",
+      "sha256": "078a9a72b9e5a9f6e72ee4bc24019243ba0a6d67bb9e2899162d73d3edebf19c"
+    }
+  ],
+  "screenshot": {
+    "path": "docs/review/Solvia-one-visit-form.png",
+    "sha256": "9037399a5f9190f6dff65d7e420a48dbc420bca66c62054fcc349aa945be1604"
+  }
+}

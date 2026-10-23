@@ -46,6 +46,14 @@ Process-local request/concurrency limits are not provider billing limits.
 
 ## A schedule becomes an editable planning draft
 
+The confirmation form separates **One visit** from **Repeating visits**.
+One visit asks only for a visit date; its weekday comes from that date, and
+no weeks or weekday selections are shown. A date-only sentence such as
+“One visit on 10/27/2026” selects this mode. Repeating visits retain the
+start-date, weeks and weekday questions. Both modes survive revision and
+browser Back; no-JavaScript users can apply a mode with an explicit protected
+POST. See the [current UX checkpoint](review/ONE-VISIT-MODE-2026-10-23.md).
+
 The optional hosted reader's schema contains only weekdays and a week count.
 An independent strict parser also grounds one full US (`M/d/yyyy`) or ISO
 (`yyyy-MM-dd`) start date in the person's sentence; the model cannot invent it.

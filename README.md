@@ -10,7 +10,7 @@ Current implementation: [US-developed AI, visit planning and staff review](docs/
 The configured model is **OpenAI's US-developed GPT-OSS 120B, hosted through Together AI**.
 Model origin does not establish a US-only processing region.
 The header's AI indicator reports observed model responses and their timestamps.
-See the [October 23 planner/status repair](docs/review/SINGLE-VISIT-AI-STATUS-2026-10-23.md) for the latest verification scope.
+See the [October 23 visit-type repair](docs/review/ONE-VISIT-MODE-2026-10-23.md) for the latest verification scope.
 
 Latest review: [changes and verification](docs/REVIEW-2026-10-19.md),
 [hackathon readiness and judging](docs/HACKATHON-READINESS.md),
@@ -36,7 +36,7 @@ Together: *pay what is due for the vehicle on the road.*
 Maria is a fictional adult student (18+). It is her first day.
 
 1. Maria opens Solvia and picks how to start:
-   - **Plan my parking:** describe expected weekdays and weeks, or a single dated visit such as “one day Monday 10/26/2026.” Confirm the date, weekday and duration, then compare catalog day/term costs. Continuing with day parking starts one pass for the first visit; a multi-visit estimate is not a prepaid bundle.
+   - **Plan my parking:** describe expected weekdays and weeks, or a single dated visit such as “one day Monday 10/26/2026.” Choose **One visit** and confirm its date, or choose **Repeating visits** and confirm weekdays and weeks. Then compare catalog day/term costs. Continuing with day parking starts one pass for the first visit; a multi-visit estimate is not a prepaid bundle.
    - **Ask Solvia (the AI door):** choose a college, describe a car, and choose a permit. The configured reader drafts vehicle fields for review.
    - **The classic form:** pick campus, car, permit type, and start date — the same shape colleges already use.
 2. Both doors build the **same application** through the same brain, and both show the **exact total first**, taken from a real fee table (see `data/fees.csv` — 10 campuses, every one publishing its student semester price, from the 2026-10-18 scan of 25 mycampuspermit.com pages; only the 10 with a published price ship, and no price is ever guessed).
@@ -312,11 +312,11 @@ Two further real-provider checks verified unapproved-order and refused-card
 handling. Two actual remote-SDK/no-JavaScript checks created no orders.
 
 <!-- SOLVIA-CURRENT-VERIFICATION:BEGIN -->
-Application/test source [`83748c8dc305a5e1f9df98df3ea4faf2f846afa9`](https://github.com/jlhpacheco/solvia/tree/83748c8dc305a5e1f9df98df3ea4faf2f846afa9) passed **661/661 backend checks**. The current controlled browser catalog has **184 distinct cases covered**: 156 desktop/phone (including 48 smoke checks) plus 28 tablet emulations. Main coverage combines an initial 152/154 full run with a 12/12 final status run; eight cases overlap and the two old failed pending titles became four explicit vehicle/planner-path cases. Tablet passed28/28 in one run. Final status JS/CSS corrections were checked by the status/tablet scopes; this is not a claim that all 184 ran together cleanly. See the [exact results and retained failures](docs/TESTING.md).
+Application/test source [`5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f`](https://github.com/jlhpacheco/solvia/tree/5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f) passed **689/689 backend tests**, **168/168 desktop/phone TypeScript Playwright cases** and **32/32 tablet emulations**, each in a complete run. The controlled browser total is **200 distinct cases**; **50 smoke checks** are a subset of main. Emulation is not physical-device certification.
 
-One distinct real Together exact-sentence case passed twice, finally in 1.929 seconds, verifying GPT-OSS 120B source, October 26/Monday/one week, and the observed-response badge. The historical 12-case live suite was not rerun for this repair. No new PayPal captures were added. Prior sources, broad baselines, PDF guides and media retain their dated scopes; emulation is not physical-device certification.
+One actual Together date-only case first used a labeled fallback, then passed a same-source rerun with accepted GPT-OSS 120B output, October 27/One visit and hidden recurrence controls. It is one distinct case with two attempts, not a rerun of the historical live suite or continuous-availability proof. No new PayPal captures were added.
 
-[Read the current repair and AI-status behavior](docs/review/SINGLE-VISIT-AI-STATUS-2026-10-23.md), [view the actual final screen](docs/review/Solvia-single-visit-AI-status.png), or inspect [sanitized verification](docs/review/Solvia-single-visit-AI-status-verification.json). Paid does not by itself mean currently valid. Process-local inference limits are neither a provider billing cap nor production authentication.
+[Read the current repair and exact evidence](docs/review/ONE-VISIT-MODE-2026-10-23.md), [view the actual form](docs/review/Solvia-one-visit-form.png), or inspect [sanitized verification](docs/review/Solvia-one-visit-mode-verification.json). Older guides and results keep their dated scopes. Paid does not by itself mean currently valid; process-local AI limits are not billing caps or production authentication.
 <!-- SOLVIA-CURRENT-VERIFICATION:END -->
 
 A separate historical $30 term purchase has order `5CV7753505063622B`, capture

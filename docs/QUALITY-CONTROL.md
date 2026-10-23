@@ -2,7 +2,13 @@
 
 **Verified working record — October 23, 2026.** We test a fictional campus-permit application and PayPal Sandbox integration. Our human project creator owns the release decision. Agent assistance is not independent external certification or a real-user study.
 
-## Current single-visit/status checkpoint
+## Current visit-type UX checkpoint
+
+Source [`5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f`](https://github.com/jlhpacheco/solvia/tree/5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f) removes weeks and weekday questions from One visit mode. The server independently derives exactly one date, preserves date errors and owner checks, binds mode to comparison freshness, and retains mode/date through revision and history. Repeating visits keep recurrence questions. No-JavaScript mode changes use an explicit protected POST without AI or payment; hidden recurrence controls cannot block a single visit.
+
+**689/689 backend**, **168/168 desktop/phone** and **32/32 tablet** cases passed in their complete runs. The browser total is **200 distinct controlled cases**, including **50 main-suite smoke checks** as a subset. One actual Together date-only case first used a labeled fallback, then passed on the same-source rerun in 4.506 seconds; this is not continuous provider reliability or the full live catalog. See the [exact scope and retained failed attempt](review/ONE-VISIT-MODE-2026-10-23.md) and [sanitized proof](review/Solvia-one-visit-mode-verification.json). No new PayPal capture, human-study or physical-device claim is added.
+
+## Historical single-visit/status checkpoint — earlier October 23
 
 Source [`83748c8dc305a5e1f9df98df3ea4faf2f846afa9`](https://github.com/jlhpacheco/solvia/tree/83748c8dc305a5e1f9df98df3ea4faf2f846afa9) fixes dated one-time visits and adds an observed AI indicator. The full backend suite passed **661/661**. The current **156** desktop/phone cases are covered across an initial full run and the final 12-case status run; **48** smoke checks are a subset. All **28** tablet emulations passed in one full run. This is **184 distinct controlled cases**, not 184 executions in one clean run. The exact scope, initial failures and aggregation are in [TESTING](TESTING.md) and the [dated repair record](review/SINGLE-VISIT-AI-STATUS-2026-10-23.md).
 
