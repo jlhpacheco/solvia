@@ -12,6 +12,7 @@ public sealed class PlannerViewModel
 {
     public string Campus { get; set; } = "";
     public DateOnly StartDate { get; set; }
+    public bool SingleVisit { get; set; }
     [Range(1, 26, ErrorMessage = "Choose 1 to 26 weeks.")]
     public int? Weeks { get; set; }
     public List<DayOfWeek> Weekdays { get; set; } = [];
@@ -26,7 +27,9 @@ public sealed class PlannerViewModel
     [BindNever] public string CategoryLabel { get; set; } = "";
     [BindNever] public PlanResult? Result { get; set; }
 
-    public PlanRequest ToRequest() => new(Campus, StartDate, Weeks ?? 0, Weekdays, Term);
+    public PlanRequest ToRequest() => SingleVisit
+        ? new(Campus, StartDate, 1, [StartDate.DayOfWeek], Term)
+        : new(Campus, StartDate, Weeks ?? 0, Weekdays, Term);
 
     // Detect edits made after a comparison, including with JavaScript disabled.
     // This is a freshness check, not a price/authorization token; Continue
@@ -34,7 +37,8 @@ public sealed class PlannerViewModel
     [BindNever] public string ComparisonKey => Convert.ToHexString(SHA256.HashData(
         Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
         {
-            PersonId, Campus, StartDate, Weeks, Term,
-            Weekdays = Weekdays.OrderBy(day => day).ToArray()
+            PersonId, Campus, StartDate, SingleVisit, Term,
+            Weeks = SingleVisit ? 1 : Weeks,
+            Weekdays = SingleVisit ? new[] { StartDate.DayOfWeek } : Weekdays.OrderBy(day => day).ToArray()
         }))));
 }

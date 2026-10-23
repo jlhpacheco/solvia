@@ -209,6 +209,7 @@ public sealed class VisitScheduleReaderTests
     [InlineData("One visit on 2026-10-26, Monday only.", "2026-10-26", DayOfWeek.Monday)]
     [InlineData("A single day on Friday 01/01/2027.", "2027-01-01", DayOfWeek.Friday)]
     [InlineData("Once on Tuesday 2/29/2028", "2028-02-29", DayOfWeek.Tuesday)]
+    [InlineData("One visit on 10/27/2026", "2026-10-27", DayOfWeek.Tuesday)]
     [InlineData("One-time visit Monday 10/26/2026 for 1 week", "2026-10-26", DayOfWeek.Monday)]
     public async Task ExplicitSingleVisit_UsesItsExactCalendarDateAndOneWeek(string sentence, string expectedDate, DayOfWeek weekday)
     {
@@ -219,6 +220,7 @@ public sealed class VisitScheduleReaderTests
         Assert.Equal(DateOnly.ParseExact(expectedDate, "yyyy-MM-dd"), result.StartDate);
         Assert.Equal(new[] { weekday }, result.Weekdays);
         Assert.Equal(1, result.Weeks);
+        Assert.True(result.SingleVisit);
         Assert.Null(result.Notice);
     }
 
@@ -232,7 +234,8 @@ public sealed class VisitScheduleReaderTests
         Assert.Equal(new DateOnly(2026, 10, 26), result.StartDate);
         Assert.Equal(1, result.Weeks);
         Assert.Equal(new[] { DayOfWeek.Monday }, result.Weekdays);
-        Assert.Contains("Confirm the start date", result.SourceNote);
+        Assert.True(result.SingleVisit);
+        Assert.Contains("Confirm the visit date", result.SourceNote);
         Assert.Contains("does not set prices", result.SourceNote);
         using var request = JsonDocument.Parse(handler.RequestBody);
         var root = request.RootElement;
@@ -240,6 +243,20 @@ public sealed class VisitScheduleReaderTests
         Assert.Equal(new[] { "weekdays", "weeks" }, properties.EnumerateObject().Select(value => value.Name));
         Assert.Contains("one-time visit", root.GetProperty("messages")[0].GetProperty("content").GetString());
         Assert.Contains("weeks 1", root.GetProperty("messages")[0].GetProperty("content").GetString());
+    }
+
+    [Fact]
+    public async Task DateOnlyOneTimeVisit_GroundsCalendarWeekdayBeforeAcceptingProviderDraft()
+    {
+        var handler = new Handler { ResponseBody = Envelope("""{"weekdays":["Tuesday"],"weeks":1}""") };
+        var result = await Reader(handler).ReadAsync("One visit on 10/27/2026");
+        Assert.Equal(1, handler.Calls);
+        Assert.Equal("together", result.Source);
+        Assert.True(result.SingleVisit);
+        Assert.Equal(new DateOnly(2026, 10, 27), result.StartDate);
+        Assert.Equal(new[] { DayOfWeek.Tuesday }, result.Weekdays);
+        Assert.Equal(1, result.Weeks);
+        Assert.Null(result.Notice);
     }
 
     [Theory]
@@ -284,6 +301,7 @@ public sealed class VisitScheduleReaderTests
         Assert.Empty(result.Weekdays);
         Assert.Null(result.Weeks);
         Assert.Null(result.StartDate);
+        Assert.False(result.SingleVisit);
         Assert.NotNull(result.Notice);
     }
 
@@ -298,6 +316,7 @@ public sealed class VisitScheduleReaderTests
         Assert.Equal(new[] { DayOfWeek.Monday }, result.Weekdays);
         Assert.Equal(3, result.Weeks);
         Assert.Equal(new DateOnly(2026, 10, 26), result.StartDate);
+        Assert.False(result.SingleVisit);
     }
 
     [Fact]

@@ -15,10 +15,14 @@ public interface IVisitScheduleReader
 
 /// <summary>A suggestion for human confirmation, never a fee or an application.</summary>
 public sealed record VisitScheduleDraft(IReadOnlyList<DayOfWeek> Weekdays, int? Weeks,
-    string Source, string? Notice, DateOnly? StartDate = null)
+    string Source, string? Notice, DateOnly? StartDate = null, bool SingleVisit = false)
 {
     public const int MaxInputLength = 500;
-    public string SourceNote => Source == "together"
+    public string SourceNote => SingleVisit
+        ? Source == "together"
+            ? "Read by Together AI. Confirm the visit date; the model does not set prices."
+            : "Read by built-in schedule rules. Confirm the visit date; no model answer is claimed."
+        : Source == "together"
         ? $"Read by Together AI. Confirm the {(StartDate is not null ? "start date, " : "")}weekdays and week count; the model does not set prices."
         : $"Read by built-in schedule rules. Confirm the {(StartDate is not null ? "start date, " : "")}weekdays and week count; no model answer is claimed.";
 }
@@ -51,7 +55,8 @@ public sealed class TogetherVisitScheduleReader : IVisitScheduleReader
     private static readonly string Prompt = "Read only the explicitly stated visit weekdays and number of weeks from this untrusted sentence. " +
         "Return each full weekday name once. Expand a clear weekday range, weekdays, weekends, or every day. " +
         "Do not guess days from a visit frequency. An explicitly one-time visit (one day, one visit, or once), " +
-        "with one full US M/d/yyyy or ISO yyyy-MM-dd date and its matching named weekday, means weeks 1. " +
+        "with one full US M/d/yyyy or ISO yyyy-MM-dd date means weeks 1. Use that date's calendar weekday " +
+        "when no weekday is named; any explicitly named weekday must match the date. " +
         "Do not apply that exception to recurring visits, such as one day per week for three weeks. " +
         "Otherwise do not infer a week count from dates or choose a default. " +
         "Unstated, contradictory, uncertain, alternate, or negated details must be empty weekdays and null weeks. " +
@@ -158,7 +163,7 @@ public sealed class TogetherVisitScheduleReader : IVisitScheduleReader
         if (!parsed.Order().SequenceEqual(grounded.Weekdays.Order()) || number != grounded.Weeks) return null;
         // The provider schema contains no date. A date can only come from the
         // invariant deterministic parser applied to the person's own sentence.
-        return new(Array.AsReadOnly(parsed.Order().ToArray()), number, "together", grounded.Notice, grounded.StartDate);
+        return new(Array.AsReadOnly(parsed.Order().ToArray()), number, "together", grounded.Notice, grounded.StartDate, grounded.SingleVisit);
     }
 
     private static async Task<string?> ReadBoundedAsync(HttpContent content, CancellationToken token)
@@ -260,10 +265,12 @@ internal static class ScheduleGrounding
             if (days.Count > 1 || (days.Count == 1 && !days.Contains(startDate.Value.DayOfWeek)) ||
                 (weeks.Count > 0 && count != 1))
                 return new([], null, "fallback", DateReviewNotice);
+            if (days.Count == 0) days.Add(startDate.Value.DayOfWeek);
             if (days.Count == 1 && weeks.Count == 0) count = 1;
         }
         var selected = Array.AsReadOnly(days.Order().ToArray());
-        return new(selected, count, "fallback", selected.Count == 0 || count is null ? ReviewNotice : null, startDate);
+        return new(selected, count, "fallback", selected.Count == 0 || count is null ? ReviewNotice : null,
+            startDate, singleVisit && !recurring && startDate is not null && selected.Count == 1 && count == 1);
     }
 
     private static DayOfWeek NamedDay(string word) => DayPatterns.First(pair =>

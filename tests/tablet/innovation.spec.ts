@@ -41,3 +41,29 @@ test('read-only payment review filters and totals fit the tablet', async ({ page
   await expect(page.getByText('PayPal was not contacted', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
+
+test('one-visit selection is touch-operable without recurrence fields or inference on the tablet', async ({ page }) => {
+  const rejected: string[] = [];
+  await page.route(/\/Planner\/Read(?:[/?]|$)|\/Permits\/Understand(?:[/?]|$)|\/api\/(?:chat|paypal)(?:[/?]|$)|\/Checkout(?:[/?]|$)|https?:\/\/(?:[^/]*\.)?(?:together\.ai|paypal\.com|paypalobjects\.com)(?:[/:]|$)|https?:\/\/(?:localhost|127\.0\.0\.1):11434(?:[/?]|$)/i, async route => {
+    rejected.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
+    await route.abort();
+  });
+  const date = `${new Date().getFullYear() + 1}-01-20`;
+  await page.goto('/Planner');
+  await page.getByLabel('Your college', { exact: true }).selectOption('Fresno City College');
+  await page.getByLabel('Spring', { exact: true }).tap();
+  await page.getByRole('radio', { name: 'One visit', exact: true }).tap();
+  await page.getByLabel('Visit date', { exact: true }).fill(date);
+  await expect(page.getByRole('radio', { name: 'One visit', exact: true })).toBeChecked();
+  await expect(page.locator('#repeat-weeks')).toBeHidden();
+  await expect(page.locator('#repeat-weekdays')).toBeHidden();
+  await expect(page.locator('#Weeks')).toBeDisabled();
+  await expect(page.locator('#day-Monday')).toBeDisabled();
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).tap();
+  await expect(page.getByTestId('plan-result')).toContainText('1 visit. Two ways to plan.');
+  await expect(page.getByTestId('daily-total')).toHaveText('$1.00');
+  await expect(page.getByLabel('Visit date', { exact: true })).toHaveValue(date);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  expect(rejected).toEqual([]);
+});

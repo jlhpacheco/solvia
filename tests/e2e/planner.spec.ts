@@ -62,17 +62,17 @@ function nextPlanningMonday(iso: string) {
   };
 }
 
-test('@smoke a single dated Monday fills the date and one week and remains one visit through revision', async ({ page }) => {
+test('@smoke a single dated Monday shows one visit and retains it through revision', async ({ page }) => {
   const window = await configure(page);
   const monday = nextPlanningMonday(window.iso);
   const sentence = `i am going 1 day ${monday.us}, monday. all day. only`;
   await page.getByLabel('Number of weeks', { exact: true }).fill('');
   await page.getByLabel('Describe your visits', { exact: false }).fill(sentence);
   await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
-  await expect(page.getByLabel('Start of your planning period')).toHaveValue(monday.iso);
-  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('1');
-  await expect(page.getByLabel('Monday', { exact: true })).toBeChecked();
-  await expect(page.locator('input[name="Weekdays"]:checked')).toHaveCount(1);
+  await expect(page.getByLabel('Visit date', { exact: true })).toHaveValue(monday.iso);
+  await expect(page.getByLabel('One visit', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toBeHidden();
+  await expect(page.locator('#repeat-weekdays')).toBeHidden();
   await expect(page.getByTestId('schedule-reader')).toHaveAttribute('data-source', 'fallback');
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await expect(page.getByTestId('plan-result')).toContainText('1 visit. Two ways to plan.');
@@ -81,8 +81,9 @@ test('@smoke a single dated Monday fills the date and one week and remains one v
   await expect(page.locator('input[name="startDate"]')).toHaveValue(monday.iso);
   await page.getByRole('link', { name: 'Change the plan', exact: true }).click();
   await expect(page.getByLabel('Describe your visits', { exact: false })).toHaveValue(sentence);
-  await expect(page.getByLabel('Start of your planning period')).toHaveValue(monday.iso);
-  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('1');
+  await expect(page.getByLabel('Visit date', { exact: true })).toHaveValue(monday.iso);
+  await expect(page.getByLabel('One visit', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toBeHidden();
 });
 
 test('one day per week stays a three-week recurrence with its explicit start anchor', async ({ page }) => {

@@ -2,8 +2,32 @@
 (() => {
     const form = document.getElementById('planner-form');
     if (form) {
-        const names = ['Campus', 'ScheduleText', 'StartDate', 'Weeks', 'Weekdays', 'Term'];
+        const names = ['Campus', 'ScheduleText', 'SingleVisit', 'StartDate', 'Weeks', 'Weekdays', 'Term'];
         const controls = Array.from(form.elements).filter(input => names.includes(input.name));
+        const applyVisitType = () => {
+            const single = form.querySelector('input[name="SingleVisit"]:checked')?.value === 'true';
+            for (const id of ['repeat-weeks', 'repeat-weekdays']) {
+                const group = document.getElementById(id);
+                group.hidden = single;
+                group.disabled = single;
+            }
+            document.getElementById('Weeks').required = !single;
+            document.getElementById('planning-fields').dataset.singleVisit = String(single);
+            document.getElementById('planning-date-label').textContent = single ? 'Visit date' : 'Start of your planning period';
+            document.getElementById('single-visit-summary').hidden = !single;
+            const dateInput = document.getElementById('StartDate');
+            const date = dateInput.value ? new Date(dateInput.value + 'T12:00:00') : null;
+            const summary = document.getElementById('single-visit-date');
+            if (date && Number.isFinite(date.getTime())) {
+                summary.dateTime = dateInput.value;
+                summary.textContent = new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(date);
+            } else {
+                summary.removeAttribute('datetime');
+                summary.textContent = 'the date you choose';
+            }
+        };
+        document.getElementById('update-visit-type').hidden = true;
+        document.getElementById('visit-type-help').hidden = true;
         const snapshot = () => controls.map(input => ({ name: input.name, value: input.value,
             checked: input.type === 'checkbox' || input.type === 'radio' ? input.checked : null }));
         const rendered = JSON.stringify(snapshot());
@@ -33,12 +57,14 @@
                 if (field.checked === null) input.value = field.value;
                 else input.checked = field.checked;
             }
+            applyVisitType();
             if (JSON.stringify(snapshot()) !== rendered) invalidate();
         };
+        applyVisitType();
         restore();
         window.addEventListener('pageshow', restore);
-        form.addEventListener('input', () => { invalidate(); save(); });
-        form.addEventListener('change', () => { invalidate(); save(); });
+        form.addEventListener('input', () => { applyVisitType(); invalidate(); save(); });
+        form.addEventListener('change', () => { applyVisitType(); invalidate(); save(); });
         form.addEventListener('submit', save);
         window.addEventListener('pagehide', save);
     }

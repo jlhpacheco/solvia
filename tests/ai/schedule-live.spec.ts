@@ -41,19 +41,20 @@ test('real schedule reader leaves uncertainty for explicit review', async ({ pag
   await info.attach('actual-uncertain-schedule-reader', { body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, confirmedNoDefaults: true })), contentType: 'application/json' });
 });
 
-test('real Together one-time dated visit fills Monday and verifies the operational indicator', async ({ page }, info) => {
+test('real Together one-time dated visit uses only a visit date and verifies the operational indicator', async ({ page }, info) => {
   await page.goto('/Planner');
   await page.getByLabel('Your college', { exact: true }).selectOption('CSU East Bay');
   await page.getByLabel('Start of your planning period').fill('2026-10-23');
   await page.getByLabel('Number of weeks', { exact: true }).fill('');
-  await page.getByLabel('Describe your visits', { exact: false }).fill('i am going 1 day 10/26/2026, monday. all day. only');
+  await page.getByLabel('Describe your visits', { exact: false }).fill('One visit on 10/27/2026.');
   await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
   const source = await page.getByTestId('schedule-reader').getAttribute('data-source');
   expect(source, 'A rules result must not be called a successful hosted model response.').toBe('together');
-  await expect(page.getByLabel('Start of your planning period')).toHaveValue('2026-10-26');
-  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('1');
-  await expect(page.getByLabel('Monday', { exact: true })).toBeChecked();
-  await expect(page.locator('input[name="Weekdays"]:checked')).toHaveCount(1);
+  await expect(page.getByLabel('Visit date', { exact: true })).toHaveValue('2026-10-27');
+  await expect(page.getByLabel('One visit', { exact: true })).toBeChecked();
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toBeHidden();
+  await expect(page.locator('#repeat-weekdays')).toBeHidden();
+  await expect(page.locator('#single-visit-date')).toContainText('Tuesday');
   const response = await page.request.get('/api/ai/status');
   expect(response.status()).toBe(200);
   const status = await response.json();
@@ -67,7 +68,7 @@ test('real Together one-time dated visit fills Monday and verifies the operation
     body: await page.screenshot({ fullPage: true }), contentType: 'image/png'
   });
   await info.attach('actual-one-time-schedule-and-ai-status', {
-    body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, date: '2026-10-26', weeks: 1, status })),
+    body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, date: '2026-10-27', singleVisit: true, repeatFieldsVisible: false, status })),
     contentType: 'application/json'
   });
 });

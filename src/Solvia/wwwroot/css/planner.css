@@ -4,6 +4,8 @@
 .sv-planner-form .form-control, .sv-planner-form .form-select { font-size: 1rem; min-block-size: 3rem; }
 .sv-planner-reader { padding: 1.25rem; border-radius: .8rem; background: var(--sv-teal-soft); }
 .sv-planner-fields, .sv-planner-options { display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sv-planner-fields[data-single-visit="true"] { grid-template-columns: minmax(0, 1fr); max-inline-size: 28rem; }
+.sv-planner-fields fieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
 .sv-planner-days { display: flex; flex-wrap: wrap; gap: .5rem; }
 .sv-planner-day { display: flex; align-items: center; gap: .6rem; padding: .65rem .8rem; border: 1px solid #aab6c8; border-radius: .6rem; background: white; min-block-size: 3rem; }
 .sv-planner-day:has(input:checked) { background: var(--sv-teal-soft); border-color: var(--sv-teal); }
