@@ -1,0 +1,137 @@
+{
+  "checkedAtUtc": "2026-10-23T20:11:24.455628+00:00",
+  "applicationAndTestSource": "83748c8dc305a5e1f9df98df3ea4faf2f846afa9",
+  "scope": "Single dated visits and observed AI status. Controlled UI results are distinct-case coverage across a full run and a targeted correction, not one clean full run.",
+  "backend": {
+    "total": 661,
+    "passed": 661,
+    "failed": 0,
+    "skipped": 0
+  },
+  "main": {
+    "currentDistinctCases": 156,
+    "coveredDistinctCases": 156,
+    "smokeSubset": 48,
+    "initialFullRun": {
+      "startTime": "2026-10-23T19:59:15.824Z",
+      "duration": 404285.359,
+      "expected": 152,
+      "skipped": 0,
+      "unexpected": 2,
+      "flaky": 0
+    },
+    "finalStatusRun": {
+      "startTime": "2026-10-23T20:07:17.126Z",
+      "duration": 19782.396,
+      "expected": 12,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "deltaScope": "Final JS form-action and CSS panel-anchor corrections were verified by all 12 status cases and all 28 tablet cases. The broader full-run C#/Razor source is unchanged.",
+    "aggregation": "152 initial full-run passes plus12 final status passes, with 8 overlapping identities. Two failed old pending-case titles are replaced by four explicit vehicle/planner cases; they are not added as successful cases."
+  },
+  "tablet": {
+    "distinctCases": 28,
+    "startTime": "2026-10-23T20:07:55.628Z",
+    "duration": 100209.404,
+    "expected": 28,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0,
+    "boundary": "Chromium/WebKit portrait/landscape emulation; not physical iPad certification."
+  },
+  "controlledDistinctTotal": 184,
+  "actualAi": {
+    "distinctCases": 1,
+    "executions": 2,
+    "finalRun": {
+      "startTime": "2026-10-23T20:09:55.623Z",
+      "duration": 2760.5480000000002,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "finalCaseDurationMs": 1929,
+    "finalObservedResult": {
+      "checkedAtUtc": "2026-10-23T20:09:58.283Z",
+      "source": "together",
+      "date": "2026-10-26",
+      "weeks": 1,
+      "status": {
+        "state": "recent",
+        "label": "AI: response verified",
+        "description": "A real draft read returned a validated model response within the last 10 minutes. This is a past observation, not a promise of availability.",
+        "provider": "Together AI",
+        "model": "openai/gpt-oss-120b",
+        "observedAtUtc": "2026-10-23T20:09:58.1767811+00:00",
+        "lastSuccessAtUtc": "2026-10-23T20:09:58.0699963+00:00",
+        "lastAttemptAtUtc": "2026-10-23T20:09:58.0699963+00:00",
+        "readers": [
+          {
+            "reader": "Vehicle",
+            "state": "unchecked",
+            "lastAttemptAtUtc": null,
+            "lastSuccessAtUtc": null
+          },
+          {
+            "reader": "Visits",
+            "state": "success",
+            "lastAttemptAtUtc": "2026-10-23T20:09:58.0699963+00:00",
+            "lastSuccessAtUtc": "2026-10-23T20:09:58.0699963+00:00"
+          }
+        ]
+      }
+    },
+    "boundary": "One exact-sentence real-provider case rerun after final UI corrections; not a rerun of the historical 12-case live suite. Timing is application/browser observation, not provider-only latency."
+  },
+  "newPayPalCaptures": 0,
+  "retainedFailures": [
+    "Initial focused HTTP tests:137 passed,2 expected canonical-redirect navigation failures; corrected helper then 142/142 passed.",
+    "Initial main browser:152 passed,2 pending-label failures. Native formAction production bug and held-navigation observation were corrected; final 12-case status scope passed.",
+    "Expanded tablet-panel visual check initially found left-edge clipping. Left anchoring corrected it; expanded geometry checks and final28 tablet cases passed."
+  ],
+  "evidence": [
+    {
+      "path": ".playwright-data/single-visit-ai-status/backend/focused.trx",
+      "sha256": "89244fe43adc9539c6dbed67166fba2aace349351fb4236c2620d439fb5278c4"
+    },
+    {
+      "path": ".playwright-data/single-visit-ai-status/backend/focused-fixed.trx",
+      "sha256": "0be4c26bb776083d267d90dd41d6b8e7d984fe8fe52a8824d843910f3a1fda61"
+    },
+    {
+      "path": ".playwright-data/single-visit-ai-status/backend/final.trx",
+      "sha256": "2828d1bb97dfd770422f9b30d1c92777744e5494a4d8fa3a86beb25f3e982781"
+    },
+    {
+      "path": ".playwright-data/single-visit-ai-status/browser-final.json",
+      "sha256": "ac50a3648ebb3dc271a6d0682729d53e56c329b4618a6f6c8d171869ad1b708d"
+    },
+    {
+      "path": ".playwright-data/single-visit-ai-status/status-final.json",
+      "sha256": "5c05570978421e0632c1353472a65c302c81b0337b785500f23b6ca0c49f543a"
+    },
+    {
+      "path": ".playwright-data/single-visit-ai-status/main-catalog.json",
+      "sha256": "4fc7fc36e06f3777efd6a575ab58341c9b985eb2e73dda0efbe42a134b2248c9"
+    },
+    {
+      "path": ".playwright-data/single-visit-ai-status/tablet-final.json",
+      "sha256": "212bfaeefd4704189efcaa368e07f1eff15f20336eaa6d01fb62ab9565cae00e"
+    },
+    {
+      "path": ".playwright-data/ai-evidence/single-visit-status/results.json",
+      "sha256": "cab9635498fa414cebc61c63ec0f38f9d6243046c888855635ff53ce41fa2a13"
+    },
+    {
+      "path": ".playwright-data/ai-evidence/single-visit-status-final/results.json",
+      "sha256": "c0b75843b76d2ed6a0506f982e05bda0cac6be1b75599fe853de3cb687a2bb76"
+    }
+  ],
+  "screenshot": {
+    "path": "docs/review/Solvia-single-visit-AI-status.png",
+    "sha256": "a458744f7d5ba48b645dd2c30c27c424151902b96aaf5eb6f26b282ad29d1946"
+  }
+}

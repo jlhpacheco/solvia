@@ -60,10 +60,12 @@ without echoing it and writes it through stdin to .NET user-secrets; these
 are per-user development settings, not an encrypted vault. See the
 [README](../README.md) for setup and [privacy](PRIVACY.md) for hosted data
 processing boundaries. Together's key is privately configured in Development
-user-secrets. The current GPT-OSS model passed 12 distinct live application
+user-secrets. The October 20 GPT-OSS checkpoint passed 12 distinct live application
 cases (eight vehicle, four schedule), all labeled `together`. Historical Qwen
 tests on `e3a4993` remain separate; see [TESTING](TESTING.md) for dated scopes.
-The current backend suite passed 517/517 checks in 13 seconds, zero failed/skipped.
+That historical checkpoint passed 517/517 backend checks in 13 seconds,
+zero failed/skipped. The October 23 planner/status repair and later verification
+scopes are in [TESTING](TESTING.md).
 The older 390-case `92cba211` and 100-controlled-browser checkpoints remain
 historical in [TESTING](TESTING.md); they are not current model proof.
 Deadline guards reject late answers even when timer cancellation is delayed.

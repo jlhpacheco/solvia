@@ -1,8 +1,18 @@
 # Solvia quality control process
 
-**Verified working record — October 21, 2026.** We test a fictional campus-permit application and PayPal Sandbox integration. Our human project creator owns the release decision. Agent assistance is not independent external certification or a real-user study.
+**Verified working record — October 23, 2026.** We test a fictional campus-permit application and PayPal Sandbox integration. Our human project creator owns the release decision. Agent assistance is not independent external certification or a real-user study.
 
-## Current verified repair checkpoint
+## Current single-visit/status checkpoint
+
+Source [`83748c8dc305a5e1f9df98df3ea4faf2f846afa9`](https://github.com/jlhpacheco/solvia/tree/83748c8dc305a5e1f9df98df3ea4faf2f846afa9) fixes dated one-time visits and adds an observed AI indicator. The full backend suite passed **661/661**. The current **156** desktop/phone cases are covered across an initial full run and the final 12-case status run; **48** smoke checks are a subset. All **28** tablet emulations passed in one full run. This is **184 distinct controlled cases**, not 184 executions in one clean run. The exact scope, initial failures and aggregation are in [TESTING](TESTING.md) and the [dated repair record](review/SINGLE-VISIT-AI-STATUS-2026-10-23.md).
+
+One distinct real Together case using the reported sentence passed twice, most recently in 1.929 seconds; it verified accepted GPT-OSS 120B output and the date/week/status UI. The historical 12-case model suite was not rerun. No new PayPal capture or human-study result is claimed.
+
+The new invariants are explicit: a grounded full date must replace the old attempted date and survive revision; a single dated visit must not become a recurring plan; invalid/conflicting dates require review. The model schema remains weekdays/weeks, while deterministic parsing supplies the date. A green status requires an adapter-validated selected-model response within ten minutes; configuration, pending work and fallback cannot earn it. Status observations retain no input/secret and perform no inference. Tablet disclosure geometry, native form-action semantics and fast history restoration have regression checks. The initial two pending-label failures exposed both a real production action-selection bug and a held-navigation observation issue; neither is hidden as a passing initial run.
+
+The earlier PDFs and media remain dated artifacts. This Markdown process record and [sanitized proof](review/Solvia-single-visit-AI-status-verification.json) contain the new checkpoint.
+
+## Historical verified repair checkpoint — October 21
 
 The application uses **OpenAI's US-developed `openai/gpt-oss-120b`, hosted by Together AI**. It provides editable vehicle/schedule drafts, deterministic day/term planning, reviewed payment totals, retrievable proof and a read-only saved-payment Operations view. The verified repair checkpoint addresses annotated-walkthrough feedback about person-first onboarding, exact vehicle facts, retained revisions and official payment options at the total.
 

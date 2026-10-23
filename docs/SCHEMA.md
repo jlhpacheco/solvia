@@ -386,8 +386,10 @@ hosted API endpoint, structured JSON, low reasoning effort, temperature 1 and a
 `openai/gpt-oss-120b` model is accepted in configuration and returned responses.
 Unsupported model configuration fails startup; an unavailable key or unusable
 response uses the labeled fallback. No reasoning or model tools are displayed.
-The key is privately configured in Development user-secrets. The current live
-suite passed 12 distinct cases; older Qwen runs remain historical in TESTING.md.
+The key is privately configured in Development user-secrets. The October 20 live
+suite passed 12 distinct cases; later dated verification and older Qwen runs
+remain separately scoped in TESTING.md. The schedule draft's optional grounded
+start date is not a new database column or model-authorized payment field.
 This does not change the data schema or verify account privacy settings.
 
 ## Out of scope — by design

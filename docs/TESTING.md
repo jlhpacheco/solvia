@@ -1,7 +1,25 @@
 # Testing Solvia
 
+## Current single-visit/status checkpoint — October 23, 2026
+
+Application and test source: [`83748c8dc305a5e1f9df98df3ea4faf2f846afa9`](https://github.com/jlhpacheco/solvia/tree/83748c8dc305a5e1f9df98df3ea4faf2f846afa9). See the [repair record](review/SINGLE-VISIT-AI-STATUS-2026-10-23.md) and [sanitized proof](review/Solvia-single-visit-AI-status-verification.json).
+
+| Layer | Verified result and scope |
+|---|---|
+| Backend | **661/661 passed**, zero failed/skipped. Full C#/xUnit suite; `.playwright-data/single-visit-ai-status/backend/final.trx`. |
+| Main TypeScript browser | **156 current distinct cases covered** across a full run and final targeted correction, desktop/phone. This is an aggregate, not a clean 156-case full run. |
+| Smoke subset | **48/48 covered** within main; do not add these to its total. |
+| Tablet TypeScript browser | **28/28 passed** in one clean run, Chromium/WebKit portrait/landscape emulation; not physical hardware certification. |
+| Actual Together AI | **1 distinct exact-sentence case passed**, executed twice; final execution **1.929 seconds**. Validated `openai/gpt-oss-120b`, date 2026-10-26, Monday, one week and observed-status badge. This does not claim a rerun of the historical 12-case live suite. |
+
+The current controlled browser catalog contains **184 distinct cases**: 156 main plus 28 tablet. The initial main run passed 152/154 and failed both pending-label checks. Browser-native form-action reflection exposed a real production bug; the held-navigation observation also needed a test correction. The final status suite passed 12/12, covering both vehicle/form action and planner/button override on desktop and phone. Its 8 overlapping passing identities plus 4 explicit pending-path identities cover the current 156-case catalog when combined with the initial 152 passes. Retired failed titles and rerun executions are not extra successful cases. Final JS/CSS corrections were checked by that 12-case status scope and the full 28-case tablet run; broad full-run C#/Razor source is unchanged. Raw initial failure reports remain retained.
+
+The focused backend candidate first passed 137/139: two new tests stopped at an expected canonical Questions GET 302. Following that redirect corrected the test harness, then 142/142 focused checks and 661/661 full checks passed. A separate expanded-panel visual check found tablet left-edge clipping before the final left-anchor fix and responsive verification. `npm run typecheck`, JS syntax checking and the application/test build passed; the build had zero warnings/errors. Agent implementation/review is not a human study. These checks created **no new PayPal captures**.
+
+Local raw reports: `.playwright-data/single-visit-ai-status/browser-final.json` (initial failed run), `status-final.json`, `main-catalog.json`, `tablet-final.json`; final real-provider report `.playwright-data/ai-evidence/single-visit-status-final/results.json`. Raw reports/traces stay private; the public proof contains counts, source, allowed status observations and evidence hashes only. Earlier checkpoints below retain their original versions and scopes.
+
 <!-- SOLVIA-REPAIR-CHECKPOINT:BEGIN -->
-## Current guide-feedback repair checkpoint — 2026-10-21
+## Historical guide-feedback repair checkpoint — 2026-10-21
 
 Final application source: [`462d87dcb5de7fd24ab388ef826c7208db9e43d8`](https://github.com/jlhpacheco/solvia/tree/462d87dcb5de7fd24ab388ef826c7208db9e43d8). This checkpoint supersedes the earlier b8bf8d3 release while preserving the exact broad-baseline and final-delta verification scopes below.
 

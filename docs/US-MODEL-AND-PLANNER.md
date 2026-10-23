@@ -1,6 +1,6 @@
 # US-developed AI, permit planning and staff review
 
-Updated October 20, 2026. This is the current implementation note; older
+Updated October 23, 2026. This is the current implementation note; older
 dated test records preserve the model and source that actually ran.
 
 ## Selected model and provider
@@ -46,9 +46,18 @@ Process-local request/concurrency limits are not provider billing limits.
 
 ## A schedule becomes an editable planning draft
 
-The optional sentence reader extracts only weekdays and a week count.
-“Tuesdays and Thursdays for three weeks” becomes editable choices. Ambiguous
-or missing facts remain open for confirmation; neither reader can set prices.
+The optional hosted reader's schema contains only weekdays and a week count.
+An independent strict parser also grounds one full US (`M/d/yyyy`) or ISO
+(`yyyy-MM-dd`) start date in the person's sentence; the model cannot invent it.
+“Tuesdays and Thursdays for three weeks” becomes editable choices.
+“I am going 1 day 10/26/2026, Monday. All day. Only” supplies October 26,
+Monday and one week, resulting in one visit. A one-day-per-week schedule for
+three weeks remains three weeks. A recurring plan's start date is its planning
+anchor and need not itself be a visiting weekday.
+Malformed, partial, multiple or conflicting dated details require review;
+missing duration is not silently filled with a default. A recognized date
+replaces the previous form date and survives revision. Ambiguous or missing
+facts remain open for confirmation; neither reader can set prices.
 The deterministic planner counts confirmed visit dates and compares catalog
 day-pass cost with a term permit whose demo dates cover the visits.
 
@@ -61,6 +70,24 @@ unavailable, and comparison creates no application or PayPal order.
 Term windows and employee exemptions are demonstration rules. The catalog is
 a dated CSV snapshot, not a live fee feed, campus agreement or parking
 reservation. Holidays, eligibility and availability need campus confirmation.
+
+## Observed AI status
+
+The header shows the selected provider/model, last validated response time,
+and latest completed-read time. A configured key alone starts as **not checked**.
+An adapter's accepted `together` response makes the indicator **response verified**
+for ten minutes; an older response is labeled earlier, and the latest fallback
+or interrupted read is identified separately. A current read is pending until
+its actual result is known. Ollama and its rules-only schedule path are labeled
+separately from hosted inference.
+
+The read-only `/api/ai/status` endpoint uses two bounded process-local observation
+lanes. It contains no sentences, vehicle fields, secrets or user identifiers,
+does not call a model or database, and is not a provider health probe. Refreshing
+status incurs no inference request. Restarting the app clears observed history;
+past success does not guarantee the next request. Native disclosures retain
+server-rendered information without JavaScript. See the
+[dated repair record](review/SINGLE-VISIT-AI-STATUS-2026-10-23.md).
 
 ## A staff view of saved Sandbox records
 
