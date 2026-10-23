@@ -1,5 +1,21 @@
 import { test, expect } from '@playwright/test';
 
+test('AI observation disclosure fits and remains touch-operable on the tablet', async ({ page }) => {
+  await page.goto('/Planner');
+  const status = page.getByTestId('ai-operation-status');
+  await expect(status).toBeVisible();
+  await status.locator('summary').tap();
+  await expect(status.locator('[data-ai-model]')).toContainText('Ollama');
+  await expect(status).toContainText('Checking status never calls a model');
+  const bounds = await status.locator('.sv-ai-status-panel').boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+  await status.locator('summary').tap();
+  await expect(status).not.toHaveAttribute('open', '');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
 test('planner comparison and one-day handoff fit the tablet', async ({ page }) => {
   await page.goto('/Planner');
   const year = new Date().getFullYear() + 1;

@@ -17,6 +17,7 @@
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/ai-operation-status.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Solvia.styles.css" asp-append-version="true" />
 </head>
 <body class="@(workspace ? "sv-workspace" : "sv-public")">
@@ -30,6 +31,7 @@
                 <a class="sv-wordmark" asp-area="" asp-controller="Home" asp-action="Index">Solvia</a>
                 <div class="sv-tagline">A clearer way to campus.</div>
             </div>
+            <partial name="_AiOperationStatus" />
             <nav class="sv-nav" aria-label="Main">
                 <a asp-area="" asp-controller="Planner" asp-action="Index">Plan parking</a>
                 <a asp-area="" asp-controller="Permits" asp-action="Ask">Ask Solvia</a>
@@ -82,6 +84,7 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/ai-operation-status.js" asp-append-version="true" defer></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

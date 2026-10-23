@@ -31,7 +31,7 @@
     </div>
     <div class="sv-planner-reader">
         <label for="ScheduleText" class="form-label fw-bold">Describe your visits <span class="fw-normal">(optional)</span></label>
-        <p id="schedule-help" class="text-muted">You can skip this box and choose your days and weeks below. Or describe your visits, for example: “Tuesdays and Thursdays for three weeks.” When enabled and available, OpenAI's US-developed GPT-OSS 120B, served through Together AI, reads this sentence; built-in rules provide a labeled fallback. Use fictional plans and leave out personal information.</p>
+        <p id="schedule-help" class="text-muted">You can skip this box and choose your days and weeks below. Or describe a single dated visit or a repeating schedule, for example: “Tuesdays and Thursdays for three weeks.” The hosted AI reader uses OpenAI's US-developed GPT-OSS 120B through Together AI; its status is shown above. Built-in rules provide a labeled fallback. Use fictional plans and leave out personal information.</p>
         <textarea asp-for="ScheduleText" rows="2" maxlength="500" class="form-control" aria-describedby="schedule-help" placeholder="Which weekdays, and for how many weeks?"></textarea>
         <button type="submit" class="btn btn-outline-primary mt-3" formaction="@Url.Action("Read")" formnovalidate>Read my schedule</button>
         <a href="#confirm-schedule" class="d-inline-block ms-3 mt-3">Enter my schedule myself</a>
@@ -49,7 +49,7 @@
         <div>
             <label for="Weeks" class="form-label">Number of weeks</label>
             <input asp-for="Weeks" type="number" min="1" max="26" inputmode="numeric" class="form-control" required aria-describedby="weeks-help" />
-            <span id="weeks-help" class="form-text">1–26 weeks, starting on the date you choose.</span>
+            <span id="weeks-help" class="form-text">1–26 weeks. For one visit, use 1 week and select that visit's weekday.</span>
         </div>
     </div>
     <fieldset class="mt-3">
@@ -77,7 +77,7 @@
 {
     <section class="mt-4" aria-labelledby="comparison-title" data-testid="plan-result">
         <span class="sv-eyebrow">YOUR CONFIRMED PLAN</span>
-        <h2 id="comparison-title" tabindex="-1">@result.DayCount visits. Two ways to plan.</h2>
+        <h2 id="comparison-title" tabindex="-1">@result.DayCount @(result.DayCount == 1 ? "visit" : "visits"). Two ways to plan.</h2>
         <p>@result.FirstVisit?.ToString("MMM d, yyyy") – @result.LastVisit?.ToString("MMM d, yyyy") · @result.Campus</p>
         <div class="sv-planner-verdict"><strong>@result.Recommendation</strong><p class="mb-0">@result.Reason</p></div>
         <input type="hidden" name="comparedPlan" value="@Model.ComparisonKey" form="planner-form" />
@@ -85,7 +85,7 @@
                 <article class="sv-card">
                     <h3 class="h4">Day passes</h3>
                     <p class="sv-plan-price" data-testid="daily-total">@Money(result.DailyTotal)</p>
-                    <p>@result.DayCount visits × @Money(result.DayCents) per day</p>
+                    <p>@result.DayCount @(result.DayCount == 1 ? "visit" : "visits") × @Money(result.DayCents) per day</p>
                     <p class="text-muted">Planning total for separate one-day permits. Continue buys only the first planned day; future days need their own permits.</p>
                     @if (result.DayCents is not null)
                     {

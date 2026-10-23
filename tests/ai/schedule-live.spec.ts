@@ -40,3 +40,34 @@ test('real schedule reader leaves uncertainty for explicit review', async ({ pag
   await expect(page.getByTestId('plan-result')).toHaveCount(0);
   await info.attach('actual-uncertain-schedule-reader', { body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, confirmedNoDefaults: true })), contentType: 'application/json' });
 });
+
+test('real Together one-time dated visit fills Monday and verifies the operational indicator', async ({ page }, info) => {
+  await page.goto('/Planner');
+  await page.getByLabel('Your college', { exact: true }).selectOption('CSU East Bay');
+  await page.getByLabel('Start of your planning period').fill('2026-10-23');
+  await page.getByLabel('Number of weeks', { exact: true }).fill('');
+  await page.getByLabel('Describe your visits', { exact: false }).fill('i am going 1 day 10/26/2026, monday. all day. only');
+  await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+  const source = await page.getByTestId('schedule-reader').getAttribute('data-source');
+  expect(source, 'A rules result must not be called a successful hosted model response.').toBe('together');
+  await expect(page.getByLabel('Start of your planning period')).toHaveValue('2026-10-26');
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('1');
+  await expect(page.getByLabel('Monday', { exact: true })).toBeChecked();
+  await expect(page.locator('input[name="Weekdays"]:checked')).toHaveCount(1);
+  const response = await page.request.get('/api/ai/status');
+  expect(response.status()).toBe(200);
+  const status = await response.json();
+  expect(status.state).toBe('recent');
+  expect(status.provider).toBe('Together AI');
+  expect(status.model).toBe('openai/gpt-oss-120b');
+  expect(status.lastSuccessAtUtc).toBeTruthy();
+  expect(status.readers.find((reader: { reader: string }) => reader.reader === 'Visits').state).toBe('success');
+  await expect(page.getByTestId('ai-operation-status')).toHaveAttribute('data-state', 'recent');
+  await info.attach('single-visit-ai-status-screen', {
+    body: await page.screenshot({ fullPage: true }), contentType: 'image/png'
+  });
+  await info.attach('actual-one-time-schedule-and-ai-status', {
+    body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, date: '2026-10-26', weeks: 1, status })),
+    contentType: 'application/json'
+  });
+});

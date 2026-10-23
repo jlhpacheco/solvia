@@ -73,6 +73,14 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
         var draft = await reader.ReadAsync(model.ScheduleText, cancellationToken);
         model.Weeks = draft.Weeks;
         model.Weekdays = draft.Weekdays.ToList();
+        if (draft.StartDate is { } statedDate)
+        {
+            // A date explicitly grounded in the new sentence replaces the
+            // old form value. Without one, preserve the person's date and
+            // any unrelated date-validation error.
+            model.StartDate = statedDate;
+            ModelState.Remove(nameof(model.StartDate));
+        }
         model.ReaderSource = draft.Source;
         model.ReaderNote = draft.SourceNote + " " + draft.Notice;
         // Replace only the reader-owned fields, preserving unrelated errors

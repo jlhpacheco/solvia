@@ -127,20 +127,22 @@ builder.Services.AddSingleton<UserCategoryResolver>();
 // so these registrations can never take the demo down.
 builder.Services.AddSingleton<FallbackExtractor>();
 builder.Services.AddSingleton<AiRequestLimiter>();
+builder.Services.AddSingleton<AiOperationStatus>();
 builder.Services.AddScoped<VisitPlannerService>();
 builder.Services.AddScoped<PaymentReviewService>();
 builder.Services.AddHttpClient<TogetherVisitScheduleReader>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
     .RedactLoggedHeaders(["Authorization"]);
-builder.Services.AddScoped<IVisitScheduleReader>(services => services.GetRequiredService<TogetherVisitScheduleReader>());
+builder.Services.AddScoped<IVisitScheduleReader>(services => new ObservedVisitScheduleReader(
+    services.GetRequiredService<TogetherVisitScheduleReader>(), services.GetRequiredService<AiOperationStatus>()));
 builder.Services.AddHttpClient<OllamaExtractionService>();
 builder.Services.AddHttpClient<TogetherExtractionService>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
     .RedactLoggedHeaders(["Authorization"]);
-builder.Services.AddScoped<IAiExtractor>(services =>
+builder.Services.AddScoped<IAiExtractor>(services => new ObservedAiExtractor(
     services.GetRequiredService<IOptions<AiOptions>>().Value.Provider.Equals("together", StringComparison.OrdinalIgnoreCase)
         ? services.GetRequiredService<TogetherExtractionService>()
-        : services.GetRequiredService<OllamaExtractionService>());
+        : services.GetRequiredService<OllamaExtractionService>(), services.GetRequiredService<AiOperationStatus>()));
 
 // R4 registrations: the application core. Number drawing and
 // issuance are scoped over the scoped DbContext; ApplicationService

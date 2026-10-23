@@ -59,7 +59,8 @@ public sealed class AiProviderSelectionIntegrationTests
         });
         using var client = factory.CreateClient();
         using var scope = factory.Services.CreateScope();
-        Assert.IsType<TogetherExtractionService>(scope.ServiceProvider.GetRequiredService<IAiExtractor>());
+        Assert.IsType<TogetherExtractionService>(Assert.IsType<ObservedAiExtractor>(
+            scope.ServiceProvider.GetRequiredService<IAiExtractor>()).Inner);
         Assert.True(string.IsNullOrEmpty(scope.ServiceProvider.GetRequiredService<IOptions<TogetherOptions>>().Value.ApiKey));
 
         var html = await client.GetStringAsync("/Permits/Questions?college=Fresno%20City%20College");

@@ -201,6 +201,125 @@ public sealed class VisitScheduleReaderTests
         Assert.Equal("fallback", result.Source);
         Assert.Equal(weeks, result.Weeks);
         Assert.Equal(days, result.Weekdays.Count);
+        Assert.Null(result.StartDate);
+    }
+
+    [Theory]
+    [InlineData("i am going 1 day 10/26/2026, monday. all day. only", "2026-10-26", DayOfWeek.Monday)]
+    [InlineData("One visit on 2026-10-26, Monday only.", "2026-10-26", DayOfWeek.Monday)]
+    [InlineData("A single day on Friday 01/01/2027.", "2027-01-01", DayOfWeek.Friday)]
+    [InlineData("Once on Tuesday 2/29/2028", "2028-02-29", DayOfWeek.Tuesday)]
+    [InlineData("One-time visit Monday 10/26/2026 for 1 week", "2026-10-26", DayOfWeek.Monday)]
+    public async Task ExplicitSingleVisit_UsesItsExactCalendarDateAndOneWeek(string sentence, string expectedDate, DayOfWeek weekday)
+    {
+        var handler = new Handler();
+        var result = await Reader(handler, key: "").ReadAsync(sentence);
+        Assert.Equal(0, handler.Calls);
+        Assert.Equal("fallback", result.Source);
+        Assert.Equal(DateOnly.ParseExact(expectedDate, "yyyy-MM-dd"), result.StartDate);
+        Assert.Equal(new[] { weekday }, result.Weekdays);
+        Assert.Equal(1, result.Weeks);
+        Assert.Null(result.Notice);
+    }
+
+    [Fact]
+    public async Task SupportedProviderSingleVisit_UsesOnlyTheDeterministicDate_AndUnchangedNarrowSchema()
+    {
+        var handler = new Handler { ResponseBody = Envelope("""{"weekdays":["Monday"],"weeks":1}""") };
+        var result = await Reader(handler).ReadAsync("i am going 1 day 10/26/2026, monday. all day. only");
+        Assert.Equal(1, handler.Calls);
+        Assert.Equal("together", result.Source);
+        Assert.Equal(new DateOnly(2026, 10, 26), result.StartDate);
+        Assert.Equal(1, result.Weeks);
+        Assert.Equal(new[] { DayOfWeek.Monday }, result.Weekdays);
+        Assert.Contains("Confirm the start date", result.SourceNote);
+        Assert.Contains("does not set prices", result.SourceNote);
+        using var request = JsonDocument.Parse(handler.RequestBody);
+        var root = request.RootElement;
+        var properties = root.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").GetProperty("properties");
+        Assert.Equal(new[] { "weekdays", "weeks" }, properties.EnumerateObject().Select(value => value.Name));
+        Assert.Contains("one-time visit", root.GetProperty("messages")[0].GetProperty("content").GetString());
+        Assert.Contains("weeks 1", root.GetProperty("messages")[0].GetProperty("content").GetString());
+    }
+
+    [Theory]
+    [InlineData("""{"weekdays":["Monday"],"weeks":1,"startDate":"2026-10-27"}""")]
+    [InlineData("""{"weekdays":["Monday"],"weeks":null}""")]
+    public async Task ProviderCannotSupplyDateOrUndoExplicitOneVisitGrounding(string answer)
+    {
+        var handler = new Handler { ResponseBody = Envelope(answer) };
+        var result = await Reader(handler).ReadAsync("One day Monday 10/26/2026 only");
+        Assert.Equal("fallback", result.Source);
+        Assert.Equal(new DateOnly(2026, 10, 26), result.StartDate);
+        Assert.Equal(1, result.Weeks);
+    }
+
+    [Theory]
+    [InlineData("One day Monday 10/27/2026 only")]
+    [InlineData("One day Monday 10/26/2026 and 11/2/2026 only")]
+    [InlineData("One day Monday 02/30/2026 only")]
+    [InlineData("One day Monday 26/10/2026 only")]
+    [InlineData("One day Tuesday 2026-10-6 only")]
+    [InlineData("One day Monday 10/26/26 only")]
+    [InlineData("One day Monday 10/26 for 1 week")]
+    [InlineData("One day Monday 2026-10 for 1 week")]
+    [InlineData("One day Monday 10/26/2026-11/2/2026 for 1 week")]
+    [InlineData("One day Monday 10/26/2026/11/2/2026 for 1 week")]
+    [InlineData("One day Monday 10//26/2026 for 1 week")]
+    [InlineData("One day Monday 2026--10--26 for 1 week")]
+    [InlineData("One day Monday 10/26/202600 for 1 week")]
+    [InlineData("One day Monday /10/26/2026 for 1 week")]
+    [InlineData("One day Monday 10/26/2026/ for 1 week")]
+    [InlineData("One day Monday 2026-10-26- for 1 week")]
+    [InlineData("One day Monday 2026-10-26/2026-11-02 for 1 week")]
+    [InlineData("One day Monday 10 / 26 / 2026 for 1 week")]
+    [InlineData("One day Monday 2026-100-26 only")]
+    [InlineData("One day Monday 2026-00-26 only")]
+    [InlineData("One day Monday and Thursday 10/26/2026 only")]
+    [InlineData("One-time visit Monday 10/26/2026 for three weeks")]
+    [InlineData("Maybe one day Monday 10/26/2026 only")]
+    public async Task UnsafeOrConflictingVisitDates_ClearTheDraftForExplicitReview(string sentence)
+    {
+        var result = await Reader(new Handler(), key: "").ReadAsync(sentence);
+        Assert.Empty(result.Weekdays);
+        Assert.Null(result.Weeks);
+        Assert.Null(result.StartDate);
+        Assert.NotNull(result.Notice);
+    }
+
+    [Theory]
+    [InlineData("1 day per week for 3 weeks, Monday, starting 10/26/2026")]
+    [InlineData("One day each week for three weeks, Monday, starting 10/26/2026")]
+    [InlineData("Once a week for three weeks, Monday, starting 10/26/2026")]
+    [InlineData("Mondays for three weeks starting 2026-10-26")]
+    public async Task RecurrenceKeepsExplicitWeekCount_InsteadOfBecomingOneVisit(string sentence)
+    {
+        var result = await Reader(new Handler(), key: "").ReadAsync(sentence);
+        Assert.Equal(new[] { DayOfWeek.Monday }, result.Weekdays);
+        Assert.Equal(3, result.Weeks);
+        Assert.Equal(new DateOnly(2026, 10, 26), result.StartDate);
+    }
+
+    [Fact]
+    public async Task RecurringSchedule_StartAnchorNeedNotBeOneOfItsVisitWeekdays()
+    {
+        var result = await Reader(new Handler(), key: "").ReadAsync(
+            "Tuesdays and Thursdays for three weeks starting 10/26/2026");
+        Assert.Equal(new[] { DayOfWeek.Tuesday, DayOfWeek.Thursday }, result.Weekdays);
+        Assert.Equal(3, result.Weeks);
+        Assert.Equal(new DateOnly(2026, 10, 26), result.StartDate);
+        Assert.Null(result.Notice);
+    }
+
+    [Theory]
+    [InlineData("Monday 10/26/2026")]
+    [InlineData("One day Monday only")]
+    [InlineData("One day per week Monday starting 10/26/2026")]
+    public async Task DateOrOneDayFrequencyAlone_DoesNotInventMissingDuration(string sentence)
+    {
+        var result = await Reader(new Handler(), key: "").ReadAsync(sentence);
+        Assert.Null(result.Weeks);
+        Assert.NotNull(result.Notice);
     }
 
     [Theory]

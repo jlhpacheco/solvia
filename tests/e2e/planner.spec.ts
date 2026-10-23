@@ -52,6 +52,66 @@ test('schedule reader is honestly labeled and editable before calculation', asyn
   await expect(page.getByTestId('daily-total')).toHaveText('$9.00');
 });
 
+function nextPlanningMonday(iso: string) {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + (8 - date.getDay()) % 7);
+  return {
+    iso: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+    us: `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`,
+    date
+  };
+}
+
+test('@smoke a single dated Monday fills the date and one week and remains one visit through revision', async ({ page }) => {
+  const window = await configure(page);
+  const monday = nextPlanningMonday(window.iso);
+  const sentence = `i am going 1 day ${monday.us}, monday. all day. only`;
+  await page.getByLabel('Number of weeks', { exact: true }).fill('');
+  await page.getByLabel('Describe your visits', { exact: false }).fill(sentence);
+  await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+  await expect(page.getByLabel('Start of your planning period')).toHaveValue(monday.iso);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('1');
+  await expect(page.getByLabel('Monday', { exact: true })).toBeChecked();
+  await expect(page.locator('input[name="Weekdays"]:checked')).toHaveCount(1);
+  await expect(page.getByTestId('schedule-reader')).toHaveAttribute('data-source', 'fallback');
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await expect(page.getByTestId('plan-result')).toContainText('1 visit. Two ways to plan.');
+  await expect(page.getByTestId('daily-total')).toHaveText('$1.00');
+  await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
+  await expect(page.locator('input[name="startDate"]')).toHaveValue(monday.iso);
+  await page.getByRole('link', { name: 'Change the plan', exact: true }).click();
+  await expect(page.getByLabel('Describe your visits', { exact: false })).toHaveValue(sentence);
+  await expect(page.getByLabel('Start of your planning period')).toHaveValue(monday.iso);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('1');
+});
+
+test('one day per week stays a three-week recurrence with its explicit start anchor', async ({ page }) => {
+  const window = await configure(page);
+  const monday = nextPlanningMonday(window.iso);
+  await page.getByLabel('Describe your visits', { exact: false }).fill(
+    `One day per week on Monday for three weeks starting ${monday.us}`);
+  await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+  await expect(page.getByLabel('Start of your planning period')).toHaveValue(monday.iso);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('3');
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await expect(page.getByTestId('plan-result')).toContainText('3 visits. Two ways to plan.');
+  await expect(page.getByTestId('daily-total')).toHaveText('$3.00');
+});
+
+test('a conflicting dated one-off cannot silently compare a different Monday', async ({ page }) => {
+  const window = await configure(page);
+  const monday = nextPlanningMonday(window.iso);
+  const tuesday = new Date(monday.date);
+  tuesday.setDate(tuesday.getDate() + 1);
+  const contradictoryDate = `${tuesday.getMonth() + 1}/${tuesday.getDate()}/${tuesday.getFullYear()}`;
+  await page.getByLabel('Describe your visits', { exact: false }).fill(`One day Monday ${contradictoryDate} only for 1 week`);
+  await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('');
+  await expect(page.locator('input[name="Weekdays"]:checked')).toHaveCount(0);
+  await expect(page.getByTestId('schedule-reader')).toContainText('Check the visit date');
+  await expect(page.getByTestId('plan-result')).toHaveCount(0);
+});
+
 test('uncertain schedule leaves choices open for confirmation', async ({ page }) => {
   await configure(page);
   await page.getByLabel('Describe your visits', { exact: false }).fill('Maybe Tuesdays or Thursdays, not sure how many weeks');

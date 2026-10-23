@@ -81,6 +81,53 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
     }
 
     [Theory]
+    [InlineData("i am going 1 day 10/26/2026, monday. all day. only", "1", "Monday", 1)]
+    [InlineData("One day per week on Monday for three weeks starting 10/26/2026", "3", "Monday", 3)]
+    public async Task DatedDescriptionReplacesTodayAndKeepsOneVisitOrExplicitRecurrence(
+        string description, string weeks, string weekday, int visits)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SolviaDbContext>();
+        var before = await db.PermitApplications.CountAsync();
+        var fields = PlanFields();
+        fields.RemoveAll(pair => pair.Key == "Weeks");
+        fields.Add(new("Weeks", ""));
+        fields.Add(new("ScheduleText", description));
+        var read = await Post("/Planner/Read", fields);
+        var html = await read.Content.ReadAsStringAsync();
+        Assert.Contains("value=\"2026-10-26\"", html);
+        Assert.Matches($"id=\"Weeks\"[^>]*value=\"{weeks}\"", html);
+        Assert.Contains($"value=\"{weekday}\" checked=\"checked\"", html);
+        Assert.Contains("data-source=\"fallback\"", html);
+
+        fields.RemoveAll(pair => pair.Key is "Weeks" or "Weekdays" or "StartDate");
+        fields.Add(new("Weeks", weeks));
+        fields.Add(new("Weekdays", weekday));
+        fields.Add(new("StartDate", "2026-10-26"));
+        var comparison = await Post("/Planner/Compare", fields);
+        html = await comparison.Content.ReadAsStringAsync();
+        Assert.Contains($"{visits} {(visits == 1 ? "visit" : "visits")}. Two ways to plan.", html);
+        Assert.Contains($"${visits}.00", html);
+        var key = Regex.Match(html, "name=\"comparedPlan\" value=\"([^\"]+)\"");
+        Assert.True(key.Success);
+        fields.Add(new("comparedPlan", key.Groups[1].Value));
+        fields.Add(new("choice", "Daily"));
+        var continuation = await Post("/Planner/Continue", fields);
+        Assert.Equal(HttpStatusCode.Redirect, continuation.StatusCode);
+        Assert.Contains("startDate=2026-10-26", continuation.Headers.Location!.OriginalString);
+        var questionsResponse = await _client.GetAsync(continuation.Headers.Location);
+        for (var attempt = 0; questionsResponse.StatusCode == HttpStatusCode.Redirect && attempt < 5; attempt++)
+            questionsResponse = await _client.GetAsync(questionsResponse.Headers.Location!);
+        questionsResponse.EnsureSuccessStatusCode();
+        var questions = await questionsResponse.Content.ReadAsStringAsync();
+        Assert.Contains("name=\"startDate\" value=\"2026-10-26\"", questions);
+        var restored = await _client.GetStringAsync("/Planner");
+        Assert.Contains("value=\"2026-10-26\"", restored);
+        Assert.Matches($"id=\"Weeks\"[^>]*value=\"{weeks}\"", restored);
+        Assert.Equal(before, await db.PermitApplications.CountAsync());
+    }
+
+    [Theory]
     [InlineData("/Planner/Read")]
     [InlineData("/Planner/Compare")]
     [InlineData("/Planner/Continue")]

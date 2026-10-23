@@ -1,0 +1,21 @@
+.sv-ai-status { position: relative; max-inline-size: 100%; color: var(--sv-muted); font-size: .85rem; }
+.sv-ai-status summary { display: flex; align-items: center; gap: .45rem; min-block-size: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--sv-line); border-radius: 999px; cursor: pointer; background: #fff; }
+.sv-ai-status summary::marker { content: ''; }
+.sv-ai-status summary::-webkit-details-marker { display: none; }
+.sv-ai-dot { inline-size: .55rem; block-size: .55rem; border-radius: 50%; background: #65758a; flex: 0 0 auto; }
+.sv-ai-status[data-state="recent"] .sv-ai-dot { background: var(--sv-green); }
+.sv-ai-status[data-state="fallback"] .sv-ai-dot, .sv-ai-status[data-state="stale"] .sv-ai-dot { background: #9a6700; }
+.sv-ai-status[data-state="reading"] .sv-ai-dot { background: var(--sv-blue); }
+.sv-ai-status-panel { position: absolute; z-index: 20; inset-inline-start: 0; margin-block-start: .5rem; inline-size: min(25rem, calc(100vw - 2rem)); padding: 1rem; border: 1px solid var(--sv-line); border-radius: .8rem; background: #fff; box-shadow: 0 6px 20px #071b461a; overflow-wrap: anywhere; }
+.sv-ai-status-panel p { margin: 0 0 .7rem; }
+.sv-ai-status-panel .sv-ai-model { color: var(--sv-navy); font-weight: 700; }
+.sv-ai-status-panel .sv-ai-status-note { font-size: .8rem; }
+.sv-ai-refresh { min-block-size: 2.75rem; padding: .45rem .8rem; border: 1px solid var(--sv-line); border-radius: .5rem; background: var(--sv-blue-soft); color: var(--sv-navy); }
+.sv-ai-status summary:focus-visible, .sv-ai-refresh:focus-visible { outline: 3px solid var(--sv-blue); outline-offset: 3px; }
+@media (max-width: 700px) {
+    .sv-ai-status { margin-inline-start: auto; }
+    .sv-ai-status[open] { flex-basis: 100%; }
+    /* Keep the disclosure in flow so its own close control stays visible. */
+    .sv-ai-status-panel { position: static; inline-size: 100%; }
+}
+@media (forced-colors: active) { .sv-ai-dot { border: 1px solid CanvasText; } }

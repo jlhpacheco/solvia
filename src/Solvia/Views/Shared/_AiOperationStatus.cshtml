@@ -1,0 +1,16 @@
+@inject Solvia.Services.AiOperationStatus AiStatus
+@{
+    var status = AiStatus.GetSnapshot();
+}
+<details id="ai-operation-status" data-testid="ai-operation-status" class="sv-ai-status" data-state="@status.State">
+    <summary><span class="sv-ai-dot" aria-hidden="true"></span><span data-ai-label>@status.Label</span></summary>
+    <div class="sv-ai-status-panel">
+        <p class="sv-ai-model" data-ai-model>@status.Provider · @status.Model</p>
+        <p data-ai-description>@status.Description</p>
+        <p>Last validated response: <time data-ai-success datetime="@status.LastSuccessAtUtc?.ToString("O")">@(status.LastSuccessAtUtc?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "None observed")</time></p>
+        <p>Latest read: <time data-ai-attempt datetime="@status.LastAttemptAtUtc?.ToString("O")">@(status.LastAttemptAtUtc?.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") ?? "None observed")</time></p>
+        <p class="sv-ai-status-note">Observed on this app instance. Restarting it clears this history. Checking status never calls a model. Visit reading uses built-in rules in local mode.</p>
+        <button type="button" class="sv-ai-refresh" data-ai-refresh hidden>Refresh status</button>
+    </div>
+</details>
+<span id="ai-status-announcement" class="visually-hidden" aria-live="polite" aria-atomic="true"></span>

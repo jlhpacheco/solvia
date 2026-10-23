@@ -21,10 +21,11 @@ public sealed class PlannerDraftRegressionTests : IClassFixture<AppIntegrationTe
     private sealed class CountingReader : IVisitScheduleReader
     {
         public int Calls;
+        public VisitScheduleDraft? Result;
         public Task<VisitScheduleDraft> ReadAsync(string text, CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.FromResult(new VisitScheduleDraft([DayOfWeek.Tuesday], 4, "fallback", null));
+            return Task.FromResult(Result ?? new VisitScheduleDraft([DayOfWeek.Tuesday], 4, "fallback", null));
         }
     }
 
@@ -154,6 +155,27 @@ public sealed class PlannerDraftRegressionTests : IClassFixture<AppIntegrationTe
         Assert.Contains("not-a-date", html);
         Assert.Contains("planner-errors", html);
         Assert.Contains("value=\"Tuesday\" checked=\"checked\"", html);
+    }
+
+    [Theory]
+    [InlineData("2026-10-23")]
+    [InlineData("not-a-date")]
+    public async Task ExplicitReaderDateReplacesTheOldAttemptAndSurvivesProtectedGet(string oldDate)
+    {
+        _reader.Result = new VisitScheduleDraft([DayOfWeek.Monday], 1, "fallback", null,
+            new DateOnly(2026, 10, 26));
+        var fields = Fields("i am going 1 day 10/26/2026, monday. all day. only");
+        fields["StartDate"] = oldDate;
+        var html = await Post("/Planner/Read", fields);
+        Assert.Equal(1, _reader.Calls);
+        Assert.Contains("value=\"2026-10-26\"", html);
+        Assert.Contains("value=\"Monday\" checked=\"checked\"", html);
+        Assert.Matches("id=\"Weeks\"[^>]*value=\"1\"", html);
+        Assert.DoesNotContain("planner-errors", html);
+        var restored = await _client.GetStringAsync("/Planner");
+        Assert.Contains("value=\"2026-10-26\"", restored);
+        Assert.Contains("i am going 1 day 10/26/2026, monday. all day. only", restored);
+        Assert.Equal(1, _reader.Calls);
     }
 
     [Fact]
