@@ -34,7 +34,7 @@ Final application source: [`462d87dcb5de7fd24ab388ef826c7208db9e43d8`](https://g
 | Actual hosted AI | **12/12 passed**, zero failed/skipped, in **168.487 seconds**. `.playwright-data/ai-evidence/gpt-oss-repair/results.json`. Observed source `together`, pinned `openai/gpt-oss-120b`. No payment order/capture. |
 | Refreshed guide | **21 pages**; full rendered visual review complete for its baseline source. PDF SHA-256 `e405a9faa5002f413cc1dc6bae2ebc989816410e99fd8a8e2eaf08a80ca39028`. |
 
-The current controlled browser total is **156**: main plus tablet. Live-model cases are separate and are not added to that total. Repeated runs do not create additional distinct cases. These are controlled checks and AI-assisted reviews, not a human usability study.
+That checkpoint's controlled browser total was **156**: main plus tablet. Live-model cases are separate and are not added to that total. Repeated runs do not create additional distinct cases. These are controlled checks and AI-assisted reviews, not a human usability study.
 
 The main evidence is a distinct-case aggregate, not a clean 132/132 full run: the full run passed 131/132 with 1 overall test timeout(s), with runner duration 1570.596 seconds; the targeted rerun passed 1/1 with runner duration 98.226 seconds, resolving the same failed case identity/identities. Rerun executions are not added to the distinct total. The reviewed trace showed final UI assertions passed and HTTP 200/302 responses; the 30-second overall budget expired before cleanup/AfterHook completion. The trace does not establish a specific cleanup hang. Only that test's overall budget was increased to 60 seconds; assertion waits remain 10 seconds. Application code was unchanged between this layer's baseline full run and targeted rerun. Retained full-run evidence: `.playwright-data/navigation-fix/browser-final.json`; targeted evidence: `.playwright-data/navigation-fix/desktop-targeted.json`.
 
@@ -278,8 +278,12 @@ captures do not establish that interactive PayPal wallet checkout was tested.
 
 ## Opt-in live AI checks
 
-`tests/ai/model-live.spec.ts` contains **eight vehicle live-provider cases**; `tests/ai/schedule-live.spec.ts` adds **four schedule cases** for Together. The current 12-case US-model suite is
-separate from the controlled browser counts above. It uses the already-running
+`tests/ai/model-live.spec.ts` contains **eight vehicle live-provider cases**;
+`tests/ai/schedule-live.spec.ts` now adds **five schedule cases** for Together.
+The current opt-in catalog has **13 available cases**. The historical 12-case
+US-model suite passed at its dated checkpoints; this repair ran only the new
+exact-sentence case twice, not the complete 13-case catalog. Live cases remain
+separate from the controlled browser counts above. The suite uses the already-running
 loopback app (default port 5156), creates fictional vehicle/application drafts,
 and stops before any PayPal order/payment. It does not start or reconfigure
 the app. Positive extraction cases require the actual selected source;
