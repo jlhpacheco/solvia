@@ -6,6 +6,9 @@
     var clientId = PayPalSettings.Value.ClientId;
     var currency = string.IsNullOrWhiteSpace(PayPalSettings.Value.Currency) ? "USD" : PayPalSettings.Value.Currency;
     var amount = (Model.PriceCents / 100m).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    var sandboxHelp = string.Equals(PayPalSettings.Value.Environment?.Trim(), "sandbox", StringComparison.OrdinalIgnoreCase)
+        && Uri.TryCreate(PayPalSettings.Value.BaseUrl, UriKind.Absolute, out var apiUrl)
+        && apiUrl is { Scheme: "https", Host: "api-m.sandbox.paypal.com", Port: 443 };
     var sdkUrl = string.IsNullOrWhiteSpace(clientId) ? null
         : "https://www.paypal.com/sdk/js?client-id=" + Uri.EscapeDataString(clientId)
             + "&currency=" + Uri.EscapeDataString(currency) + "&intent=capture&enable-funding=card";
@@ -14,6 +17,14 @@
 <section class="sv-card mt-3" id="checkout-payment" data-application-id="@Model.ApplicationId" data-reviewed-snapshot="@Model.ReviewedSnapshot" data-paypal-sdk-url="@sdkUrl" aria-labelledby="payment-options-heading">
     <h2 class="h4" id="payment-options-heading">Choose how to pay</h2>
     <p>Check your permit and total above. Payment is confirmed only after PayPal completes the capture.</p>
+    @if (sandboxHelp)
+    {
+        <aside class="alert alert-info mb-3" aria-labelledby="fastlane-sandbox-heading" data-testid="fastlane-sandbox-help">
+            <h3 class="h6" id="fastlane-sandbox-heading">Sandbox test help: Fastlane verification code</h3>
+            <p class="mb-2">If PayPal's Fastlane checkout asks “Let's confirm it's you,” enter <strong><code class="fs-5 text-reset">111111</code> (six ones)</strong>. No text message is sent to the Sandbox phone number. This fixed test code works only for Fastlane in PayPal Sandbox.</p>
+            <a href="https://developer.paypal.com/studio/checkout/fastlane/integrate?type=flexible#3-test-integration" target="_blank" rel="noopener noreferrer">PayPal's Fastlane Sandbox testing instructions</a>
+        </aside>
+    }
     <div id="checkout-feedback" class="alert alert-info mt-3" role="status" aria-live="polite" tabindex="-1" hidden></div>
 
     @if (sdkUrl is null)

@@ -41,7 +41,7 @@ Maria is a fictional adult student (18+). It is her first day.
    - **The classic form:** pick campus, car, permit type, and start date — the same shape colleges already use.
 2. Both doors build the **same application** through the same brain, and both show the **exact total first**, taken from a real fee table (see `data/fees.csv` — 10 campuses, every one publishing its student semester price, from the 2026-10-18 scan of 25 mycampuspermit.com pages; only the 10 with a published price ship, and no price is ever guessed).
 3. Maria approves the total.
-4. **PayPal Sandbox pays.** Test money only — no real money, no real student data.
+4. **PayPal Sandbox pays.** Test money only — no real money, no real student data. If Fastlane asks "Let's confirm it's you," enter **111111 (six ones)**; no SMS is sent in Sandbox. The payment page displays this help above the buttons. See the [judge payment instructions](docs/PAYPAL-TROUBLESHOOTING.md#judge-quick-start-fastlane-verification-code).
 5. Maria gets a receipt with the PayPal transaction ID and a downloadable demo permit PDF. This prototype does not grant real campus parking authorization.
 6. Anyone can check the permit, no login, at its public link (`/verify?t=…`). The college sees a roster: who paid, who didn't.
 

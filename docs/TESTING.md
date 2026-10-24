@@ -1,5 +1,20 @@
 # Testing Solvia
 
+For hands-on judging, see the [Fastlane Sandbox verification-code instructions](PAYPAL-TROUBLESHOOTING.md#judge-quick-start-fastlane-verification-code).
+The payment page labels the test code **111111 (six ones)** above the payment options;
+no SMS is sent. This is specific to Fastlane in Sandbox, not ordinary PayPal sign-in.
+
+The October 24 payment-help update passed **14/14 focused backend tests** and
+**6/6 TypeScript Playwright smoke checks** across desktop and phone. Checks cover
+both Check your total and resumed Checkout, visible instructions above the official
+buttons, readable mobile layout, and no order/capture from reading the help.
+Backend cases hide the code for live, mismatched, lookalike-host and non-HTTPS
+settings. These are page/configuration checks, not a new live OTP or payment test;
+the code itself is documented by PayPal. Raw results are
+`.playwright-data/fastlane-help/backend/fastlane-help-final.trx` and
+`.playwright-data/fastlane-help/browser.json`. The broader suite was not rerun for
+this text change.
+
 <!-- DATE-ONLY-CHECKPOINT:BEGIN -->
 ## Current date-only checkpoint - October 24, 2026
 

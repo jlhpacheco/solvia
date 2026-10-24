@@ -1,5 +1,26 @@
 # Sandbox payment status and recovery
 
+## Judge quick start: Fastlane verification code
+
+If PayPal's hosted card checkout displays **Fastlane** and **"Let's confirm it's you,"**
+enter **`111111` (six ones)** in its six verification boxes. **No SMS is sent**
+to the displayed Sandbox phone number. Any other six-digit code simulates failed
+Fastlane authentication. This is PayPal's fixed **Fastlane Sandbox** test code;
+ordinary PayPal account sign-in uses its own verification.
+
+Solvia labels this above the payment options on **Check your total** and resumed
+**Checkout**, without needing to expand a help section. The code note is rendered
+only when the server selects Sandbox and the official HTTPS Sandbox API endpoint.
+It does not approve an order or confirm payment: complete checkout, then wait for
+Solvia's capture confirmation before downloading the permit.
+
+Choose PayPal with a separate Personal Sandbox buyer, or choose Debit or Credit
+Card with [PayPal-generated Sandbox card details](https://developer.paypal.com/credit-card-number-generator).
+Fastlane may appear depending on the test profile and eligible hosted checkout.
+[Official Fastlane testing instructions](https://developer.paypal.com/studio/checkout/fastlane/integrate?type=flexible#3-test-integration).
+
+## Payment status and recovery
+
 Choose the same fictional person who created the application on Home,
 then open My permits and Finish paying. Checkout displays the snapshotted
 college fee, existing PayPal order ID, and capture ID or pending text.

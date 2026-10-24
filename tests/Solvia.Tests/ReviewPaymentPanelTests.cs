@@ -20,7 +20,8 @@ public sealed class ReviewPaymentPanelTests
     private const string PrivateSentinel = "offline-secret-must-never-enter-markup";
 
     private static WebApplicationFactory<Program> Factory(AppIntegrationTests.DemoFactory parent,
-        MutableCatalog catalog, LocalPayPal provider, bool configured = true) =>
+        MutableCatalog catalog, LocalPayPal provider, bool configured = true,
+        string environment = "sandbox", string baseUrl = "https://api-m.sandbox.paypal.com") =>
         parent.WithWebHostBuilder(builder =>
         {
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
@@ -40,6 +41,11 @@ public sealed class ReviewPaymentPanelTests
                 services.AddSingleton<IFeeCatalog>(catalog);
                 services.RemoveAll<IPayPalService>();
                 services.AddSingleton<IPayPalService>(provider);
+                services.PostConfigure<PayPalOptions>(options =>
+                {
+                    options.Environment = environment;
+                    options.BaseUrl = baseUrl;
+                });
                 // These final options also pin the test if a developer's
                 // process environment bridges provider aliases at startup.
                 // No test route invokes inference, and no private key is used.
@@ -161,6 +167,49 @@ public sealed class ReviewPaymentPanelTests
         Assert.Equal(3000, saved.PriceCents);
         Assert.Equal("OFFLINE-EXISTING-ORDER", saved.PayPalOrderId);
         Assert.Equal(0, provider.Calls);
+    }
+
+    [Theory]
+    [InlineData("sandbox", "https://api-m.sandbox.paypal.com", true)]
+    [InlineData(" SANDBOX ", "https://api-m.sandbox.paypal.com/", true)]
+    [InlineData("live", "https://api-m.paypal.com", false)]
+    [InlineData("sandbox", "https://api-m.paypal.com", false)]
+    [InlineData("sandbox", "https://api-m.sandbox.paypal.com.example.invalid", false)]
+    [InlineData("sandbox", "http://api-m.sandbox.paypal.com", false)]
+    public async Task FastlaneTestInstructions_AppearOnlyForSandboxConfiguration_WithoutCreatingPayment(
+        string environment, string baseUrl, bool expected)
+    {
+        using var parent = new AppIntegrationTests.DemoFactory();
+        var provider = new LocalPayPal();
+        using var factory = Factory(parent, new MutableCatalog(), provider,
+            environment: environment, baseUrl: baseUrl);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var id = await Draft(factory);
+        foreach (var surface in new[] { "Permits/Review", "Checkout" })
+        {
+            var html = await client.GetStringAsync($"/{surface}/{id}");
+            if (expected)
+            {
+                Assert.Contains("data-testid=\"fastlane-sandbox-help\"", html);
+                Assert.Contains("111111</code> (six ones)", html);
+                Assert.Contains("No text message is sent", html);
+                Assert.Contains("only for Fastlane in PayPal Sandbox", html);
+                Assert.Contains("developer.paypal.com/studio/checkout/fastlane/integrate", html);
+                Assert.True(html.IndexOf("fastlane-sandbox-heading", StringComparison.Ordinal) <
+                    html.IndexOf("id=\"paypal-button-container\"", StringComparison.Ordinal));
+            }
+            else
+            {
+                Assert.DoesNotContain("fastlane-sandbox-help", html);
+                Assert.DoesNotContain("111111", html);
+            }
+            Assert.DoesNotContain(PrivateSentinel, html);
+        }
+        Assert.Equal(0, provider.Calls);
+        using var scope = factory.Services.CreateScope();
+        var saved = await scope.ServiceProvider.GetRequiredService<SolviaDbContext>().PermitApplications.SingleAsync(a => a.Id == id);
+        Assert.Null(saved.PayPalOrderId);
+        Assert.Null(saved.PayPalCaptureId);
     }
 
     [Theory]

@@ -133,7 +133,7 @@ test('a hung render times out and its late completion leaves only the backup', a
   await expect(page.locator('#paypal-redirect-fallback')).toBeVisible();
 });
 
-test('provider buttons are primary without a duplicate Solvia pay button', async ({ page }) => {
+test('@smoke provider buttons are primary without a duplicate Solvia pay button', async ({ page }) => {
   const paymentRequests: string[] = [];
   page.on('request', request => {
     if (request.method() === 'POST' && /\/api\/paypal\/(orders|capture)|\/Checkout\/Start\//.test(request.url()))
@@ -153,6 +153,34 @@ test('provider buttons are primary without a duplicate Solvia pay button', async
   });
   expect(paymentRequests, 'Displaying Review options creates no payment').toEqual([]);
 });
+
+for (const surface of ['review', 'checkout'] as const) {
+  test(`@smoke ${surface} explains the Fastlane Sandbox code before payment`, async ({ page }, info) => {
+    const paymentRequests: string[] = [];
+    await page.route(/\/api\/paypal\/(?:orders|capture)|\/Checkout\/Start\//, async route => {
+      paymentRequests.push(route.request().url());
+      await route.abort();
+    });
+    await openCheckout(page, 'ready', surface);
+    const help = page.getByTestId('fastlane-sandbox-help');
+    await expect(help).toBeVisible();
+    await expect(help.getByRole('heading', { name: 'Sandbox test help: Fastlane verification code' })).toBeVisible();
+    await expect(help.locator('code')).toHaveText('111111');
+    await expect(help).toContainText('(six ones)');
+    await expect(help).toContainText('No text message is sent');
+    await expect(help).toContainText('only for Fastlane in PayPal Sandbox');
+    await expect(help.getByRole('link')).toHaveAttribute('href',
+      'https://developer.paypal.com/studio/checkout/fastlane/integrate?type=flexible#3-test-integration');
+    expect(await help.evaluate(element => element.closest('details') === null)).toBe(true);
+    const paymentButton = page.getByRole('button', { name: 'PayPal SDK option', exact: true });
+    const hintBounds = await help.boundingBox(), buttonBounds = await paymentButton.boundingBox();
+    expect(hintBounds!.y + hintBounds!.height).toBeLessThanOrEqual(buttonBounds!.y);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await help.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: info.outputPath('fastlane-sandbox-help.png'), fullPage: true });
+    expect(paymentRequests, 'Reading Sandbox instructions creates no order or capture').toEqual([]);
+  });
+}
 
 for (const mode of ['missing', 'render-rejects', 'render-throws', 'ineligible'] as const) {
   test(`${mode} provider buttons expose the protected PayPal backup`, async ({ page }) => {
