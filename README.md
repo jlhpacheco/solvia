@@ -351,6 +351,8 @@ Third-party components and their licenses: [NOTICES.md](NOTICES.md).
 
 ## Review the working flow
 
+[See the revised desktop and iPhone home screen](docs/review/HOME-LAYOUT-2026-10-24.md): grouped person selection, three clear next-step cards, compact supporting links and measured reductions in scrolling.
+
 [Watch or download the 2:40 demo](docs/review/Solvia-demo.mp4), [read the screenshot guide](docs/review/Solvia-step-by-step-guide.pdf), or [inspect the quality-control process](docs/review/Solvia-quality-control.pdf).
 
 The replacement recording shows actual OpenAI GPT-OSS 120B inference through Together, reviewed schedule/vehicle fields, deterministic planning and a saved-record Operations view. A clearly separate historical $30 term-purchase segment shows actual Sandbox capture and matching PDF references. Card approval uses the disclosed REST test harness; wallet login is not demonstrated. Narration is natural synthetic speech at unchanged tempo. All profiles are fictional. A public YouTube upload remains a submission gate.

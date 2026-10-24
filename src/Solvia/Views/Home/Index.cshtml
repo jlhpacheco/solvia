@@ -9,54 +9,70 @@
     };
     var currentPerson = Model.Students.FirstOrDefault(person => person.Id == Model.CurrentStudentId);
 }
-<section class="sv-home-hero" aria-labelledby="home-title">
-    <div class="sv-hero-copy">
-        <span class="sv-eyebrow"><span class="sv-status-dot"></span> COLLEGE PARKING, SIMPLIFIED</span>
-        <h1 id="home-title">Your permit.<br />Your campus.<br /><span>A clearer way.</span></h1>
-        <p class="sv-hero-description">Tell Solvia where you're headed. See your college's published price, check the details, and pay with PayPal. One clear path from application to permit.</p>
-        <div class="sv-trust-row"><span>✓ Price before payment</span><span>✓ Your approval, every time</span><span>✓ Permit PDF &amp; receipt</span></div>
+<link rel="stylesheet" href="~/css/home.css" asp-append-version="true" />
+<div class="sv-home-layout">
+    <section class="sv-home-intro" aria-labelledby="home-title">
+        <span class="sv-eyebrow">COLLEGE PARKING, SIMPLIFIED</span>
+        <h1 id="home-title"><span>Your permit.</span> <span>Your campus.</span><span class="sv-home-accent">A clearer way.</span></h1>
+        <p>Check your campus fee. Pay with PayPal. Get your parking permit PDF.</p>
+        <div class="sv-home-trust"><span>✓ Price before payment</span><span>✓ Review every detail</span></div>
+    </section>
+
+    <div class="sv-home-start">
+        <section class="sv-home-people" aria-labelledby="demo-title" data-testid="demo-step-one">
+            <span class="sv-eyebrow">STEP 1 · CHOOSE A FICTIONAL PERSON</span>
+            <h2 id="demo-title">Welcome, @Model.CurrentStudentName.</h2>
+            <p class="sv-home-hint">Choose a person to try their permit journey.</p>
+            <div class="sv-demo-people">
+                @foreach (var student in Model.Students)
+                {
+                    <form method="post" asp-controller="Home" asp-action="SwitchStudent">
+                        <input type="hidden" name="id" value="@student.Id" />
+                        <button type="submit" aria-label="@student.DisplayName" aria-describedby="role-@student.Id"
+                                aria-pressed="@(student.Id == Model.CurrentStudentId ? "true" : "false")" class="sv-person @(student.Id == Model.CurrentStudentId ? "is-selected" : "")"><span class="sv-avatar" aria-hidden="true">@student.DisplayName[..1]</span><span class="sv-person-name">@student.DisplayName</span><span class="sv-person-role" id="role-@student.Id">@Role(student)</span></button>
+                    </form>
+                }
+            </div>
+            <p class="sv-home-disclosure">Fictional people · PayPal Sandbox test money · No real student records</p>
+        </section>
+
+        <section class="sv-home-choices" aria-labelledby="entry-title" data-testid="demo-step-two">
+            <span class="sv-eyebrow">STEP 2 · CHOOSE HOW TO APPLY</span>
+            <h2 id="entry-title">Your next step</h2>
+            <p class="sv-home-hint">Continue as <strong>@Model.CurrentStudentName</strong>@(currentPerson is null ? "" : $" · {Role(currentPerson)}").</p>
+            <div class="sv-start-actions">
+                <a class="sv-start-action sv-start-action-primary" asp-controller="Permits" asp-action="Ask" aria-label="Ask Solvia" aria-describedby="ask-description">
+                    <span class="sv-action-icon" aria-hidden="true">✧</span>
+                    <span><strong>Ask Solvia</strong><span id="ask-description">Describe your car. Review what AI reads.</span></span>
+                    <span class="sv-action-arrow" aria-hidden="true">↗</span>
+                </a>
+                <a class="sv-start-action" asp-controller="Permits" asp-action="Apply" aria-label="Use the classic form" aria-describedby="form-description">
+                    <span class="sv-action-icon" aria-hidden="true">＋</span>
+                    <span><strong>Use the classic form</strong><span id="form-description">Enter your permit details yourself.</span></span>
+                    <span class="sv-action-arrow" aria-hidden="true">↗</span>
+                </a>
+                <a class="sv-start-action" asp-controller="Planner" asp-action="Index" aria-label="Plan my parking" aria-describedby="plan-description">
+                    <span class="sv-action-icon" aria-hidden="true">◷</span>
+                    <span><strong>Plan my parking</strong><span id="plan-description">Compare day passes with a term permit.</span></span>
+                    <span class="sv-action-arrow" aria-hidden="true">↗</span>
+                </a>
+            </div>
+        </section>
     </div>
-    <div class="sv-journey-panel">
-        <div class="sv-panel-heading"><span class="sv-mini-brand">S<span>↗</span></span><div><strong>Your path to a permit</strong><p>Three steps. No guesswork.</p></div><span class="sv-panel-label">HOW IT WORKS</span></div>
+
+    <section class="sv-journey-panel sv-home-guide" aria-labelledby="journey-title">
+        <div class="sv-panel-heading"><span class="sv-mini-brand" aria-hidden="true">S<span>↗</span></span><div><h2 id="journey-title">Your path to a parking permit</h2><p>Three steps. No guesswork.</p></div></div>
         <ol class="sv-journey-list">
-            <li><span class="sv-step-number">01</span><div><strong>School. Car. Term.</strong><p>Answer three questions. Solvia prepares your application.</p></div></li>
-            <li><span class="sv-step-number">02</span><div><strong>Review the exact total</strong><p>Published college fees set the price. You check it before paying.</p></div></li>
-            <li><span class="sv-step-number">03</span><div><strong>Approve. Pay. Get your permit.</strong><p>PayPal confirms the payment. Your receipt and permit PDF follow.</p></div></li>
+            <li><span class="sv-step-number" aria-hidden="true">01</span><div><strong>Campus. Car. Permit.</strong><p>Choose a day pass or term permit.</p></div></li>
+            <li><span class="sv-step-number" aria-hidden="true">02</span><div><strong>Check before paying</strong><p>Review your details and the published fee.</p></div></li>
+            <li><span class="sv-step-number" aria-hidden="true">03</span><div><strong>Get your parking permit</strong><p>Pay if a fee is due, then download your issued permit PDF.</p></div></li>
         </ol>
-        <div class="sv-journey-footer"><span class="sv-status-dot"></span> Powered by PayPal Sandbox <span>Test money only</span></div>
-    </div>
-</section>
+        <div class="sv-journey-footer"><span class="sv-status-dot" aria-hidden="true"></span><span>PayPal Sandbox · Test money only</span></div>
+    </section>
 
-<section class="sv-demo-panel" aria-labelledby="demo-title" data-testid="demo-step-one">
-    <div><span class="sv-eyebrow">STEP 1 · CHOOSE A FICTIONAL PERSON</span><h2 id="demo-title">Welcome, @Model.CurrentStudentName.</h2><p>Choose whose permit journey you want to try.</p></div>
-    <div class="sv-demo-people">
-        @foreach (var student in Model.Students)
-        {
-            <form method="post" asp-controller="Home" asp-action="SwitchStudent">
-                <input type="hidden" name="id" value="@student.Id" />
-                <button type="submit" aria-label="@student.DisplayName" aria-describedby="role-@student.Id"
-                        aria-pressed="@(student.Id == Model.CurrentStudentId ? "true" : "false")" class="sv-person @(student.Id == Model.CurrentStudentId ? "is-selected" : "")"><span class="sv-avatar" aria-hidden="true">@student.DisplayName[..1]</span><span class="sv-person-label">@student.DisplayName<span class="sv-person-role" id="role-@student.Id">@Role(student)</span></span></button>
-            </form>
-        }
-    </div>
-    <p class="sv-demo-disclosure">Fictional people · PayPal sandbox test money · No real student records</p>
-</section>
-
-<section class="sv-demo-panel sv-entry-panel mt-3" aria-labelledby="entry-title" data-testid="demo-step-two">
-    <div>
-        <span class="sv-eyebrow">STEP 2 · CHOOSE HOW TO APPLY</span>
-        <h2 id="entry-title">Your next step</h2>
-        <p>Continue as <strong>@Model.CurrentStudentName</strong>@(currentPerson is null ? "" : $" · {Role(currentPerson)}"). Ask Solvia or enter the details yourself.</p>
-    </div>
-    <div class="sv-hero-actions">
-        <a class="btn btn-primary" asp-controller="Permits" asp-action="Ask">Ask Solvia <span aria-hidden="true">↗</span></a>
-        <a class="btn btn-outline-secondary" asp-controller="Permits" asp-action="Apply">Use the classic form</a>
-        <a class="btn btn-outline-primary" asp-controller="Planner" asp-action="Index">Plan my parking <span aria-hidden="true">↗</span></a>
-    </div>
-</section>
-
-<section class="sv-feature-grid" aria-label="Explore Solvia">
-    <a class="sv-feature-card" asp-controller="College" asp-action="Fees"><span class="sv-feature-icon" aria-hidden="true">≡</span><h2>Know the price first.</h2><p>Explore published campus fees before you start. A missing fee stays missing—Solvia never guesses.</p><span class="sv-feature-link">Explore college fees ↗</span></a>
-    <a class="sv-feature-card" asp-controller="Permits" asp-action="My"><span class="sv-feature-icon" aria-hidden="true">▤</span><h2>Your proof, in one place.</h2><p>View your applications, payment standing, receipts, and issued permit PDFs.</p><span class="sv-feature-link">Open my permits ↗</span></a>
-    <a class="sv-feature-card" asp-controller="Home" asp-action="Privacy"><span class="sv-feature-icon" aria-hidden="true">◇</span><h2>Thoughtful about data.</h2><p>Use fictional vehicle details. See which reader answered, then review and correct every field.</p><span class="sv-feature-link">How your data is handled ↗</span></a>
-</section>
+    <nav class="sv-home-resources" aria-label="Explore Solvia">
+        <a class="sv-home-resource" asp-controller="College" asp-action="Fees"><span class="sv-resource-icon" aria-hidden="true">≡</span><span><strong>Know the price first</strong><span>Explore published campus fees.</span></span><span aria-hidden="true">↗</span></a>
+        <a class="sv-home-resource" asp-controller="Permits" asp-action="My"><span class="sv-resource-icon" aria-hidden="true">▤</span><span><strong>Your proof, in one place</strong><span>Open permits, receipts and PDFs.</span></span><span aria-hidden="true">↗</span></a>
+        <a class="sv-home-resource" asp-controller="Home" asp-action="Privacy"><span class="sv-resource-icon" aria-hidden="true">◇</span><span><strong>Thoughtful about data</strong><span>See how your details are handled.</span></span><span aria-hidden="true">↗</span></a>
+    </nav>
+</div>

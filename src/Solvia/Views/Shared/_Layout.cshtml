@@ -5,6 +5,7 @@
     var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Home";
     var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
     var workspace = controller is "Permits" or "MyPermits" or "Vehicles" or "College" or "Checkout" or "Planner" or "Operations";
+    var home = controller == "Home" && action == "Index";
     var showPaymentReview = (AppEnvironment.IsDevelopment() || AppEnvironment.IsEnvironment("Testing")) && AppConfiguration.GetValue<bool>("Demo:PaymentReviewEnabled");
     bool Active(string name, string? page = null) => controller == name && (page == null || action == page);
 }
@@ -20,7 +21,7 @@
     <link rel="stylesheet" href="~/css/ai-operation-status.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Solvia.styles.css" asp-append-version="true" />
 </head>
-<body class="@(workspace ? "sv-workspace" : "sv-public")">
+<body class="@(workspace ? "sv-workspace" : "sv-public")@(home ? " sv-home" : "")">
     <a class="sv-skip-link" href="#main-content">Skip to content</a>
     <header class="sv-header">
         <div class="container sv-bar">

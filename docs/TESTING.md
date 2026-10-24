@@ -1,5 +1,29 @@
 # Testing Solvia
 
+## Responsive home screen — October 24, 2026
+
+**30/30 TypeScript Playwright cases passed in one complete final run** using
+`playwright.home.config.ts`. Five checks run in each of six projects: desktop
+Chromium (1440×900), short-laptop Chromium (1280×720), iPhone SE WebKit,
+iPhone 13 WebKit, landscape iPhone WebKit and iPad WebKit. The **six smoke
+cases are a subset of 30**. Browser emulation is not physical-device certification.
+
+Checks cover visual/DOM ordering, labeled roles and selected-person state,
+44-pixel person/action targets, horizontal overflow, all three entry paths,
+real resource destinations, AI-status disclosure bounds and native keyboard
+operation without JavaScript. They reject uncaught browser errors and any
+attempt to start a payment. **13/13 application integration checks passed**
+against the final views. TypeScript and diff checks passed.
+
+Raw final evidence is `.playwright-data/home-layout/results.json` and
+`backend/home-layout-final.trx` within that directory. The first browser
+attempt stopped at server build before executing cases; a later visual-review
+run was intentionally stopped for layout corrections. Neither is counted in
+the clean final 30-case result. The broader suite was not rerun. No new
+real-model request or PayPal capture occurred.
+
+See the [layout review, measurements and screenshots](review/HOME-LAYOUT-2026-10-24.md).
+
 ## Daily-permit clarification and demo cleanup — October 24, 2026
 
 **64/64 focused backend checks passed** after the final page changes:
