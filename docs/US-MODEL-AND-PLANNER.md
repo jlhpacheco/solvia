@@ -49,24 +49,30 @@ Process-local request/concurrency limits are not provider billing limits.
 The confirmation form separates **One visit** from **Repeating visits**.
 One visit asks only for a visit date; its weekday comes from that date, and
 no weeks or weekday selections are shown. A date-only sentence such as
-“One visit on 10/27/2026” selects this mode. Repeating visits retain the
-start/end dates, weeks and weekday questions. An exact repeating range fills
-both date fields, derives calendar weeks (including a partial final week), and
-selects its stated weekdays. Both modes survive revision and
+“One visit on 10/27/2026” selects this mode. Repeating visits ask for
+start/end dates and weekdays, with no visible or hidden Number of weeks form
+control. An exact repeating range fills both date fields and selects its stated
+weekdays. Calendar weeks, including a partial final week, remain an internal
+compatibility value. Both modes survive revision and
 browser Back; no-JavaScript users can apply a mode with an explicit protected
-POST. See the [current range checkpoint](review/DATE-RANGE-2026-10-24.md).
+POST. See the [current date-only checkpoint](review/DATE-ONLY-2026-10-24.md).
 
-The optional hosted reader's schema contains only weekdays and a week count.
+The optional hosted reader's schema still contains only weekdays and a week
+count; this is an internal contract, not another question for the person.
 An independent strict parser also grounds one full US (`M/d/yyyy`) or ISO
 (`yyyy-MM-dd`) start date or a strictly ordered `from ... to/through ...` range
 in the person's sentence; the model cannot invent or extend those bounds.
-“Tuesdays and Thursdays for three weeks” becomes editable choices.
-“I am going 1 day 10/26/2026, Monday. All day. Only” supplies October 26,
-Monday and one week, resulting in one visit. A one-day-per-week schedule for
-three weeks remains three weeks. A recurring plan's start date is its planning
+“Tuesdays and Thursdays for three weeks” becomes editable dates and weekday
+choices. The server converts that duration to an exact end date from the
+selected start date. Existing weeks-only protected drafts and older callers
+receive the same bounded conversion; a current date-only form with its end
+cleared cannot recover an old duration from a hidden field.
+“I am going 1 day 10/26/2026, Monday. All day. Only” supplies October 26
+and its calendar weekday, resulting in one visit. A one-day-per-week schedule
+for three weeks remains a repeating schedule. A recurring plan's start date is its planning
 anchor and need not itself be a visiting weekday.
 For example, Monday/Wednesday/Friday from November 1 to December 31, 2026
-fills nine calendar weeks while retaining December 31 as the exact end. A
+has an internal nine-week count while retaining December 31 as the exact end. A
 separate term-window check still governs whether those visits are covered.
 Malformed, partial, unrelated multiple dates or conflicting details require review;
 missing duration is not silently filled with a default. A recognized date

@@ -1,6 +1,16 @@
 # Testing Solvia
 
-## Current exact-date-range checkpoint - October 24, 2026
+<!-- DATE-ONLY-CHECKPOINT:BEGIN -->
+## Current date-only checkpoint - October 24, 2026
+
+Repeating confirmation now uses start/end dates and weekdays, with no visible or hidden Weeks control. Exact date counts, one-visit mode, revision, protected drafts, browser history and no-JavaScript paths remain covered. The current [repair record and walkthrough](review/DATE-ONLY-2026-10-24.md) and [allowlisted proof](review/Solvia-date-only-verification.json) identify the source and report hashes.
+
+**759/759 backend tests passed**. **104 distinct focused TypeScript Playwright cases are covered** through initial and targeted runs: 60 desktop/phone and 44 tablet emulations. **14 smoke cases are a subset**. The initial tablet run passed **41/44**; two assertions assumed Chromium-style invalid-date sanitization and one multi-edit journey exhausted its cumulative 60-second budget. Tests now require either native blocking or server date rejection, with no guessed date or comparison; only the multi-edit total budget becomes 90 seconds, leaving 10-second assertions unchanged. Final affected checks passed **2/2 main** and **8/8 tablet**. This is a distinct-case aggregate, not one clean 104-case final run; the broader browser catalog was not rerun.
+
+Production application code was unchanged by those test corrections. Three synthetic history/pageshow compatibility cases are labeled separately from actual Back journeys. All 16 rendered walkthrough pages were reviewed; three manually entered planner screens were refreshed. No new real-model request, PayPal order/capture, human study or physical-device result is claimed. Earlier results remain dated evidence below.
+<!-- DATE-ONLY-CHECKPOINT:END -->
+
+## Historical exact-date-range checkpoint - earlier October 24, 2026
 
 Source [`00da7d08857b04e8898dd85f84718774a4eeb099`](https://github.com/jlhpacheco/solvia/tree/00da7d08857b04e8898dd85f84718774a4eeb099) adds inclusive end dates, linked date/week controls and WebKit-safe comparison invalidation after Back. See the [repair record](review/DATE-RANGE-2026-10-24.md) and [allowlisted proof](review/Solvia-date-range-verification.json) for exact run counts, initial failures, reruns and hashes. Backend: **745/745**. Main browser: **180 distinct cases covered** via the full run plus final 54-case planner scope. Focused tablet range coverage: **24 distinct emulations** through initial and final targeted runs. These are **204 covered cases**, with smoke tests as a subset; they are not 204 executions in one clean run. The older 32-case general tablet suite was not rerun. One actual Together range read passed; no new PayPal capture occurred.
 

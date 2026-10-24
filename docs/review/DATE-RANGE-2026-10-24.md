@@ -1,5 +1,7 @@
 # Exact schedule ranges and revised walkthrough
 
+Historical checkpoint, superseded by the [date-only confirmation and current guide](DATE-ONLY-2026-10-24.md). The linked source, earlier control layout and recorded test results below are preserved as historical evidence.
+
 Application/test source: [`00da7d08857b04e8898dd85f84718774a4eeb099`](https://github.com/jlhpacheco/solvia/tree/00da7d08857b04e8898dd85f84718774a4eeb099).
 
 The reported sentence was:

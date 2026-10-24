@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-24T19:37:37.862804+00:00",
+  "applicationAndTestCommit": "4ddf880920d72010b25a2e3f190c51e01051117a",
+  "initialApplicationAndTestCommit": "ccc4298ff272d99aa5ffb7ce7f670b0d4b39d2ca",
+  "change": "Date-only repeating confirmation; no visible or hidden Weeks form control.",
+  "backend": {
+    "passed": 759,
+    "failed": 0,
+    "skipped": 0,
+    "newLegacyDurationCases": 14,
+    "rawLocalReport": ".playwright-data/date-only/backend/date-only.trx",
+    "rawSha256": "1c13fd86f94b1a48c4444a2195ba41472b3e344776d9db2f6a6d8ee4069078e8"
+  },
+  "mainFocusedBrowser": {
+    "distinctCoveredCases": 60,
+    "unresolvedFailures": 0,
+    "smokeSubset": 10,
+    "initial": {
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "attempts": 60,
+      "smokeSubset": 10,
+      "durationMs": 557467.331,
+      "projects": [
+        "desktop-chromium",
+        "mobile-chromium"
+      ],
+      "rawLocalReport": ".playwright-data/date-only/main.json",
+      "rawSha256": "c8140fbb45ccea8fbe0ac2fc5670102991a6aeb13ceb35bddef458b04b51d1b4"
+    },
+    "finalTargeted": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "attempts": 2,
+      "smokeSubset": 0,
+      "durationMs": 53625.116,
+      "projects": [
+        "desktop-chromium",
+        "mobile-chromium"
+      ],
+      "rawLocalReport": ".playwright-data/date-only/main-targeted.json",
+      "rawSha256": "f96155731c04ccf0a5934a12aa056e148f3e3c80adcf48bb4df72e24fc05ca0e"
+    },
+    "scope": "Initial focused run plus targeted assertion/budget correction; not one clean full final run."
+  },
+  "tabletFocusedBrowser": {
+    "distinctCoveredCases": 44,
+    "unresolvedFailures": 0,
+    "smokeSubset": 4,
+    "initial": {
+      "passed": 41,
+      "failed": 3,
+      "skipped": 0,
+      "flaky": 0,
+      "attempts": 44,
+      "smokeSubset": 4,
+      "durationMs": 783592.404,
+      "projects": [
+        "ipad-emulated-landscape-chromium",
+        "ipad-emulated-landscape-webkit",
+        "ipad-emulated-portrait-chromium",
+        "ipad-emulated-portrait-webkit"
+      ],
+      "rawLocalReport": ".playwright-data/date-only/tablet.json",
+      "rawSha256": "d11a711388d029c2b76c64490600c8f9896ae63836545381c6b5838ce785bd29"
+    },
+    "finalTargeted": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "attempts": 8,
+      "smokeSubset": 0,
+      "durationMs": 156080.757,
+      "projects": [
+        "ipad-emulated-landscape-chromium",
+        "ipad-emulated-landscape-webkit",
+        "ipad-emulated-portrait-chromium",
+        "ipad-emulated-portrait-webkit"
+      ],
+      "rawLocalReport": ".playwright-data/date-only/tablet-targeted.json",
+      "rawSha256": "faacc23d224b6793c4cc1994162338f4b25916f5f22e5d58eeb75766467225f6"
+    },
+    "scope": "Initial focused run plus targeted assertion/budget correction; not one clean full final run."
+  },
+  "distinctControlledBrowserCases": 104,
+  "smokeSubset": 14,
+  "checks": {
+    "applicationBuild": "passed, zero warnings/errors",
+    "typescript": "passed",
+    "javascriptSyntax": "passed"
+  },
+  "boundaries": [
+    "Focused planner scope covered through initial and targeted runs; not one clean full final run. The broader application browser catalog was not rerun.",
+    "iPad viewport/touch Chromium and WebKit emulation, not physical-device certification.",
+    "Three history compatibility cases use synthetic same-owner history entries and pageshow; separate real Back journeys also passed.",
+    "No new live-model test, PayPal order or capture. Earlier provider evidence remains a separately dated checkpoint.",
+    "Agent implementation/review and automated checks are not a human usability study.",
+    "Initial WebKit failures: invalid-date clearing assumption (native behavior differs), and a cumulative 60-second multi-edit journey deadline. Production application code is unchanged by the final test correction."
+  ],
+  "guide": {
+    "file": "Solvia-date-only-guide.pdf",
+    "sha256": "c3d9bfe03d116bb7df2f5e191ebf16da5979fcabf2dd0f9b4b3134b8ca713422",
+    "pages": 16,
+    "screens": 15,
+    "updatedManualPlannerScreens": 3,
+    "unchangedOtherScreens": 12,
+    "separateVectorCircles": true,
+    "allRenderedPagesReviewed": true,
+    "newAiReads": 0,
+    "newOrders": 0,
+    "newCaptures": 0
+  },
+  "currentScreen": {
+    "file": "Solvia-date-only-form.png",
+    "sha256": "1f6d72edf12e8794af4195db1fcdcf7643fe5277de81fda9475eae0c133f6bba",
+    "captureMethod": "Actual local application; manual date and weekday inputs; unchanged screenshot pixels."
+  }
+}

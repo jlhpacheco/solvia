@@ -2,7 +2,17 @@
 
 **Verified working record — October 24, 2026.** We test a fictional campus-permit application and PayPal Sandbox integration. Our human project creator owns the release decision. Agent assistance is not independent external certification or a real-user study.
 
-## Current exact-date-range checkpoint
+<!-- DATE-ONLY-CHECKPOINT:BEGIN -->
+## Current date-only checkpoint - October 24, 2026
+
+Repeating confirmation now uses start/end dates and weekdays, with no visible or hidden Weeks control. Exact date counts, one-visit mode, revision, protected drafts, browser history and no-JavaScript paths remain covered. The current [repair record and walkthrough](review/DATE-ONLY-2026-10-24.md) and [allowlisted proof](review/Solvia-date-only-verification.json) identify the source and report hashes.
+
+**759/759 backend tests passed**. **104 distinct focused TypeScript Playwright cases are covered** through initial and targeted runs: 60 desktop/phone and 44 tablet emulations. **14 smoke cases are a subset**. The initial tablet run passed **41/44**; two assertions assumed Chromium-style invalid-date sanitization and one multi-edit journey exhausted its cumulative 60-second budget. Tests now require either native blocking or server date rejection, with no guessed date or comparison; only the multi-edit total budget becomes 90 seconds, leaving 10-second assertions unchanged. Final affected checks passed **2/2 main** and **8/8 tablet**. This is a distinct-case aggregate, not one clean 104-case final run; the broader browser catalog was not rerun.
+
+Production application code was unchanged by those test corrections. Three synthetic history/pageshow compatibility cases are labeled separately from actual Back journeys. All 16 rendered walkthrough pages were reviewed; three manually entered planner screens were refreshed. No new real-model request, PayPal order/capture, human study or physical-device result is claimed. Earlier results remain dated evidence below.
+<!-- DATE-ONLY-CHECKPOINT:END -->
+
+## Historical exact-date-range checkpoint - earlier October 24
 
 The reported two-date sentence now fills start/end dates, partial weeks and weekdays. Date bounds are deterministic, provider suggestions must agree, and comparison counts only dates through the exact end. An independent review found a no-JavaScript precedence ambiguity, which now has explicit guidance. Browser testing exposed a real WebKit stale-comparison defect after Back; using immutable HTML defaults fixes its baseline. Initial failures remain in the record.
 

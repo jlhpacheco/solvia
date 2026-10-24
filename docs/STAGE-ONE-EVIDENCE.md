@@ -2,6 +2,13 @@
 
 Updated October 20, 2026 for the US-model/planner release. Verified application/test source: [`b8bf8d3f480344e50c76e6f01f2336e96902f651`](https://github.com/jlhpacheco/solvia/tree/b8bf8d3f480344e50c76e6f01f2336e96902f651). Older commits below identify historical evidence, not the current model release.
 
+**Current interface note — October 24:** repeating visits now ask for start/end
+dates and weekdays, with no Number of weeks form control. Week counts remain
+internal to the reader and compatibility contract; a weeks-only description
+fills an editable end date. One visit asks only for its date. See
+[testing](TESTING.md) for the current source and verification scope. The dated
+metrics and schema evidence below still describe the October 20 checkpoint.
+
 The [official rules, section 6](https://paypalaihackathon.devpost.com/rules) describe Stage One as a pass/fail review of viability, theme fit and reasonable use of the required APIs/SDKs. Solvia has technical implementation evidence for those points. The organizers decide the result; this page does not establish personal eligibility, legal clearance or final submission.
 
 ## Current implementation and verified evidence

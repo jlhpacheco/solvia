@@ -10,7 +10,7 @@ Current implementation: [US-developed AI, visit planning and staff review](docs/
 The configured model is **OpenAI's US-developed GPT-OSS 120B, hosted through Together AI**.
 Model origin does not establish a US-only processing region.
 The header's AI indicator reports observed model responses and their timestamps.
-See the [October 24 date-range repair and revised walkthrough](docs/review/DATE-RANGE-2026-10-24.md) for the latest verification scope.
+See the [October 24 date-only planner and revised walkthrough](docs/review/DATE-ONLY-2026-10-24.md) for the latest verification scope.
 
 Latest review: [changes and verification](docs/REVIEW-2026-10-19.md),
 [hackathon readiness and judging](docs/HACKATHON-READINESS.md),
@@ -36,7 +36,7 @@ Together: *pay what is due for the vehicle on the road.*
 Maria is a fictional adult student (18+). It is her first day.
 
 1. Maria opens Solvia and picks how to start:
-   - **Plan my parking:** describe weekdays and weeks, an exact start/end date range, or one dated visit. Choose **One visit** and confirm its date, or **Repeating visits** and confirm start/end dates, weeks and weekdays. The exact end date limits visits even when the last week is partial. Then compare catalog day/term costs. Continuing with day parking starts one pass for the first visit; a multi-visit estimate is not a prepaid bundle.
+   - **Plan my parking:** describe one dated visit or a repeating schedule. Choose **One visit** and confirm its date, or **Repeating visits** and confirm start/end dates and weekdays. There is no Number of weeks control. A description such as “Tuesdays for three weeks” fills an editable end date; week counts remain internal. The exact end date limits visits even when the last week is partial. Then compare catalog day/term costs. Continuing with day parking starts one pass for the first visit; a multi-visit estimate is not a prepaid bundle.
    - **Ask Solvia (the AI door):** choose a college, describe a car, and choose a permit. The configured reader drafts vehicle fields for review.
    - **The classic form:** pick campus, car, permit type, and start date — the same shape colleges already use.
 2. Both doors build the **same application** through the same brain, and both show the **exact total first**, taken from a real fee table (see `data/fees.csv` — 10 campuses, every one publishing its student semester price, from the 2026-10-18 scan of 25 mycampuspermit.com pages; only the 10 with a published price ship, and no price is ever guessed).
