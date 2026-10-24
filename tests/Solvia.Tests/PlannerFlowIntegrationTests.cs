@@ -96,7 +96,9 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
         var read = await Post("/Planner/Read", fields);
         var html = await read.Content.ReadAsStringAsync();
         Assert.Contains("value=\"2026-10-26\"", html);
-        Assert.Matches($"id=\"Weeks\"[^>]*value=\"{weeks}\"", html);
+        Assert.DoesNotContain("name=\"Weeks\"", html);
+        if (visits == 1) Assert.Contains("data-single-visit=\"true\"", html);
+        else Assert.Matches("id=\"EndDate\"[^>]*value=\"2026-11-15\"", html);
         Assert.Contains($"value=\"{weekday}\" checked=\"checked\"", html);
         Assert.Contains("data-source=\"fallback\"", html);
 
@@ -123,7 +125,8 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
         Assert.Contains("name=\"startDate\" value=\"2026-10-26\"", questions);
         var restored = await _client.GetStringAsync("/Planner");
         Assert.Contains("value=\"2026-10-26\"", restored);
-        Assert.Matches($"id=\"Weeks\"[^>]*value=\"{weeks}\"", restored);
+        Assert.DoesNotContain("name=\"Weeks\"", restored);
+        if (visits > 1) Assert.Matches("id=\"EndDate\"[^>]*value=\"2026-11-15\"", restored);
         Assert.Equal(before, await db.PermitApplications.CountAsync());
     }
 

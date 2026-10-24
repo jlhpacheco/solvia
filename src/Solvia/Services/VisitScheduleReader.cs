@@ -24,8 +24,8 @@ public sealed record VisitScheduleDraft(IReadOnlyList<DayOfWeek> Weekdays, int? 
             ? "Read by Together AI. Confirm the visit date; the model does not set prices."
             : "Read by built-in schedule rules. Confirm the visit date; no model answer is claimed."
         : Source == "together"
-        ? $"Read by Together AI. Confirm the {(EndDate is not null ? "start and end dates, " : StartDate is not null ? "start date, " : "")}weekdays and week count; the model does not set prices."
-        : $"Read by built-in schedule rules. Confirm the {(EndDate is not null ? "start and end dates, " : StartDate is not null ? "start date, " : "")}weekdays and week count; no model answer is claimed.";
+        ? "Read by Together AI. Confirm the start and end dates and weekdays; the model does not set prices."
+        : "Read by built-in schedule rules. Confirm the start and end dates and weekdays; no model answer is claimed.";
 }
 
 /// <summary>
@@ -84,7 +84,7 @@ public sealed class TogetherVisitScheduleReader : IVisitScheduleReader
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (text?.Length > VisitScheduleDraft.MaxInputLength)
-            return new([], null, "fallback", "Keep your schedule to 500 characters, or choose the weekdays and weeks directly.");
+            return new([], null, "fallback", "Keep your schedule to 500 characters, or choose the visit dates and weekdays directly.");
         var grounded = ScheduleGrounding.Read(text ?? "");
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(_options.ApiKey) ||
             _options.Model != TogetherOptions.SupportedModel ||
@@ -212,8 +212,8 @@ internal static class ScheduleGrounding
         ["twenty one"] = 21, ["twenty two"] = 22, ["twenty three"] = 23, ["twenty four"] = 24,
         ["twenty five"] = 25, ["twenty six"] = 26,
     };
-    private const string ReviewNotice = "Check this draft. Choose any missing weekdays or week count before comparing; nothing is purchased here.";
-    private const string DateReviewNotice = "Check the visit dates and schedule. Use full US dates (M/d/yyyy) or ISO dates (yyyy-MM-dd). For a range, write from the start date to or through the end date, within 26 weeks. A one-time visit must match its named weekday. Conflicting or invalid details need your review; no date or duration was guessed.";
+    private const string ReviewNotice = "Check this draft. Confirm the start and end dates and visit weekdays before comparing; nothing is purchased here.";
+    private const string DateReviewNotice = "Check the visit dates and schedule. Use full US dates (M/d/yyyy) or ISO dates (yyyy-MM-dd). For a range, write from the start date to or through the end date, within 182 days. A one-time visit must match its named weekday. Conflicting or invalid details need your review; no date or duration was guessed.";
 
     public static VisitScheduleDraft Read(string text)
     {

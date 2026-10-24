@@ -59,17 +59,10 @@
         <fieldset id="repeat-end" hidden="@Model.SingleVisit" disabled="@Model.SingleVisit">
             <legend class="visually-hidden">Repeating visit end date</legend>
             <label for="EndDate" class="form-label">End date</label>
-            <input asp-for="EndDate" type="date" class="form-control" aria-describedby="end-date-help" />
-            <span id="end-date-help" class="form-text">Optional. An exact end date limits your visits. Clear it to plan by weeks only.</span>
-        </fieldset>
-        <fieldset id="repeat-weeks" hidden="@Model.SingleVisit" disabled="@Model.SingleVisit">
-            <legend class="visually-hidden">Repeating visit duration</legend>
-            <label for="Weeks" class="form-label">Number of weeks</label>
-            <input asp-for="Weeks" type="number" min="1" max="26" inputmode="numeric" class="form-control" aria-describedby="weeks-help" />
-            <span id="weeks-help" class="form-text">1–26 weeks. A date range may include a partial final week.</span>
+            <input asp-for="EndDate" type="date" class="form-control" required="@(!Model.SingleVisit)" aria-describedby="end-date-help" />
+            <span id="end-date-help" class="form-text">The last day of your plan. Only the weekdays you select count as visits.</span>
         </fieldset>
     </div>
-    <noscript><p class="form-text mt-2">An end date sets the exact range. To plan by weeks instead, clear End date before comparing.</p></noscript>
     <p id="schedule-duration-summary" class="form-text mt-2" aria-live="polite" hidden></p>
     <p id="single-visit-summary" class="form-text mt-2" hidden>One visit on <time datetime="@(hasVisitDate ? Model.StartDate.ToString("yyyy-MM-dd") : null)" id="single-visit-date">@(hasVisitDate ? Model.StartDate.ToString("dddd, MMMM d, yyyy") : "the date you choose")</time>.</p>
     <fieldset class="mt-3" id="repeat-weekdays" hidden="@Model.SingleVisit" disabled="@Model.SingleVisit">

@@ -67,7 +67,7 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
         }
         if (model.ScheduleText.Length > 500)
         {
-            ModelState.AddModelError(nameof(model.ScheduleText), "Describe the weekdays and number of weeks in 500 characters or fewer.");
+            ModelState.AddModelError(nameof(model.ScheduleText), "Describe the visit dates and weekdays in 500 characters or fewer.");
             return View("Index", model);
         }
         var client = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -179,9 +179,28 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
             RemoveAttemptedFields(nameof(model.Weeks), nameof(model.Weekdays), nameof(model.EndDate));
             return;
         }
-        if (model.EndDate is not { } end || model.StartDate == default ||
+        if (model.StartDate == default ||
             ModelState[nameof(model.StartDate)]?.Errors.Count > 0 || ModelState[nameof(model.EndDate)]?.Errors.Count > 0)
             return;
+        if (model.EndDate is null)
+        {
+            // Older protected drafts and weeks-based reader answers still
+            // have a bounded duration. Present it as dates in the current UI;
+            // never repair a malformed date or invent a missing duration.
+            if (model.Weeks is not (>= 1 and <= 26) || ModelState[nameof(model.Weeks)]?.Errors.Count > 0)
+                return;
+            try
+            {
+                model.EndDate = model.StartDate.AddDays(model.Weeks.Value * 7 - 1);
+                RemoveAttemptedFields(nameof(model.EndDate));
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                ModelState.AddModelError(nameof(model.EndDate), "The schedule goes beyond supported calendar dates. Choose an earlier start or end date.");
+                return;
+            }
+        }
+        if (model.EndDate is not { } end) return;
         var inclusiveDays = end.DayNumber - model.StartDate.DayNumber + 1;
         if (inclusiveDays < 1)
             ModelState.AddModelError(nameof(model.EndDate), "Choose an end date on or after the planning start date.");

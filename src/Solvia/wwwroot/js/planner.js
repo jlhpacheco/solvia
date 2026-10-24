@@ -2,7 +2,7 @@
 (() => {
     const form = document.getElementById('planner-form');
     if (form) {
-        const names = ['Campus', 'ScheduleText', 'SingleVisit', 'StartDate', 'EndDate', 'Weeks', 'Weekdays', 'Term'];
+        const names = ['Campus', 'ScheduleText', 'SingleVisit', 'StartDate', 'EndDate', 'Weekdays', 'Term'];
         const controls = Array.from(form.elements).filter(input => names.includes(input.name));
         // Date-only arithmetic uses UTC calendar components to avoid DST or
         // local timezone shifts. The server independently validates the range.
@@ -14,31 +14,19 @@
             return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 &&
                 date.getUTCDate() === day ? date : null;
         };
-        const syncDuration = changed => {
-            if (form.querySelector('input[name="SingleVisit"]:checked')?.value === 'true') return;
-            const start = calendarDate(document.getElementById('StartDate').value);
-            const endInput = document.getElementById('EndDate');
-            const weeksInput = document.getElementById('Weeks');
-            if (!start || !endInput) return;
-            if (changed === 'Weeks') {
-                const weeks = Number(weeksInput.value);
-                if (!Number.isInteger(weeks) || weeks < 1 || weeks > 26) return;
-                const end = new Date(start.getTime() + (weeks * 7 - 1) * 86400000);
-                if (end.getUTCFullYear() <= 9999) endInput.value = end.toISOString().slice(0, 10);
-            } else if (changed === 'StartDate' || changed === 'EndDate') {
-                const end = calendarDate(endInput.value);
-                if (!end || end < start) return;
-                weeksInput.value = String(Math.ceil(((end - start) / 86400000 + 1) / 7));
-            }
-        };
         const applyVisitType = () => {
             const single = form.querySelector('input[name="SingleVisit"]:checked')?.value === 'true';
-            for (const id of ['repeat-end', 'repeat-weeks', 'repeat-weekdays']) {
+            for (const id of ['repeat-end', 'repeat-weekdays']) {
                 const group = document.getElementById(id);
                 if (!group) continue;
                 group.hidden = single;
                 group.disabled = single;
             }
+            // Also hide an older cached page's duration control while its
+            // updated HTML is being loaded. New forms emit no Weeks input.
+            const legacyDuration = document.getElementById('repeat-weeks');
+            if (legacyDuration) { legacyDuration.hidden = true; legacyDuration.disabled = true; }
+            document.getElementById('EndDate').required = !single;
             document.getElementById('planning-fields').dataset.singleVisit = String(single);
             document.getElementById('planning-date-label').textContent = single ? 'Visit date' : 'Start of your planning period';
             document.getElementById('single-visit-summary').hidden = !single;
@@ -49,7 +37,7 @@
             if (duration) duration.hidden = single || !startDate || !endDate || endDate < startDate;
             if (duration && !duration.hidden) {
                 const days = (endDate - startDate) / 86400000 + 1;
-                duration.textContent = `${days} calendar ${days === 1 ? 'day' : 'days'} across ${Math.ceil(days / 7)} ${days <= 7 ? 'week' : 'weeks'}. Only your selected weekdays count as visits.`;
+                duration.textContent = `${days} calendar ${days === 1 ? 'day' : 'days'}. Only your selected weekdays count as visits.`;
             }
             const date = dateInput.value ? new Date(dateInput.value + 'T12:00:00') : null;
             const summary = document.getElementById('single-visit-date');
@@ -94,6 +82,25 @@
                 } }, '');
             } catch { /* Browser history can be unavailable; server drafts still work. */ }
         };
+        const restoreLegacyDuration = draft => {
+            if (form.querySelector('input[name="SingleVisit"]:checked')?.value === 'true') return;
+            const legacyWeeks = draft.fields.filter(field => field?.name === 'Weeks');
+            const storedEnds = draft.fields.filter(field => field?.name === 'EndDate');
+            // Only old snapshots contain Weeks. Inspect the raw end before
+            // relying on a date input, which sanitizes malformed strings to ''.
+            // A new deliberately empty end must remain available for review.
+            if (legacyWeeks.length !== 1 || storedEnds.length > 1 ||
+                (storedEnds.length === 1 && (typeof storedEnds[0].value !== 'string' || storedEnds[0].value.trim() !== '')) ||
+                typeof legacyWeeks[0].value !== 'string' || !/^\d+$/.test(legacyWeeks[0].value.trim())) return;
+            const weeks = Number(legacyWeeks[0].value);
+            if (!Number.isInteger(weeks) || weeks < 1 || weeks > 26) return;
+            const start = calendarDate(document.getElementById('StartDate').value);
+            const endInput = document.getElementById('EndDate');
+            if (!start || !endInput) return;
+            const end = new Date(start.getTime() + (weeks * 7 - 1) * 86400000);
+            if (end.getUTCFullYear() > 9999) return;
+            endInput.value = end.toISOString().slice(0, 10);
+        };
         const restore = () => {
             const draft = history.state?.solviaPlannerDraft;
             if (draft && draft.owner === form.dataset.person && Array.isArray(draft.fields)) {
@@ -104,6 +111,7 @@
                     if (field.checked === null) input.value = field.value;
                     else input.checked = field.checked;
                 }
+                restoreLegacyDuration(draft);
             }
             applyVisitType();
             if (JSON.stringify(snapshot()) !== rendered) invalidate();
@@ -111,8 +119,8 @@
         applyVisitType();
         restore();
         window.addEventListener('pageshow', restore);
-        form.addEventListener('input', event => { syncDuration(event.target.name); applyVisitType(); invalidate(); save(); });
-        form.addEventListener('change', event => { syncDuration(event.target.name); applyVisitType(); invalidate(); save(); });
+        form.addEventListener('input', () => { applyVisitType(); invalidate(); save(); });
+        form.addEventListener('change', () => { applyVisitType(); invalidate(); save(); });
         form.addEventListener('submit', save);
         window.addEventListener('pagehide', save);
     }

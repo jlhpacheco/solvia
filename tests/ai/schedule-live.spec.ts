@@ -11,20 +11,24 @@ for (const example of [
     await page.goto('/Planner');
     await expect(page.locator('#schedule-help')).toContainText("OpenAI's US-developed GPT-OSS 120B");
     await page.getByLabel('Describe your visits', { exact: false }).fill(example.sentence);
+    const startDate = await page.locator('#StartDate').inputValue();
+    const expectedEnd = new Date(`${startDate}T00:00:00Z`);
+    expectedEnd.setUTCDate(expectedEnd.getUTCDate() + Number(example.weeks) * 7 - 1);
     const started = Date.now();
     await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
     const reader = page.getByTestId('schedule-reader');
     await expect(reader).toBeVisible();
     const source = await reader.getAttribute('data-source');
     const checked = await page.locator('input[name="Weekdays"]:checked').evaluateAll(inputs => inputs.map(input => (input as HTMLInputElement).value));
-    const weeks = await page.getByLabel('Number of weeks', { exact: true }).inputValue();
+    const endDate = await page.getByLabel('End date', { exact: true }).inputValue();
     await info.attach('actual-schedule-reader', {
-      body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, checked, weeks, elapsedMs: Date.now() - started, expected: example })),
+      body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, checked, startDate, endDate, elapsedMs: Date.now() - started, expected: example })),
       contentType: 'application/json'
     });
     expect(source, 'Fallback is not evidence that the schedule model ran successfully.').toBe('together');
     expect(checked.slice().sort()).toEqual(example.days.slice().sort());
-    expect(weeks).toBe(example.weeks);
+    expect(endDate).toBe(expectedEnd.toISOString().slice(0, 10));
+    await expect(page.locator('#Weeks')).toHaveCount(0);
     await expect(page.getByTestId('plan-result')).toHaveCount(0);
   });
 }
@@ -36,7 +40,8 @@ test('real schedule reader leaves uncertainty for explicit review', async ({ pag
   const source = await page.getByTestId('schedule-reader').getAttribute('data-source');
   expect(['together', 'fallback']).toContain(source);
   await expect(page.locator('input[name="Weekdays"]:checked')).toHaveCount(0);
-  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('End date', { exact: true })).toHaveValue('');
+  await expect(page.locator('#Weeks')).toHaveCount(0);
   await expect(page.getByTestId('plan-result')).toHaveCount(0);
   await info.attach('actual-uncertain-schedule-reader', { body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, confirmedNoDefaults: true })), contentType: 'application/json' });
 });
@@ -45,14 +50,16 @@ test('real Together one-time dated visit uses only a visit date and verifies the
   await page.goto('/Planner');
   await page.getByLabel('Your college', { exact: true }).selectOption('CSU East Bay');
   await page.getByLabel('Start of your planning period').fill('2026-10-23');
-  await page.getByLabel('Number of weeks', { exact: true }).fill('');
+  await page.getByLabel('End date', { exact: true }).fill('');
   await page.getByLabel('Describe your visits', { exact: false }).fill('One visit on 10/27/2026.');
   await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
   const source = await page.getByTestId('schedule-reader').getAttribute('data-source');
   expect(source, 'A rules result must not be called a successful hosted model response.').toBe('together');
   await expect(page.getByLabel('Visit date', { exact: true })).toHaveValue('2026-10-27');
   await expect(page.getByLabel('One visit', { exact: true })).toBeChecked();
-  await expect(page.getByLabel('Number of weeks', { exact: true })).toBeHidden();
+  await expect(page.locator('#Weeks')).toHaveCount(0);
+  await expect(page.locator('#repeat-end')).toBeHidden();
+  await expect(page.locator('#EndDate')).toBeDisabled();
   await expect(page.locator('#repeat-weekdays')).toBeHidden();
   await expect(page.locator('#single-visit-date')).toContainText('Tuesday');
   const response = await page.request.get('/api/ai/status');

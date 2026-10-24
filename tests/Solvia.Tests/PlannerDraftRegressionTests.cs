@@ -62,7 +62,8 @@ public sealed class PlannerDraftRegressionTests : IClassFixture<AppIntegrationTe
         Assert.DoesNotContain("planner-errors", html);
         Assert.Contains("value=\"CSU East Bay\" selected=\"selected\"", html);
         Assert.Contains("value=\"Wednesday\" checked=\"checked\"", html);
-        Assert.Contains("value=\"4\"", html);
+        Assert.Matches($"id=\"EndDate\"[^>]*value=\"{DateTime.Now.Year + 1}-02-16\"", html);
+        Assert.DoesNotContain("name=\"Weeks\"", html);
         var comparison = await Post("/Planner/Compare", Fields(text));
         Assert.Contains("data-testid=\"plan-result\"", comparison);
         Assert.Equal(0, _reader.Calls);
@@ -108,7 +109,8 @@ public sealed class PlannerDraftRegressionTests : IClassFixture<AppIntegrationTe
         {
             var html = await _client.GetStringAsync(response.Headers.Location!);
             Assert.Contains("data-testid=\"schedule-reader\"", html);
-            Assert.Contains("value=\"4\"", html);
+            Assert.Matches($"id=\"EndDate\"[^>]*value=\"{DateTime.Now.Year + 1}-02-16\"", html);
+            Assert.DoesNotContain("name=\"Weeks\"", html);
             Assert.Equal(calls, _reader.Calls);
         }
     }
@@ -170,7 +172,8 @@ public sealed class PlannerDraftRegressionTests : IClassFixture<AppIntegrationTe
         Assert.Equal(1, _reader.Calls);
         Assert.Contains("value=\"2026-10-26\"", html);
         Assert.Contains("value=\"Monday\" checked=\"checked\"", html);
-        Assert.Matches("id=\"Weeks\"[^>]*value=\"1\"", html);
+        Assert.Matches("id=\"EndDate\"[^>]*value=\"2026-11-01\"", html);
+        Assert.DoesNotContain("name=\"Weeks\"", html);
         Assert.DoesNotContain("planner-errors", html);
         var restored = await _client.GetStringAsync("/Planner");
         Assert.Contains("value=\"2026-10-26\"", restored);

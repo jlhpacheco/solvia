@@ -11,6 +11,12 @@ function visitDate(day = 20) {
   return { iso, us: `1/${day}/${year}`, weekday: new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(date) };
 }
 
+function rangeEnd(start: string, inclusiveDays: number) {
+  const date = new Date(`${start}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + inclusiveDays - 1);
+  return date.toISOString().slice(0, 10);
+}
+
 async function guardReaderAndPayments(page: Page, allowScheduleRead = false) {
   const rejected: string[] = [];
   let scheduleReads = 0;
@@ -39,9 +45,12 @@ async function openPlanner(page: Page) {
 async function expectSingleFields(page: Page, iso: string, liveSummary = true) {
   await expect(page.getByRole('radio', { name: 'One visit', exact: true })).toBeChecked();
   await expect(page.getByLabel('Visit date', { exact: true })).toHaveValue(iso);
-  await expect(page.locator('#repeat-weeks')).toBeHidden();
+  await expect(page.locator('#repeat-weeks')).toHaveCount(0);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#repeat-end')).toBeHidden();
+  await expect(page.locator('#EndDate')).toBeDisabled();
   await expect(page.locator('#repeat-weekdays')).toBeHidden();
-  await expect(page.locator('#Weeks')).toBeDisabled();
+  await expect(page.locator('#Weeks')).toHaveCount(0);
   await expect(page.locator('#day-Monday')).toBeDisabled();
   if (liveSummary) {
     await expect(page.locator('#single-visit-summary')).toBeVisible();
@@ -90,7 +99,7 @@ test('offline one-off reading selects One visit without exposing recurrence ques
   await openPlanner(page);
   await page.getByRole('radio', { name: 'Repeating visits', exact: true }).check();
   await page.getByLabel('Start of your planning period', { exact: true }).fill(visitDate(21).iso);
-  await page.getByLabel('Number of weeks', { exact: true }).fill('');
+  await page.getByLabel('End date', { exact: true }).fill('');
   await page.getByLabel('Describe your visits', { exact: false }).fill(`One visit on ${visit.us}.`);
   await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
   await expect(page.getByTestId('schedule-reader')).toHaveAttribute('data-source', 'fallback');
@@ -106,7 +115,7 @@ test('switching a blank repeating schedule to one visit has no hidden required-f
   const visit = visitDate();
   await openPlanner(page);
   await page.getByRole('radio', { name: 'Repeating visits', exact: true }).check();
-  await page.getByLabel('Number of weeks', { exact: true }).fill('');
+  await page.getByLabel('End date', { exact: true }).fill('');
   for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) {
     await page.getByLabel(day, { exact: true }).uncheck();
   }
@@ -125,7 +134,7 @@ test('browser Back restores an unsent visit type and date with the matching fiel
   await openPlanner(page);
   await page.getByRole('radio', { name: 'Repeating visits', exact: true }).check();
   await page.getByLabel('Start of your planning period', { exact: true }).fill(original.iso);
-  await page.getByLabel('Number of weeks', { exact: true }).fill('3');
+  await page.getByLabel('End date', { exact: true }).fill(rangeEnd(original.iso, 21));
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await expect(page.getByTestId('plan-result')).toBeVisible();
   await page.getByRole('radio', { name: 'One visit', exact: true }).check();
@@ -148,7 +157,7 @@ test('without JavaScript visit-type switching bypasses hidden validation and rep
     const requests = await guardReaderAndPayments(page);
     const visit = visitDate();
     await openPlanner(page);
-    await page.getByLabel('Number of weeks', { exact: true }).fill('');
+    await page.getByLabel('End date', { exact: true }).fill('');
     await page.getByRole('radio', { name: 'One visit', exact: true }).check();
     await page.getByRole('button', { name: 'Use this visit type', exact: true }).click();
     await page.getByLabel('Visit date', { exact: true }).fill(visit.iso);
@@ -158,19 +167,20 @@ test('without JavaScript visit-type switching bypasses hidden validation and rep
     await page.getByRole('radio', { name: 'Repeating visits', exact: true }).check();
     await page.getByRole('button', { name: 'Use this visit type', exact: true }).click();
     await expect(page.getByLabel('Start of your planning period', { exact: true })).toHaveValue(visit.iso);
-    await expect(page.locator('#repeat-weeks')).toBeVisible();
+    await expect(page.locator('#repeat-weeks')).toHaveCount(0);
+    await expect(page.locator('#Weeks')).toHaveCount(0);
+    await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
+    await expect(page.locator('#repeat-end')).toBeVisible();
     await expect(page.locator('#repeat-weekdays')).toBeVisible();
-    await expect(page.getByLabel('Number of weeks', { exact: true })).toBeEnabled();
+    await expect(page.getByLabel('End date', { exact: true })).toBeEnabled();
     await expect(page.getByLabel('Monday', { exact: true })).toBeEnabled();
-    await page.getByLabel('Number of weeks', { exact: true }).fill('');
+    await page.getByLabel('End date', { exact: true }).fill('');
     await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
-    // An exact End date can supply the duration, so Weeks is no longer
-    // unconditionally required by the browser. With neither, the server
-    // must reject the incomplete schedule instead of assuming a duration.
-    await expect(page.locator('#EndDate')).toHaveValue('');
-    await expect(page.getByRole('alert')).toContainText('Choose between 1 and 26 weeks');
+    // A date-only repeating form has no hidden duration to revive. Native
+    // validation must require its end bound even without client-side code.
+    expect(await page.locator('#EndDate').evaluate((element: HTMLInputElement) => element.validity.valueMissing)).toBe(true);
     await expect(page.getByTestId('plan-result')).toHaveCount(0);
-    await page.getByLabel('Number of weeks', { exact: true }).fill('2');
+    await page.getByLabel('End date', { exact: true }).fill(rangeEnd(visit.iso, 14));
     for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) {
       await page.getByLabel(day, { exact: true }).uncheck();
     }
@@ -196,8 +206,10 @@ test('an uncertain new description cannot inherit an earlier one-visit confirmat
   await page.getByLabel('Describe your visits', { exact: false }).fill('Maybe Monday or Thursday, not sure how many weeks');
   await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Repeating visits', exact: true })).toBeChecked();
-  await expect(page.getByLabel('Number of weeks', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#Weeks')).toHaveCount(0);
+  await expect(page.getByLabel('End date', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('End date', { exact: true })).toHaveValue('');
   await expect(page.locator('input[name="Weekdays"]:checked')).toHaveCount(0);
   await expect(page.getByTestId('schedule-reader')).toHaveAttribute('data-source', 'fallback');
   await expect(page.getByTestId('schedule-reader')).toContainText('Check this draft');

@@ -20,6 +20,9 @@ test('planner comparison and one-day handoff fit the tablet', async ({ page }) =
   await page.goto('/Planner');
   const year = new Date().getFullYear() + 1;
   await page.getByLabel('Start of your planning period').fill(`${year}-08-24`);
+  await page.getByLabel('End date', { exact: true }).fill(`${year}-09-13`);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#Weeks')).toHaveCount(0);
   await page.getByLabel('Fall', { exact: true }).check();
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await expect(page.getByTestId('daily-total')).toHaveText('$6.00');
@@ -55,9 +58,12 @@ test('one-visit selection is touch-operable without recurrence fields or inferen
   await page.getByRole('radio', { name: 'One visit', exact: true }).tap();
   await page.getByLabel('Visit date', { exact: true }).fill(date);
   await expect(page.getByRole('radio', { name: 'One visit', exact: true })).toBeChecked();
-  await expect(page.locator('#repeat-weeks')).toBeHidden();
+  await expect(page.locator('#repeat-weeks')).toHaveCount(0);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#repeat-end')).toBeHidden();
+  await expect(page.locator('#EndDate')).toBeDisabled();
   await expect(page.locator('#repeat-weekdays')).toBeHidden();
-  await expect(page.locator('#Weeks')).toBeDisabled();
+  await expect(page.locator('#Weeks')).toHaveCount(0);
   await expect(page.locator('#day-Monday')).toBeDisabled();
   await page.getByRole('button', { name: 'Compare my options', exact: true }).tap();
   await expect(page.getByTestId('plan-result')).toContainText('1 visit. Two ways to plan.');

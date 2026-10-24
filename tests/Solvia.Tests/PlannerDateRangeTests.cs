@@ -174,7 +174,9 @@ public sealed class PlannerDateRangeTests
         using var world = new World();
         var model = Range(); model.ScheduleText = "Previous person's fictional range";
         Assert.IsType<RedirectToActionResult>(await world.Controller.Read(model, "elena", default));
-        Assert.Null((await Restored(world.Controller)).EndDate);
+        var current = await Restored(world.Controller);
+        Assert.Equal(current.StartDate.AddDays(20), current.EndDate);
+        Assert.NotEqual(model.ScheduleText, current.ScheduleText);
         Assert.Equal(0, world.Reader.Calls);
     }
 
@@ -204,7 +206,8 @@ public sealed class PlannerDateRangeTests
         var html = await client.GetStringAsync(response.Headers.Location!);
         Assert.Contains("2 visits. Two ways to plan.", html);
         Assert.Contains("$2.00", html);
-        Assert.Matches("id=\"Weeks\"[^>]*value=\"2\"", html);
+        Assert.DoesNotContain("id=\"Weeks\"", html);
+        Assert.DoesNotContain("name=\"Weeks\"", html);
         var restored = await client.GetStringAsync("/Planner");
         Assert.Matches("id=\"EndDate\"[^>]*value=\"2026-11-03\"", restored);
     }

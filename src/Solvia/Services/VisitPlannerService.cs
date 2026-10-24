@@ -76,7 +76,7 @@ public sealed class VisitPlannerService
             else if (inclusiveDays > 26 * 7) errors.Add("Choose a date range of at most 26 weeks (182 days).");
             else weeks = (inclusiveDays + 6) / 7;
         }
-        else if (weeks is < 1 or > 26) errors.Add("Choose between 1 and 26 weeks.");
+        else if (weeks is < 1 or > 26) errors.Add("Choose an end date within 182 days of the planning start date.");
         if (input.Weekdays is null || input.Weekdays.Count == 0)
             errors.Add("Choose at least one visit weekday.");
         else if (input.Weekdays.Count > 7 || input.Weekdays.Any(day => !Enum.IsDefined(day)) ||

@@ -71,11 +71,12 @@ async function expectMwf(page: Page) {
   }
 }
 
-async function expectRange(page: Page, start: string, end: string, weeks: string) {
+async function expectRange(page: Page, start: string, end: string) {
   await expect(page.getByRole('radio', { name: 'Repeating visits', exact: true })).toBeChecked();
   await expect(page.getByLabel('Start of your planning period', { exact: true })).toHaveValue(start);
   await expect(page.getByLabel('End date', { exact: true })).toHaveValue(end);
-  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveValue(weeks);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#Weeks')).toHaveCount(0);
   await expect(page.locator('#EndDate')).toBeEnabled();
 }
 
@@ -88,14 +89,36 @@ async function expectTwentySixVisits(page: Page, visits: Date[]) {
   await expect(page.locator('.sv-visit-dates li')).toHaveText(displayedDates(visits));
 }
 
-test('the exact stated date range reads nine weeks and MWF, then rejects visits beyond the Fall permit window', async ({ page }) => {
+async function restoreHistoryFixture(page: Page, end: string, legacyWeeks?: string) {
+  // Compatibility/event emulation: the new UI cannot write old Weeks fields.
+  // Seed only history data, then let the real pageshow restore handler update
+  // the real form. The separate Back journey above uses actual navigation.
+  await page.evaluate(({ end, legacyWeeks }) => {
+    const form = document.querySelector<HTMLFormElement>('#planner-form')!;
+    const names = new Set(['Campus', 'ScheduleText', 'SingleVisit', 'StartDate', 'EndDate', 'Weekdays', 'Term']);
+    const fields = Array.from(form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+      'input[name], select[name], textarea[name]'))
+      .filter(input => names.has(input.name))
+      .map(input => ({
+        name: input.name,
+        value: input.name === 'EndDate' ? end : input.value,
+        checked: input instanceof HTMLInputElement && (input.type === 'checkbox' || input.type === 'radio')
+          ? input.checked : null
+      }));
+    if (legacyWeeks !== undefined) fields.push({ name: 'Weeks', value: legacyWeeks, checked: null });
+    history.replaceState({ ...history.state, solviaPlannerDraft: { owner: form.dataset.person, fields } }, '');
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  }, { end, legacyWeeks });
+}
+
+test('the exact stated date range reads MWF and both bounds, then rejects visits beyond the Fall permit window', async ({ page }) => {
   const requests = await guardReadingAndPayments(page, true);
   await openRepeating(page, 'Fall');
   await page.getByLabel('Describe your visits', { exact: false }).fill(
     'I am coming to campus on monday, wednesday, and Friday from 11/01/2026 to 12/31/2026');
   await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
   await expect(page.getByTestId('schedule-reader')).toHaveAttribute('data-source', 'fallback');
-  await expectRange(page, '2026-11-01', '2026-12-31', '9');
+  await expectRange(page, '2026-11-01', '2026-12-31');
   await expectMwf(page);
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   // The demo Fall permit expires December 22. Parsing the sentence must not
@@ -103,7 +126,7 @@ test('the exact stated date range reads nine weeks and MWF, then rejects visits 
   await expect(page.getByRole('alert')).toContainText("crosses the selected term permit's end date");
   await expect(page.locator('#planner-errors')).toBeFocused();
   await expect(page.getByTestId('plan-result')).toHaveCount(0);
-  await expectRange(page, '2026-11-01', '2026-12-31', '9');
+  await expectRange(page, '2026-11-01', '2026-12-31');
   expect(requests.reads()).toBe(1);
   expect(requests.rejected).toEqual([]);
 });
@@ -118,7 +141,7 @@ test('@smoke an exact range counts only 26 selected visits and retains its bound
   await page.getByLabel('Start of your planning period', { exact: true }).fill(range.start);
   await page.getByLabel('End date', { exact: true }).fill(range.end);
   await chooseMwf(page);
-  await expectRange(page, range.start, range.end, '9');
+  await expectRange(page, range.start, range.end);
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await expect(page.locator('#comparison-title')).toBeFocused();
   await expectTwentySixVisits(page, range.visits);
@@ -127,7 +150,7 @@ test('@smoke an exact range counts only 26 selected visits and retains its bound
   await expect(page.locator('input[name="startDate"]')).toHaveValue(iso(range.visits[0]));
   await expect(page.getByLabel('Day pass — one day', { exact: true })).toBeChecked();
   await page.getByRole('link', { name: 'Change the plan', exact: true }).click();
-  await expectRange(page, range.start, range.end, '9');
+  await expectRange(page, range.start, range.end);
   await expectMwf(page);
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await expectTwentySixVisits(page, range.visits);
@@ -135,23 +158,29 @@ test('@smoke an exact range counts only 26 selected visits and retains its bound
   expect(requests.rejected).toEqual([]);
 });
 
-test('editing weeks updates the inclusive end date, while editing end or start derives partial weeks', async ({ page }) => {
+test('editing the start and end dates retains exact bounds without a user-facing weeks field', async ({ page }) => {
   const requests = await guardReadingAndPayments(page);
-  const { start } = springRange();
+  const { start, visits } = springRange();
   await openRepeating(page);
   await page.getByLabel('Start of your planning period', { exact: true }).fill(start);
-  await expect(page.locator('#Weeks')).toHaveAttribute('type', 'number');
-  await page.getByLabel('Number of weeks', { exact: true }).fill('2');
-  await page.getByLabel('Number of weeks', { exact: true }).press('Tab');
-  await expectRange(page, start, plusDays(start, 13), '2');
-  // Fifteen inclusive days require three weeks; the bound must stay exact.
+  await page.getByLabel('End date', { exact: true }).fill(plusDays(start, 13));
+  await page.getByLabel('End date', { exact: true }).press('Tab');
+  await expectRange(page, start, plusDays(start, 13));
+  // A partial final week must not expand the person's exact chosen dates.
   await page.getByLabel('End date', { exact: true }).fill(plusDays(start, 14));
   await page.getByLabel('End date', { exact: true }).press('Tab');
-  await expectRange(page, start, plusDays(start, 14), '3');
+  await expectRange(page, start, plusDays(start, 14));
   await page.getByLabel('Start of your planning period', { exact: true }).fill(plusDays(start, 1));
-  await expectRange(page, plusDays(start, 1), plusDays(start, 14), '2');
-  await page.getByLabel('Number of weeks', { exact: true }).fill('4');
-  await expectRange(page, plusDays(start, 1), plusDays(start, 28), '4');
+  await expectRange(page, plusDays(start, 1), plusDays(start, 14));
+  await page.getByLabel('End date', { exact: true }).fill(plusDays(start, 28));
+  await expectRange(page, plusDays(start, 1), plusDays(start, 28));
+  await chooseMwf(page);
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await expect(page.getByTestId('plan-result')).toContainText('12 visits. Two ways to plan.');
+  await expect(page.getByTestId('daily-total')).toHaveText('$12.00');
+  await page.getByText('Visit dates and price source', { exact: true }).click();
+  const expected = visits.filter(date => iso(date) >= plusDays(start, 1) && iso(date) <= plusDays(start, 28));
+  await expect(page.locator('.sv-visit-dates li')).toHaveText(displayedDates(expected));
   expect(requests.reads()).toBe(0);
   expect(requests.rejected).toEqual([]);
 });
@@ -171,7 +200,7 @@ test('browser Back restores unsent range edits and requires a fresh comparison',
   await expect(page.getByTestId('plan-result')).toBeHidden();
   await page.getByRole('link', { name: 'My permits', exact: true }).first().click();
   await page.goBack();
-  await expectRange(page, range.start, shortenedEnd, '3');
+  await expectRange(page, range.start, shortenedEnd);
   await expectMwf(page);
   await expect(page.getByTestId('plan-result')).toBeHidden();
   await expect(page.locator('#plan-edited')).toBeVisible();
@@ -190,12 +219,12 @@ test('one visit hides and disables an invalid repeating end date before comparis
   await openRepeating(page);
   await page.getByLabel('Start of your planning period', { exact: true }).fill(start);
   await page.getByLabel('End date', { exact: true }).fill(plusDays(start, -1));
-  await page.getByLabel('Number of weeks', { exact: true }).fill('');
   await page.getByRole('radio', { name: 'One visit', exact: true }).check();
   await expect(page.locator('#repeat-end')).toBeHidden();
   await expect(page.locator('#EndDate')).toBeDisabled();
-  await expect(page.locator('#repeat-weeks')).toBeHidden();
-  await expect(page.locator('#Weeks')).toBeDisabled();
+  await expect(page.locator('#repeat-weeks')).toHaveCount(0);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#Weeks')).toHaveCount(0);
   await expect(page.locator('#repeat-weekdays')).toBeHidden();
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
@@ -206,7 +235,7 @@ test('one visit hides and disables an invalid repeating end date before comparis
   expect(requests.rejected).toEqual([]);
 });
 
-test('without JavaScript the server honors the exact range instead of stale posted weeks', async ({ browser, baseURL, viewport, isMobile, hasTouch, deviceScaleFactor }) => {
+test('without JavaScript exact dates alone produce the same bounded 26-visit comparison', async ({ browser, baseURL, viewport, isMobile, hasTouch, deviceScaleFactor }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL, viewport, isMobile, hasTouch, deviceScaleFactor });
   try {
     const page = await context.newPage();
@@ -214,14 +243,77 @@ test('without JavaScript the server honors the exact range instead of stale post
     const range = springRange();
     await openRepeating(page);
     await page.getByLabel('Start of your planning period', { exact: true }).fill(range.start);
-    await page.getByLabel('Number of weeks', { exact: true }).fill('1');
+    await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
+    await expect(page.locator('#Weeks')).toHaveCount(0);
     await page.getByLabel('End date', { exact: true }).fill(range.end);
     await chooseMwf(page);
-    await expect(page.locator('#Weeks')).toHaveValue('1');
     await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
-    await expectRange(page, range.start, range.end, '9');
+    await expectRange(page, range.start, range.end);
     await expectTwentySixVisits(page, range.visits);
     expect(requests.reads()).toBe(0);
     expect(requests.rejected).toEqual([]);
   } finally { await context.close(); }
+});
+
+test('a same-owner legacy history snapshot migrates four weeks and a blank end into exact dates', async ({ page }) => {
+  const requests = await guardReadingAndPayments(page);
+  const range = springRange();
+  await openRepeating(page);
+  await page.getByLabel('Start of your planning period', { exact: true }).fill(range.start);
+  await chooseMwf(page);
+  await restoreHistoryFixture(page, '', '4');
+  const end = plusDays(range.start, 27);
+  await expectRange(page, range.start, end);
+  await expectMwf(page);
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await expect(page.getByTestId('plan-result')).toContainText('12 visits. Two ways to plan.');
+  await expect(page.getByTestId('daily-total')).toHaveText('$12.00');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.getByText('Visit dates and price source', { exact: true }).click();
+  await expect(page.locator('.sv-visit-dates li')).toHaveText(displayedDates(range.visits.filter(date => iso(date) <= end)));
+  expect(requests.reads()).toBe(0);
+  expect(requests.rejected).toEqual([]);
+});
+
+test('a new date-only history snapshot preserves a deliberately blank end instead of inventing a duration', async ({ page }) => {
+  const requests = await guardReadingAndPayments(page);
+  const range = springRange();
+  let comparisons = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/Planner/Compare') comparisons++;
+  });
+  await openRepeating(page);
+  await page.getByLabel('Start of your planning period', { exact: true }).fill(range.start);
+  await page.getByLabel('End date', { exact: true }).fill(range.end);
+  await restoreHistoryFixture(page, '');
+  await expectRange(page, range.start, '');
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  expect(await page.locator('#EndDate').evaluate((element: HTMLInputElement) => element.validity.valueMissing)).toBe(true);
+  await expect(page.getByTestId('plan-result')).toHaveCount(0);
+  expect(comparisons, 'The required end date must block comparison before a POST').toBe(0);
+  expect(requests.reads()).toBe(0);
+  expect(requests.rejected).toEqual([]);
+});
+
+test('an invalid nonblank legacy history end is not silently replaced by its old four-week duration', async ({ page }) => {
+  const requests = await guardReadingAndPayments(page);
+  const range = springRange();
+  let comparisons = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/Planner/Compare') comparisons++;
+  });
+  await openRepeating(page);
+  await page.getByLabel('Start of your planning period', { exact: true }).fill(range.start);
+  await page.getByLabel('End date', { exact: true }).fill(range.end);
+  // Native date inputs sanitize this invalid raw history value to empty.
+  // Migration must inspect the stored value, not confuse that empty property
+  // with an intentionally omitted legacy end and fabricate StartDate + 27.
+  await restoreHistoryFixture(page, `${new Date().getFullYear() + 1}-02-30`, '4');
+  await expectRange(page, range.start, '');
+  await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  expect(await page.locator('#EndDate').evaluate((element: HTMLInputElement) => element.validity.valueMissing)).toBe(true);
+  await expect(page.getByTestId('plan-result')).toHaveCount(0);
+  expect(comparisons, 'A malformed restored end must require a new explicit date').toBe(0);
+  expect(requests.reads()).toBe(0);
+  expect(requests.rejected).toEqual([]);
 });
