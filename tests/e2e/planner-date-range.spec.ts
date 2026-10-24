@@ -159,6 +159,9 @@ test('@smoke an exact range counts only 26 selected visits and retains its bound
 });
 
 test('editing the start and end dates retains exact bounds without a user-facing weeks field', async ({ page }) => {
+  // Several native date edits plus an exact-date comparison share this budget.
+  // Keep individual assertion deadlines unchanged on slower WebKit hosts.
+  test.setTimeout(90_000);
   const requests = await guardReadingAndPayments(page);
   const { start, visits } = springRange();
   await openRepeating(page);
@@ -299,21 +302,45 @@ test('an invalid nonblank legacy history end is not silently replaced by its old
   const requests = await guardReadingAndPayments(page);
   const range = springRange();
   let comparisons = 0;
+  let comparisonStatus: number | undefined;
   page.on('request', request => {
     if (request.method() === 'POST' && new URL(request.url()).pathname === '/Planner/Compare') comparisons++;
+  });
+  page.on('response', response => {
+    if (response.request().method() === 'POST' && new URL(response.url()).pathname === '/Planner/Compare') {
+      comparisonStatus = response.status();
+    }
   });
   await openRepeating(page);
   await page.getByLabel('Start of your planning period', { exact: true }).fill(range.start);
   await page.getByLabel('End date', { exact: true }).fill(range.end);
-  // Native date inputs sanitize this invalid raw history value to empty.
-  // Migration must inspect the stored value, not confuse that empty property
-  // with an intentionally omitted legacy end and fabricate StartDate + 27.
-  await restoreHistoryFixture(page, `${new Date().getFullYear() + 1}-02-30`, '4');
-  await expectRange(page, range.start, '');
+  // Chromium clears this invalid native date; WebKit can retain its raw text.
+  // Neither behavior may trigger migration to a guessed four-week end date.
+  const invalidEnd = `${new Date().getFullYear() + 1}-02-30`;
+  await restoreHistoryFixture(page, invalidEnd, '4');
+  const endInput = page.getByLabel('End date', { exact: true });
+  await expect(page.getByRole('radio', { name: 'Repeating visits', exact: true })).toBeChecked();
+  await expect(page.getByLabel('Start of your planning period', { exact: true })).toHaveValue(range.start);
+  await expect(endInput).toBeEnabled();
+  expect(['', invalidEnd]).toContain(await endInput.inputValue());
+  await expect(page.locator('#Weeks')).toHaveCount(0);
+  await expect(page.getByLabel('Number of weeks', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
-  expect(await page.locator('#EndDate').evaluate((element: HTMLInputElement) => element.validity.valueMissing)).toBe(true);
+  // Inspect actual native validation instead of assuming one engine's date
+  // sanitization. If submission is permitted, the server must reject it.
+  await expect.poll(async () => {
+    if (comparisons > 0) return comparisonStatus === undefined ? 'pending' : 'server';
+    return await endInput.evaluate((element: HTMLInputElement) => element.validity.valid) ? 'pending' : 'native';
+  }, { message: 'The malformed date must be blocked natively or rejected by the server' }).not.toBe('pending');
+  if (comparisons === 0) {
+    expect(await endInput.evaluate((element: HTMLInputElement) => element.validity.valid)).toBe(false);
+  } else {
+    expect(comparisons, 'Only the explicit comparison may be posted').toBe(1);
+    expect(comparisonStatus).toBe(200);
+    await expect(page.getByRole('alert')).toContainText(/end\s*date|valid.*date/i);
+  }
   await expect(page.getByTestId('plan-result')).toHaveCount(0);
-  expect(comparisons, 'A malformed restored end must require a new explicit date').toBe(0);
+  expect(['', invalidEnd], 'A malformed restored end must require a new explicit date').toContain(await endInput.inputValue());
   expect(requests.reads()).toBe(0);
   expect(requests.rejected).toEqual([]);
 });
