@@ -1,0 +1,102 @@
+{
+  "checkedAtUtc": "2026-10-24T17:36:35.138205+00:00",
+  "applicationAndTestSource": "00da7d08857b04e8898dd85f84718774a4eeb099",
+  "scope": "Exact recurring start/end dates, derived partial weeks, selected weekdays, retained revisions and stale comparison prevention. Browser totals are distinct-case aggregates, not clean full runs.",
+  "backend": {
+    "total": 745,
+    "passed": 745,
+    "failed": 0,
+    "skipped": 0,
+    "report": ".playwright-data/date-range/backend/final.trx",
+    "sha256": "66a17a073b6ddbc724ba34914376df0f9ae08fa5fc1d2e19cf72c624f1d7005c"
+  },
+  "main": {
+    "initialFullRun": {
+      "report": ".playwright-data/date-range/main-final.json",
+      "sha256": "24e2d408d9b4b83d699a215c99ed363665b6b92e08036c1476741c7c96c2468e",
+      "stats": {
+        "startTime": "2026-10-24T16:58:48.893Z",
+        "duration": 1586829.0599999998,
+        "expected": 178,
+        "skipped": 0,
+        "unexpected": 2,
+        "flaky": 0
+      }
+    },
+    "finalPlannerRun": {
+      "report": ".playwright-data/date-range/main-planner-final.json",
+      "sha256": "81f9501397aa2bdeff804dae634ecb03cae9b0bcf27eea10173f026e3a9852da",
+      "stats": {
+        "startTime": "2026-10-24T17:25:54.739Z",
+        "duration": 422137.829,
+        "expected": 54,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "distinctCovered": 180,
+    "smokeSubset": 52,
+    "retainedInitialFailures": "Two old no-JavaScript assertions expected Weeks to be unconditionally required. The final checks require server rejection when both range and weeks are missing."
+  },
+  "tablet": {
+    "initialFullRangeRun": {
+      "report": ".playwright-data/date-range/tablet-range-final.json",
+      "sha256": "79bf93841f18f0f0d3f1528241e1f829ae785c908eaad4d8e196c81550658ffa",
+      "stats": {
+        "startTime": "2026-10-24T17:07:08.565Z",
+        "duration": 867843.049,
+        "expected": 20,
+        "skipped": 0,
+        "unexpected": 4,
+        "flaky": 0
+      }
+    },
+    "finalTargetedRun": {
+      "report": ".playwright-data/date-range/tablet-range-targeted.json",
+      "sha256": "ad1bbc8f96b8e23340fbb880eb180b0e782974f6bfb996227a8a41340a892357",
+      "stats": {
+        "startTime": "2026-10-24T17:34:42.479Z",
+        "duration": 60590.146,
+        "expected": 4,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "distinctCovered": 24,
+    "scope": "Only six date-range scenarios in four Chromium/WebKit portrait/landscape iPad emulations. The older 32-case general tablet suite was not rerun.",
+    "retainedInitialFailures": "One real WebKit stale-comparison failure after Back; three overall 60-second journey deadlines. HTML-default baseline fixed restoration; only two long journeys now have 90-second whole-test budgets; 10-second assertions unchanged."
+  },
+  "controlledDistinctCovered": 204,
+  "actualAi": {
+    "applicationExecutions": 1,
+    "source": "together",
+    "model": "openai/gpt-oss-120b",
+    "checkedAtUtc": "2026-10-24T17:03:09.345Z",
+    "startDate": "2026-11-01",
+    "endDate": "2026-12-31",
+    "weeks": 9,
+    "weekdays": [
+      "Monday",
+      "Wednesday",
+      "Friday"
+    ],
+    "note": "One accepted provider result, not uninterrupted availability, a broad live-model rerun or a latency benchmark."
+  },
+  "guide": {
+    "pages": 16,
+    "screens": 15,
+    "pdfSha256": "8d93f219bfaf2a4d6319ee24751bcd8b2fb710fb318664b648c340f4c6d2b002",
+    "allPagesVisuallyReviewed": true,
+    "screenshotPixelsUnchanged": true,
+    "note": "Date-control screens refreshed for this revision; unchanged journey screens from the earlier October 24 capture. One fresh unpaid Student draft; separate existing paid/exempt PDFs. No purchase claimed for the draft."
+  },
+  "newPayPalOrders": 0,
+  "newPayPalCaptures": 0,
+  "limits": [
+    "Fictional demo profiles, researched CSV fees and demo term rules.",
+    "November 1\u2013December 31 parses correctly; the demo Fall permit end-date guard is still enforced.",
+    "Agent reviews and emulation are not human studies or physical-device certification."
+  ]
+}

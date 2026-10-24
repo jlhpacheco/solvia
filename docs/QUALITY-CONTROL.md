@@ -1,8 +1,14 @@
 # Solvia quality control process
 
-**Verified working record — October 23, 2026.** We test a fictional campus-permit application and PayPal Sandbox integration. Our human project creator owns the release decision. Agent assistance is not independent external certification or a real-user study.
+**Verified working record — October 24, 2026.** We test a fictional campus-permit application and PayPal Sandbox integration. Our human project creator owns the release decision. Agent assistance is not independent external certification or a real-user study.
 
-## Current visit-type UX checkpoint
+## Current exact-date-range checkpoint
+
+The reported two-date sentence now fills start/end dates, partial weeks and weekdays. Date bounds are deterministic, provider suggestions must agree, and comparison counts only dates through the exact end. An independent review found a no-JavaScript precedence ambiguity, which now has explicit guidance. Browser testing exposed a real WebKit stale-comparison defect after Back; using immutable HTML defaults fixes its baseline. Initial failures remain in the record.
+
+**745 backend tests passed**. The **180 desktop/phone cases** are covered through the main run plus a final **54-case planner rerun**. **24 focused tablet range cases** are covered through initial and targeted runs; the older general tablet suite was not rerun. One actual Together range request passed. See the [checkpoint](review/DATE-RANGE-2026-10-24.md) and [proof](review/Solvia-date-range-verification.json) for the initial obsolete required-field assertions, actual WebKit defect, whole-journey timeout evidence, exact rerun scopes and hashes. Counts are distinct-case aggregates, not a clean broad final run. No new PayPal capture or human-study result is claimed.
+
+## Historical visit-type UX checkpoint
 
 Source [`5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f`](https://github.com/jlhpacheco/solvia/tree/5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f) removes weeks and weekday questions from One visit mode. The server independently derives exactly one date, preserves date errors and owner checks, binds mode to comparison freshness, and retains mode/date through revision and history. Repeating visits keep recurrence questions. No-JavaScript mode changes use an explicit protected POST without AI or payment; hidden recurrence controls cannot block a single visit.
 

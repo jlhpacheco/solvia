@@ -1,5 +1,9 @@
 # Solvia review materials
 
+Current checkpoint, October 24: [exact date ranges, revised walkthrough and verification](DATE-RANGE-2026-10-24.md), [sanitized proof](Solvia-date-range-verification.json), and the [16-page guide](Solvia-step-by-step-guide.pdf). The current model is GPT-OSS 120B through Together AI. Older counts and media below retain their historical source scopes.
+
+## Historical review notes - October 21
+
 Updated 2026-10-21. Final application source: [`462d87dcb5de7fd24ab388ef826c7208db9e43d8`](https://github.com/jlhpacheco/solvia/tree/462d87dcb5de7fd24ab388ef826c7208db9e43d8).
 
 Runtime: OpenAI's US-developed **GPT-OSS 120B**, served through Together AI. Model origin does not establish US-only processing. This uses existing hosted inference, not training, fine-tuning or an OpenAI API key.

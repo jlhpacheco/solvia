@@ -1,6 +1,10 @@
 # Testing Solvia
 
-## Current visit-type UX checkpoint — October 23, 2026
+## Current exact-date-range checkpoint - October 24, 2026
+
+Source [`00da7d08857b04e8898dd85f84718774a4eeb099`](https://github.com/jlhpacheco/solvia/tree/00da7d08857b04e8898dd85f84718774a4eeb099) adds inclusive end dates, linked date/week controls and WebKit-safe comparison invalidation after Back. See the [repair record](review/DATE-RANGE-2026-10-24.md) and [allowlisted proof](review/Solvia-date-range-verification.json) for exact run counts, initial failures, reruns and hashes. Backend: **745/745**. Main browser: **180 distinct cases covered** via the full run plus final 54-case planner scope. Focused tablet range coverage: **24 distinct emulations** through initial and final targeted runs. These are **204 covered cases**, with smoke tests as a subset; they are not 204 executions in one clean run. The older 32-case general tablet suite was not rerun. One actual Together range read passed; no new PayPal capture occurred.
+
+## Historical visit-type UX checkpoint — October 23, 2026
 
 Source [`5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f`](https://github.com/jlhpacheco/solvia/tree/5edf8a11e9ab87219c5a4587dc9f0efa3be4f80f) separates **One visit** (visit date only) from **Repeating visits** (start date, weeks, weekdays). See the [repair record](review/ONE-VISIT-MODE-2026-10-23.md), [actual screen](review/Solvia-one-visit-form.png) and [sanitized proof](review/Solvia-one-visit-mode-verification.json).
 

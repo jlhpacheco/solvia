@@ -1,6 +1,6 @@
 # US-developed AI, permit planning and staff review
 
-Updated October 23, 2026. This is the current implementation note; older
+Updated October 24, 2026. This is the current implementation note; older
 dated test records preserve the model and source that actually ran.
 
 ## Selected model and provider
@@ -50,19 +50,25 @@ The confirmation form separates **One visit** from **Repeating visits**.
 One visit asks only for a visit date; its weekday comes from that date, and
 no weeks or weekday selections are shown. A date-only sentence such as
 “One visit on 10/27/2026” selects this mode. Repeating visits retain the
-start-date, weeks and weekday questions. Both modes survive revision and
+start/end dates, weeks and weekday questions. An exact repeating range fills
+both date fields, derives calendar weeks (including a partial final week), and
+selects its stated weekdays. Both modes survive revision and
 browser Back; no-JavaScript users can apply a mode with an explicit protected
-POST. See the [current UX checkpoint](review/ONE-VISIT-MODE-2026-10-23.md).
+POST. See the [current range checkpoint](review/DATE-RANGE-2026-10-24.md).
 
 The optional hosted reader's schema contains only weekdays and a week count.
 An independent strict parser also grounds one full US (`M/d/yyyy`) or ISO
-(`yyyy-MM-dd`) start date in the person's sentence; the model cannot invent it.
+(`yyyy-MM-dd`) start date or a strictly ordered `from ... to/through ...` range
+in the person's sentence; the model cannot invent or extend those bounds.
 “Tuesdays and Thursdays for three weeks” becomes editable choices.
 “I am going 1 day 10/26/2026, Monday. All day. Only” supplies October 26,
 Monday and one week, resulting in one visit. A one-day-per-week schedule for
 three weeks remains three weeks. A recurring plan's start date is its planning
 anchor and need not itself be a visiting weekday.
-Malformed, partial, multiple or conflicting dated details require review;
+For example, Monday/Wednesday/Friday from November 1 to December 31, 2026
+fills nine calendar weeks while retaining December 31 as the exact end. A
+separate term-window check still governs whether those visits are covered.
+Malformed, partial, unrelated multiple dates or conflicting details require review;
 missing duration is not silently filled with a default. A recognized date
 replaces the previous form date and survives revision. Ambiguous or missing
 facts remain open for confirmation; neither reader can set prices.
