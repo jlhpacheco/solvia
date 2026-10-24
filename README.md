@@ -333,6 +333,11 @@ For pending order IDs, buyer approval errors, or resuming payment, see
 `data/fees.csv` is research data scanned 2026-10-18 from the public pages of mycampuspermit.com (Parking Management Bureau), the incumbent permit store for these campuses. The shipped table holds exactly the 10 campuses that published a student semester price in that scan of 25 PMB pages; the other 15 published none and are not in the app. Every shipped row has a price (FREE is a price) — we never filled a price in.
 
 CSV pricing is the accepted hackathon scope. No live college feed is connected.
+Day passes cover one selected date; another parking day needs another daily
+purchase unless a valid term permit or campus exemption covers it. A free term
+listing and a daily price are labeled separately. MJC's current student-lot
+exemption is shown explicitly; the dated catalog does not override campus policy.
+See the [daily-permit clarification and local demo cleanup](docs/review/DAILY-PERMITS-AND-DEMO-CLEANUP-2026-10-24.md).
 Checkout snapshots the catalog fee; an open PayPal order or completed payment
 cannot be repriced by a later catalog edit. Each purchase creates its own order,
 so a separate hosted payment link for every college and price is unnecessary.

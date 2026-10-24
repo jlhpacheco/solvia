@@ -54,6 +54,11 @@
         </p>
 
         <p class="fs-4 mt-4 mb-2"><strong>3 · Your permit</strong></p>
+        <partial name="_DailyPermitNotice" />
+        @if (Model.College == "Modesto Junior College / Columbia College / YCCD")
+        {
+            <partial name="_MJCPolicyNote" />
+        }
         <div class="d-flex flex-wrap gap-2" role="radiogroup" aria-label="Permit type">
             <input type="radio" class="btn-check" name="permitType" id="typeTerm" value="Term"
                    checked="@(Model.PermitType == Solvia.Models.Enums.PermitTypeCode.Term)" />

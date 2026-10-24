@@ -209,7 +209,7 @@ public sealed class CollegeController : Controller
     {
         var cents = _catalog.SemesterPriceCents(fee, TermKind.Fall);
         var semesterPrice = fee.IsFree
-            ? "$0 FREE"
+            ? "$0 FREE (term only)"
             : cents is null
                 ? "Not published"
                 : Money(cents.Value);

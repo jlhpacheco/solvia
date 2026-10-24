@@ -133,7 +133,7 @@ test('tablet touch navigation and campus fee search fit the viewport', async ({ 
   await fitsViewport(page);
   await page.getByRole('navigation', { name: 'Permit workspace' })
     .getByRole('link', { name: 'Ask Solvia', exact: true }).tap();
-  await page.getByRole('link', { name: 'Fresno City College $30.00 per term', exact: true }).tap();
+  await page.getByRole('link', { name: 'Fresno City College Term permit: $30.00 per term Day pass: $1.00 for one day', exact: true }).tap();
   await expect(page.getByRole('heading', { name: 'Three quick questions' })).toBeVisible();
   await fitsViewport(page);
 });

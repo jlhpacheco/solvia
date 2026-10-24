@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Solvia.Data;
 
 namespace Solvia.Tests;
@@ -38,6 +39,27 @@ public sealed class AppIntegrationTests : IClassFixture<AppIntegrationTests.Demo
         Assert.Contains("ag-grid-community@34.3.1", html);
         Assert.Contains("Fresno City College", html);
         Assert.Contains("feeGrid", html);
+    }
+
+    [Fact]
+    public async Task CampusCards_DistinguishTheFreeTermFromThePaidDailyOption_WithoutCreatingApplications()
+    {
+        using var factory = new DemoFactory();
+        using var client = factory.CreateClient();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SolviaDbContext>();
+        var before = await db.PermitApplications.CountAsync();
+        var html = await client.GetStringAsync("/Permits/Ask");
+        var card = System.Text.RegularExpressions.Regex.Match(html,
+            "<a[^>]*class=\"sv-card[^\"]*\"[^>]*>\\s*<span[^>]*>Modesto Junior College.*?</a>",
+            System.Text.RegularExpressions.RegexOptions.Singleline).Value;
+        Assert.NotEmpty(card);
+        Assert.Contains("Term permit:", card);
+        Assert.Contains("FREE", card);
+        Assert.Contains("Day pass: $2.00 for one day", card);
+        Assert.Contains("valid term permit or campus exemption", html);
+        Assert.Contains("mjc.edu/safety/parking.html", html);
+        Assert.Equal(before, await db.PermitApplications.CountAsync());
     }
 
     [Fact]

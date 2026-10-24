@@ -5,6 +5,11 @@
 }
 
 <h1 class="mt-4">Check your total</h1>
+<partial name="_DailyPermitNotice" />
+@if (Model.College == "Modesto Junior College / Columbia College / YCCD")
+{
+    <partial name="_MJCPolicyNote" />
+}
 
 @if (!string.IsNullOrWhiteSpace(Model.Error))
 {

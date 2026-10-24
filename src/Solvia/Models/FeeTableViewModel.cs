@@ -6,7 +6,7 @@ namespace Solvia.Models;
 /// BOTH renderers (AG Grid Community and the native table) show
 /// byte-identical values: a price the campus does not publish is
 /// "Not published" — never blank, never invented — and a FREE
-/// campus shows "$0 FREE".
+/// campus shows "$0 FREE (term only)".
 /// </summary>
 public sealed record FeeTableRow(
     string Campus,

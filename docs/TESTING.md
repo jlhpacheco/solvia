@@ -1,5 +1,27 @@
 # Testing Solvia
 
+## Daily-permit clarification and demo cleanup — October 24, 2026
+
+**64/64 focused backend checks passed** after the final page changes:
+`AppIntegrationTests`, `RosterVerifyTests`, `PricingTests` and `FlowTests`.
+The initial **30/30 desktop/phone TypeScript smoke cases passed**. After review
+added MJC's exemption to more entry/payment pages, the expanded daily-permit
+journey passed **2/2** again, covering selection, confirmation, the $2 total,
+resumed checkout and fee-table labels. Those two identities overlap the 30;
+they are not two extra distinct cases. **4/4 tablet navigation checks passed**
+in Chromium and WebKit, portrait and landscape emulation. That makes 34 distinct
+controlled browser identities covered through the initial and targeted runs,
+not a single full final run. Main and tablet TypeScript typechecks passed.
+
+The local SQLite cleanup removed 12 reviewed old unissued drafts after a
+consistent backup, preserving all paid/free records, provider references,
+people and vehicles. Integrity, foreign-key checks and surviving-row comparisons
+passed. See the [policy sources and exact cleanup scope](review/DAILY-PERMITS-AND-DEMO-CLEANUP-2026-10-24.md).
+Reports stay private under `.playwright-data/daily-permit/`: backend
+`backend/daily-permit-final.trx`, `smoke-results.json`,
+`selected-campus-final.json` and `tablet-final.json`. The broader suite
+was not rerun; no new real-model call or PayPal capture is claimed.
+
 For hands-on judging, see the [Fastlane Sandbox verification-code instructions](PAYPAL-TROUBLESHOOTING.md#judge-quick-start-fastlane-verification-code).
 The payment page labels the test code **111111 (six ones)** above the payment options;
 no SMS is sent. This is specific to Fastlane in Sandbox, not ordinary PayPal sign-in.

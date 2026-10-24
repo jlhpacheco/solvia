@@ -50,7 +50,7 @@ test('@smoke workspace links navigate in the current tab', async ({ page }) => {
   const workspace = page.getByRole('navigation', { name: 'Permit workspace' });
   await workspace.getByRole('link', { name: 'Ask Solvia' }).click();
   await expect(page).toHaveURL(/\/Permits\/Ask$/);
-  await page.getByRole('link', { name: 'Fresno City College $30.00 per term', exact: true }).click();
+  await page.getByRole('link', { name: 'Fresno City College Term permit: $30.00 per term Day pass: $1.00 for one day', exact: true }).click();
   await expect(page).toHaveURL(/\/Permits\/Questions\?college=/);
   await expect(page.getByRole('heading', { name: 'Three quick questions' })).toBeVisible();
 });
@@ -67,7 +67,7 @@ test('@smoke sponsor grid searches and sorts actual fees', async ({ page }, info
   await page.getByRole('columnheader', { name: 'Semester price' }).click();
   // AG Grid recycles DOM nodes; row-index, not DOM insertion order, is the
   // displayed order after sorting a previously filtered grid.
-  await expect(page.locator('#feeGrid .ag-row[row-index="0"] [col-id="semesterPrice"]')).toHaveText('$0 FREE');
+  await expect(page.locator('#feeGrid .ag-row[row-index="0"] [col-id="semesterPrice"]')).toHaveText('$0 FREE (term only)');
   await page.screenshot({ path: info.outputPath('fees.png'), fullPage: true });
 });
 
@@ -78,6 +78,47 @@ test('fee search survives a blocked CDN', async ({ page }) => {
   await page.getByLabel('Find a campus or fee').fill('Fresno');
   await expect(page.getByRole('status')).toHaveText('1 of 10 campuses');
   await expect(page.locator('#feeGrid tbody tr:visible')).toHaveCount(1);
+});
+
+test('@smoke daily purchases distinguish free terms and preserve campus exemptions', async ({ page }, info) => {
+  test.setTimeout(60_000); // Campus selection, confirmation, review, resumed checkout and fee table.
+  await page.goto('/Permits/Ask');
+  const card = page.getByRole('link', {
+    name: 'Modesto Junior College / Columbia College / YCCD Term permit: $0 — FREE Day pass: $2.00 for one day',
+    exact: true
+  });
+  await expect(card).toBeVisible();
+  await expect(page.getByTestId('daily-permit-notice')).toContainText('valid term permit or campus exemption');
+  await expect(page.getByTestId('mjc-policy-note')).toContainText('not a requirement for exempt students');
+  await expect(page.getByRole('link', { name: "Check MJC's current parking rules" })).toHaveAttribute('href', 'https://mjc.edu/safety/parking.html');
+  await card.click();
+  await expect(page.getByTestId('daily-permit-notice')).toContainText('Each daily permit covers one selected date');
+  await expect(page.getByTestId('mjc-policy-note')).toContainText('you do not need to buy a daily permit');
+  await page.locator('label[for="typeDaily"]').click();
+  await expect(page.locator('#typeDaily')).toBeChecked();
+  await page.screenshot({ path: info.outputPath('daily-permit-questions.png'), fullPage: true });
+  const plate = 'D' + randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase();
+  await page.getByLabel('2 · Your car', { exact: false }).fill(`blue Honda Civic, license plate ${plate}`);
+  await page.getByRole('button', { name: 'Read my answers' }).click();
+  await expect(page.getByRole('heading', { name: 'Did I get this right?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Yes — show my total' }).click();
+  await expect(page.getByRole('heading', { name: 'Check your total' })).toBeVisible();
+  await expect(page.locator('#checkout-payment')).toContainText('$2.00');
+  await expect(page.getByTestId('mjc-policy-note')).toContainText('you do not need to buy a daily permit');
+  const applicationId = new URL(page.url()).pathname.split('/').at(-1)!;
+  await page.goto(`/Checkout/${applicationId}`);
+  await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
+  await expect(page.getByTestId('mjc-policy-note')).toContainText('you do not need to buy a daily permit');
+  await expect(page.locator('.price-total')).toHaveText('$2.00');
+
+  await page.goto('/College/Fees');
+  await page.getByLabel('Find a campus or fee').fill('YCCD');
+  const row = page.locator('#feeGrid .ag-center-cols-container .ag-row');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('$0 FREE (term only)');
+  await expect(row).toContainText('$2 (parking lot dispensers)');
+  await expect(page.getByTestId('daily-permit-notice')).toContainText('separate day-pass purchase');
+  await page.screenshot({ path: info.outputPath('daily-versus-term-fees.png'), fullPage: true });
 });
 
 async function describeCar(page: Page, sentence: string, daily = false) {

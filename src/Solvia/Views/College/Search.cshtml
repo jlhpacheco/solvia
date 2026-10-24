@@ -5,6 +5,7 @@
 
 <h1 class="display-5 fw-bold">Find your college</h1>
 <p class="lead">Type part of a college name — or a word from its fee notes, like “motorcycle”.</p>
+<partial name="_DailyPermitNotice" />
 
 <form method="get" asp-controller="College" asp-action="Search" class="row g-2 align-items-end mb-3">
     <div class="col-auto">
@@ -43,8 +44,12 @@ else
             <li class="list-group-item py-3">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <span class="fs-3 fw-bold">@row.Campus</span>
-                    <span class="fs-4">@row.SemesterPriceLabel</span>
+                    <span class="fs-4">Term permit: @row.SemesterPriceLabel</span>
                 </div>
+                @if (row.Campus == "Modesto Junior College / Columbia College / YCCD")
+                {
+                    <partial name="_MJCPolicyNote" />
+                }
                 <div class="fs-5 mt-1">
                     <a asp-controller="College" asp-action="Roster" asp-route-campus="@row.Campus">Who paid at @row.Campus</a> ·
                     <a asp-controller="College" asp-action="Dates" asp-route-campus="@row.Campus">Term dates</a>

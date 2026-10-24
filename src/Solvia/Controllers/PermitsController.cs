@@ -292,6 +292,9 @@ public sealed class PermitsController : DemoControllerBase
             {
                 Name = fee.Campus,
                 PriceLabel = label,
+                DayPassLabel = fee.DayPassCents is { } dayCents
+                    ? $"{Money(dayCents)} for one day"
+                    : "Not published",
                 HasPrice = fee.HasPublishedSemesterPrice,
             };
         }).ToList();

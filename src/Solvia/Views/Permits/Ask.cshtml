@@ -11,13 +11,20 @@
     real published fee, shown before you pay.
 </p>
 
+<partial name="_DailyPermitNotice" />
+
 @foreach (var campus in Model.Campuses)
 {
     <a class="sv-card d-block text-decoration-none mt-3"
        href="@Url.Action("Questions", "Permits", new { college = campus.Name, flowId = Model.FlowId })">
         <span class="fs-3 d-block">@campus.Name</span>
-        <span class="fs-5 @(campus.HasPrice ? "text-success" : "text-muted")">@campus.PriceLabel</span>
+        <span class="fs-5 d-block @(campus.HasPrice ? "text-success" : "text-muted")">Term permit: @campus.PriceLabel</span>
+        <span class="d-block mt-1">Day pass: @campus.DayPassLabel</span>
     </a>
+    @if (campus.Name == "Modesto Junior College / Columbia College / YCCD")
+    {
+        <partial name="_MJCPolicyNote" />
+    }
 }
 
 <div class="sv-card mt-4">

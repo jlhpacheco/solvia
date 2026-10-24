@@ -76,6 +76,16 @@ public sealed class PricingTests
         Assert.Equal(0, price.Value);
     }
 
+    [Theory]
+    [InlineData(UserCategory.Student)]
+    [InlineData(UserCategory.Public)]
+    public void YccdFreeTerm_DoesNotZeroTheSeparateCatalogDayPass(UserCategory category)
+    {
+        var yccd = FindOrFail("Modesto Junior College / Columbia College / YCCD");
+        Assert.Equal(0, Pricing.ResolvePriceCents(yccd, PermitTypeCode.Term, TermKind.Fall, category));
+        Assert.Equal(200, Pricing.ResolvePriceCents(yccd, PermitTypeCode.Daily, TermKind.Fall, category));
+    }
+
     [Fact]
     public void BakersfieldDaily_Resolves600FromTheDayPass()
     {

@@ -335,7 +335,7 @@ public sealed class RosterVerifyTests
         Assert.Equal("$30.00", fresno.SemesterPrice);
         Assert.Equal(3000, fresno.SemesterPriceCents);
         var yccd = native.Rows.Single(r => r.Campus == Yccd);
-        Assert.Equal("$0 FREE", yccd.SemesterPrice);
+        Assert.Equal("$0 FREE (term only)", yccd.SemesterPrice);
         Assert.Equal(0, yccd.SemesterPriceCents);
     }
 

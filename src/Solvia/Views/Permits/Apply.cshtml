@@ -4,6 +4,7 @@
 }
 
 <h1 class="mt-4">Apply for a permit</h1>
+<partial name="_DailyPermitNotice" />
 <p class="fs-5">
     Demo person: <strong>@Model.StudentName</strong> — @Model.CategoryLabel (fictional).
     One form, one submit — the permit application the classic way.
@@ -55,6 +56,7 @@ else
                         <option value="@campus" selected="@(Model.Campus == campus)">@campus</option>
                     }
                 </select>
+                <partial name="_MJCPolicyNote" />
             </div>
 
             <div class="mb-3">

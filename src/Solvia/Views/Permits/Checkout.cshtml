@@ -8,6 +8,11 @@
 }
 
 <h1 class="mt-4">Checkout</h1>
+<partial name="_DailyPermitNotice" />
+@if (Model.Campus == "Modesto Junior College / Columbia College / YCCD")
+{
+    <partial name="_MJCPolicyNote" />
+}
 @if (error is not null)
 {
     <div class="alert alert-danger fs-5 mt-3" role="alert">@error</div>

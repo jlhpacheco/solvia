@@ -88,6 +88,8 @@ public sealed class CampusPickItem
     /// <summary>e.g. "$30.00 per term", "$0 — FREE", or the honest not-published line.</summary>
     public string PriceLabel { get; set; } = "";
 
+    public string DayPassLabel { get; set; } = "Not published";
+
     public bool HasPrice { get; set; }
 }
 

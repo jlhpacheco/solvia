@@ -14,6 +14,7 @@
     <p class="lead">Day passes or a term permit? See the costs for the days you expect to visit.</p>
     <p>Planning for <strong>@Model.PersonName · @Model.CategoryLabel</strong>. <a href="/">Change demo person</a></p>
 </div>
+<partial name="_DailyPermitNotice" />
 @if (TempData["PlannerNotice"] is string notice)
 {
     <p class="alert alert-info" role="status">@notice</p>
@@ -29,6 +30,7 @@
         <select asp-for="Campus" class="form-select" required>
             @foreach (var campus in Model.Campuses) { <option value="@campus">@campus</option> }
         </select>
+        <partial name="_MJCPolicyNote" />
     </div>
     <div class="sv-planner-reader">
         <label for="ScheduleText" class="form-label fw-bold">Describe your visits <span class="fw-normal">(optional)</span></label>
