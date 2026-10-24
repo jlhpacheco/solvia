@@ -32,7 +32,7 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
         if (campus is not null && catalog.Find(campus) is { } selected)
             model.Campus = selected.Campus;
         var category = await Populate(model, cancellationToken);
-        NormalizeSingleVisit(model);
+        NormalizeSchedule(model);
         if (showComparison)
         {
             model.Result = planner.Compare(model.ToRequest(), category);
@@ -58,7 +58,7 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
         SaveDraft(model);
         if (string.IsNullOrWhiteSpace(model.ScheduleText))
         {
-            NormalizeSingleVisit(model);
+            NormalizeSchedule(model);
             model.ReaderSource = "manual";
             model.ReaderNote = "No description is needed. Enter your schedule directly below.";
             SaveDraft(model);
@@ -92,13 +92,17 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
             model.StartDate = statedDate;
             ModelState.Remove(nameof(model.StartDate));
         }
+        // A new reading owns its end bound. A weeks-only or uncertain new
+        // sentence must not silently inherit the previous sentence's range.
+        model.EndDate = draft.EndDate;
+        ModelState.Remove(nameof(model.EndDate));
         model.ReaderSource = draft.Source;
         model.ReaderNote = draft.SourceNote + " " + draft.Notice;
         // Replace only the reader-owned fields, preserving unrelated errors
         // and attempted values (for example an invalid planning date).
         ModelState.Remove(nameof(model.Weeks));
         ModelState.Remove(nameof(model.Weekdays));
-        NormalizeSingleVisit(model);
+        NormalizeSchedule(model);
         SaveDraft(model);
         if (ModelState.IsValid) return RedirectToAction(nameof(Index));
         return View("Index", model);
@@ -109,7 +113,7 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
     {
         var category = await Populate(model, cancellationToken);
         if (!IsCurrentOwner(model, draftOwner)) return StalePerson();
-        NormalizeSingleVisit(model);
+        NormalizeSchedule(model);
         SaveDraft(model);
         if (ModelState.IsValid)
         {
@@ -125,7 +129,7 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
     {
         var category = await Populate(model, cancellationToken);
         if (!IsCurrentOwner(model, draftOwner)) return StalePerson();
-        NormalizeSingleVisit(model);
+        NormalizeSchedule(model);
         SaveDraft(model);
         if (ModelState.IsValid)
         {
@@ -156,24 +160,48 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
     {
         await Populate(model, cancellationToken);
         if (!IsCurrentOwner(model, draftOwner)) return StalePerson();
-        NormalizeSingleVisit(model);
+        NormalizeSchedule(model);
         if (model.StartDate == default)
             ModelState.AddModelError(nameof(model.StartDate), "Choose a valid planning date.");
         SaveDraft(model);
         return ModelState.IsValid ? RedirectToAction(nameof(Index)) : View("Index", model);
     }
 
-    private void NormalizeSingleVisit(PlannerViewModel model)
+    private void NormalizeSchedule(PlannerViewModel model)
     {
-        if (!model.SingleVisit) return;
-        model.Weeks = 1;
-        model.Weekdays = [model.StartDate.DayOfWeek];
-        // Hidden recurrence fields are not inputs in single mode. Preserve
-        // date, owner and all unrelated validation instead of clearing it.
-        foreach (var key in ModelState.Keys.Where(key => new[] { nameof(model.Weeks), nameof(model.Weekdays) }
-                     .Any(field => key.Equals(field, StringComparison.OrdinalIgnoreCase) ||
-                         key.StartsWith(field + "[", StringComparison.OrdinalIgnoreCase) ||
-                         key.StartsWith(field + ".", StringComparison.OrdinalIgnoreCase))).ToArray())
+        if (model.SingleVisit)
+        {
+            model.EndDate = null;
+            model.Weeks = 1;
+            model.Weekdays = [model.StartDate.DayOfWeek];
+            // Hidden recurrence fields are not inputs in single mode. Keep
+            // the date, owner and every unrelated validation error.
+            RemoveAttemptedFields(nameof(model.Weeks), nameof(model.Weekdays), nameof(model.EndDate));
+            return;
+        }
+        if (model.EndDate is not { } end || model.StartDate == default ||
+            ModelState[nameof(model.StartDate)]?.Errors.Count > 0 || ModelState[nameof(model.EndDate)]?.Errors.Count > 0)
+            return;
+        var inclusiveDays = end.DayNumber - model.StartDate.DayNumber + 1;
+        if (inclusiveDays < 1)
+            ModelState.AddModelError(nameof(model.EndDate), "Choose an end date on or after the planning start date.");
+        else if (inclusiveDays > 26 * 7)
+            ModelState.AddModelError(nameof(model.EndDate), "Choose a date range of at most 26 weeks (182 days).");
+        else
+        {
+            // Explicit date bounds are authoritative, including without JS.
+            // The final partial week is counted but never expanded into visits.
+            model.Weeks = (inclusiveDays + 6) / 7;
+            RemoveAttemptedFields(nameof(model.Weeks));
+        }
+    }
+
+    private void RemoveAttemptedFields(params string[] fields)
+    {
+        foreach (var key in ModelState.Keys.Where(key => fields.Any(field =>
+                     key.Equals(field, StringComparison.OrdinalIgnoreCase) ||
+                     key.StartsWith(field + "[", StringComparison.OrdinalIgnoreCase) ||
+                     key.StartsWith(field + ".", StringComparison.OrdinalIgnoreCase))).ToArray())
             ModelState.Remove(key);
     }
 
@@ -197,7 +225,8 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
     }
 
     // Cookie TempData is authenticated/encrypted by ASP.NET Core. Store only
-    // this small draft, never prices, AI provenance, payment IDs or authority.
+    // this small draft and server-recorded reader note, never prices, payment
+    // IDs or authority.
     // Peek keeps it available when the applicant follows Change the plan or
     // revisits the planner. It cannot leak into a different demo person's form.
     private PlannerViewModel? ReadDraft(string owner)
@@ -219,12 +248,12 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
             if (draft is null || draft.Owner != owner || draft.SavedAt < DateTimeOffset.UtcNow.AddHours(-2)) return null;
             return new PlannerViewModel
             {
-                Campus = draft.Campus, StartDate = draft.StartDate, Weeks = draft.Weeks,
+                Campus = draft.Campus, StartDate = draft.StartDate, EndDate = draft.EndDate, Weeks = draft.Weeks,
                 Weekdays = draft.Weekdays ?? [], Term = draft.Term, ScheduleText = draft.ScheduleText,
                 ReaderSource = draft.ReaderSource, ReaderNote = draft.ReaderNote,
                 // Old protected snapshots had no mode. Infer only their
                 // already-single exact date; an explicit new false is kept.
-                SingleVisit = draft.SingleVisit ?? (draft.StartDate != default && draft.Weeks == 1 &&
+                SingleVisit = draft.SingleVisit ?? (draft.EndDate is null && draft.StartDate != default && draft.Weeks == 1 &&
                     draft.Weekdays is { Count: 1 } && draft.Weekdays[0] == draft.StartDate.DayOfWeek)
             };
         }
@@ -240,13 +269,13 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
         using (var writer = new BrotliStream(compressed, CompressionLevel.Fastest, leaveOpen: true))
             JsonSerializer.Serialize(writer, new PlannerDraft(model.PersonId, DateTimeOffset.UtcNow,
                 model.Campus, model.StartDate, model.Weeks, model.Weekdays, model.Term, model.ScheduleText,
-                model.ReaderSource, model.ReaderNote, model.SingleVisit));
+                model.ReaderSource, model.ReaderNote, model.SingleVisit, model.EndDate));
         TempData[DraftKey] = Convert.ToBase64String(compressed.ToArray());
     }
 
     private sealed record PlannerDraft(string Owner, DateTimeOffset SavedAt, string Campus,
         DateOnly StartDate, int? Weeks, List<DayOfWeek> Weekdays, TermKind Term, string? ScheduleText,
-        string? ReaderSource, string? ReaderNote, bool? SingleVisit = null);
+        string? ReaderSource, string? ReaderNote, bool? SingleVisit = null, DateOnly? EndDate = null);
 
     private static bool IsCurrentOwner(PlannerViewModel model, string? owner) =>
         string.Equals(model.PersonId, owner, StringComparison.Ordinal);

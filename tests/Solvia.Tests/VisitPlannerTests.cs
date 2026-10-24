@@ -221,6 +221,108 @@ public sealed class VisitPlannerTests
         Assert.Null(result.TermCents);
     }
 
+    [Fact]
+    public void ExplicitNovemberDecemberRange_Counts26MwfVisitsWithoutRoundingTheEndToNineFullWeeks()
+    {
+        var catalog = new Catalog(100, 3000);
+        // This fictional authority deliberately covers the whole requested
+        // interval. Real demo term guards remain independently enforced below.
+        var dates = new TermDates("Test College", "Fall", 2026, new(2026, 8, 24),
+            new(2027, 1, 5), new(2027, 1, 5), new(2027, 1, 5), 135);
+        var service = new VisitPlannerService(catalog, new PricingService(catalog), new Dates(dates), new Clock());
+        var request = Request() with
+        {
+            StartDate = new(2026, 11, 1), EndDate = new(2026, 12, 31), Weeks = 9,
+            Weekdays = [DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday]
+        };
+        var exact = service.Compare(request, UserCategory.Student);
+        var rounded = service.Compare(request with { EndDate = null }, UserCategory.Student);
+        Assert.True(exact.IsValid);
+        Assert.Equal(9, exact.Weeks);
+        Assert.Equal(26, exact.DayCount);
+        Assert.Equal(new DateOnly(2026, 11, 2), exact.FirstVisit);
+        Assert.Equal(new DateOnly(2026, 12, 30), exact.LastVisit);
+        Assert.Equal(new DateOnly(2026, 12, 31), exact.EndDate);
+        Assert.Equal(2600, exact.DailyTotal);
+        Assert.DoesNotContain(new DateOnly(2027, 1, 1), exact.VisitDates);
+        Assert.Equal(27, rounded.DayCount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(26)]
+    [InlineData(int.MaxValue)]
+    public void ExplicitEndIsInclusiveAndAuthoritativeOverTheSubmittedWeekCount(int submittedWeeks)
+    {
+        var result = Service().Compare(Request() with
+        {
+            Weeks = submittedWeeks, EndDate = new(2026, 10, 21),
+            Weekdays = [DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday]
+        }, UserCategory.Student);
+        Assert.True(result.IsValid);
+        Assert.Equal(1, result.Weeks);
+        Assert.Equal(new[] { new DateOnly(2026, 10, 20), new(2026, 10, 21) }, result.VisitDates);
+        Assert.Equal(1000, result.DailyTotal);
+    }
+
+    [Fact]
+    public void ShortExplicitRangeWithNoMatchingWeekdayReturnsReviewInsteadOfIndexingAnEmptyList()
+    {
+        var result = Service().Compare(Request() with
+        {
+            StartDate = new(2026, 10, 20), EndDate = new(2026, 10, 20), Weekdays = [DayOfWeek.Monday]
+        }, UserCategory.Student);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Contains("No selected visit weekdays"));
+        Assert.Empty(result.VisitDates);
+        Assert.Null(result.DailyTotal);
+    }
+
+    [Theory]
+    [InlineData("2026-10-19")]
+    [InlineData("2027-04-20")]
+    public void ReversedOrOverlongExplicitRangesCannotBeCompared(string end)
+    {
+        var result = Service().Compare(Request() with { EndDate = DateOnly.ParseExact(end, "yyyy-MM-dd") }, UserCategory.Student);
+        Assert.False(result.IsValid);
+        Assert.Empty(result.VisitDates);
+        Assert.Null(result.DailyTotal);
+    }
+
+    [Fact]
+    public void ExplicitEndStillRejectsVisitsOutsideTheActualTermPermitWindow()
+    {
+        var result = Service().Compare(Request() with
+        {
+            StartDate = new(2026, 11, 1), EndDate = new(2026, 12, 31),
+            Weekdays = [DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday]
+        }, UserCategory.Student);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Contains("crosses"));
+        Assert.Empty(result.VisitDates);
+        Assert.Null(result.DailyTotal);
+        Assert.Equal(new DateOnly(2026, 12, 31), result.EndDate);
+    }
+
+    [Fact]
+    public void Exactly182InclusiveDaysIsTheSupported26WeekBoundary()
+    {
+        var catalog = new Catalog(100, 3000);
+        var dates = new TermDates("Test College", "Fall", 2026, new(2026, 1, 1),
+            new(2027, 12, 31), new(2027, 12, 31), new(2027, 12, 31), 730);
+        var service = new VisitPlannerService(catalog, new PricingService(catalog), new Dates(dates), new Clock());
+        var start = new DateOnly(2026, 8, 24);
+        var result = service.Compare(Request() with
+        {
+            StartDate = start, EndDate = start.AddDays(181), Weeks = 0,
+            Weekdays = Enum.GetValues<DayOfWeek>()
+        }, UserCategory.Student);
+        Assert.True(result.IsValid);
+        Assert.Equal(26, result.Weeks);
+        Assert.Equal(182, result.DayCount);
+        Assert.Equal(start.AddDays(181), result.LastVisit);
+    }
+
     private static PlanRequest Request() => new("Test College", new(2026, 10, 20), 3, TuesdayThursday, TermKind.Fall);
     private static VisitPlannerService Service(int? day = 500, int? term = 22950)
     {

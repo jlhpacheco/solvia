@@ -164,7 +164,11 @@ test('without JavaScript visit-type switching bypasses hidden validation and rep
     await expect(page.getByLabel('Monday', { exact: true })).toBeEnabled();
     await page.getByLabel('Number of weeks', { exact: true }).fill('');
     await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
-    expect(await page.locator('#Weeks').evaluate((element: HTMLInputElement) => element.validity.valueMissing)).toBe(true);
+    // An exact End date can supply the duration, so Weeks is no longer
+    // unconditionally required by the browser. With neither, the server
+    // must reject the incomplete schedule instead of assuming a duration.
+    await expect(page.locator('#EndDate')).toHaveValue('');
+    await expect(page.getByRole('alert')).toContainText('Choose between 1 and 26 weeks');
     await expect(page.getByTestId('plan-result')).toHaveCount(0);
     await page.getByLabel('Number of weeks', { exact: true }).fill('2');
     for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) {

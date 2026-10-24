@@ -8,7 +8,8 @@ public sealed record PlanRequest(
     DateOnly StartDate,
     int Weeks,
     IReadOnlyList<DayOfWeek> Weekdays,
-    TermKind Term);
+    TermKind Term,
+    DateOnly? EndDate = null);
 
 /// <summary>Read-only estimate. All monetary values are nullable integer USD cents.</summary>
 public sealed record PlanResult
@@ -18,6 +19,7 @@ public sealed record PlanResult
     public string Campus { get; init; } = "";
     public UserCategory Category { get; init; }
     public DateOnly StartDate { get; init; }
+    public DateOnly? EndDate { get; init; }
     public int Weeks { get; init; }
     public IReadOnlyList<DayOfWeek> Weekdays { get; init; } = [];
     public TermKind Term { get; init; }
@@ -66,7 +68,15 @@ public sealed class VisitPlannerService
     {
         ArgumentNullException.ThrowIfNull(input);
         var errors = new List<string>();
-        if (input.Weeks is < 1 or > 26) errors.Add("Choose between 1 and 26 weeks.");
+        var weeks = input.Weeks;
+        if (input.EndDate is { } end)
+        {
+            var inclusiveDays = end.DayNumber - input.StartDate.DayNumber + 1;
+            if (inclusiveDays < 1) errors.Add("Choose an end date on or after the planning start date.");
+            else if (inclusiveDays > 26 * 7) errors.Add("Choose a date range of at most 26 weeks (182 days).");
+            else weeks = (inclusiveDays + 6) / 7;
+        }
+        else if (weeks is < 1 or > 26) errors.Add("Choose between 1 and 26 weeks.");
         if (input.Weekdays is null || input.Weekdays.Count == 0)
             errors.Add("Choose at least one visit weekday.");
         else if (input.Weekdays.Count > 7 || input.Weekdays.Any(day => !Enum.IsDefined(day)) ||
@@ -82,7 +92,8 @@ public sealed class VisitPlannerService
             Campus = input.Campus?.Trim() ?? "",
             Category = category,
             StartDate = input.StartDate,
-            Weeks = input.Weeks,
+            EndDate = input.EndDate,
+            Weeks = weeks,
             Weekdays = input.Weekdays is null ? [] : Array.AsReadOnly(input.Weekdays.ToArray()),
             Term = input.Term,
         };
@@ -95,7 +106,9 @@ public sealed class VisitPlannerService
         var visits = new List<DateOnly>();
         try
         {
-            var length = checked(input.Weeks * 7);
+            var length = input.EndDate is { } rangeEnd
+                ? rangeEnd.DayNumber - input.StartDate.DayNumber + 1
+                : checked(weeks * 7);
             // Evaluate the final date first so malformed extreme dates do not
             // return a partial count or overflow while rendering a result.
             _ = input.StartDate.AddDays(length - 1);
@@ -109,6 +122,8 @@ public sealed class VisitPlannerService
         {
             return Invalid(result, ["The schedule goes beyond supported calendar dates. Choose an earlier start date."]);
         }
+        if (visits.Count == 0)
+            return Invalid(result, ["No selected visit weekdays fall inside this date range. Choose another weekday or adjust the dates."]);
 
         TermDates? window;
         try { window = _dates.GetTermDates(fee.Campus, input.Term, input.StartDate.Year); }
