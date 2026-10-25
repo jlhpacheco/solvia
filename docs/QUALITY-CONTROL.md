@@ -1,5 +1,24 @@
 # Solvia quality control process
 
+## Natural-language regression and spelling review — October 24, 2026
+
+The exact user sentence became a regression rather than a rewritten demo.
+Separate agent work added spelling boundaries, adversarial parser review,
+MVC persistence checks and TypeScript browser journeys. Review caught
+ordinary-word false alarms, negative contractions, malformed named dates,
+contradictory date labels, plural recurrence and ignored larger written
+visit totals. These received repairs and regression coverage before release.
+
+The final full backend suite passed **1,051/1,051**; the final focused browser
+runs passed **16/16**, including six smoke cases, across desktop, phone,
+iPhone and iPad emulations. Two separate actual Together model checks passed.
+No new PayPal order or capture was made. The initial five focused failures
+and one first-full failure remain in the private reports, with their causes
+recorded in the [repair record](review/NATURAL-SCHEDULE-2026-10-24.md) and
+[sanitized evidence](review/Solvia-natural-schedule-verification.json).
+Unclear input requests review: passing these examples is not a claim that
+every sentence or spelling can be understood.
+
 ## Selected-school policy regression — October 24, 2026
 
 A screenshot exposed an unconditional MJC note in the planner and classic

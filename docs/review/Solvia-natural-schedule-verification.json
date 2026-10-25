@@ -1,0 +1,92 @@
+{
+  "recordedAtUtc": "2026-10-25T06:36:29.946662+00:00",
+  "scope": "Natural ranges, schedule spelling and honest incomplete-result labels",
+  "sourceSha256": {
+    "src/Solvia/Services/VisitScheduleReader.cs": "530a8f65eaa9f757cd2080e13d6a800a0254f5295ed8aebb05f9cb5227c2bd27",
+    "src/Solvia/Services/ScheduleSpelling.cs": "4e8eaa06856cc764f4959e0ec1386cd4eade069779a6e55b6d537f50e2b0452d",
+    "tests/Solvia.Tests/VisitScheduleReaderTests.cs": "7cf3989c540b8c51a7ffdea90078496e294b0518fddafb6bb249c3727714e70e",
+    "tests/Solvia.Tests/ScheduleNaturalLanguageTests.cs": "dd70743c4aa8a47b47483ef16c52b1a68bb87e420768587bcfdf14dbf2046320",
+    "tests/Solvia.Tests/ScheduleSpellingTests.cs": "a4f98cf3737b1cd5d6378159eb12453bf988e0e2a5b946a60e2903f27332ce7a",
+    "tests/Solvia.Tests/PlannerNaturalLanguageIntegrationTests.cs": "dd2518f5046cee1e9583eaaeb50122b75a09592cd7988adbb12c321ed6b855ed",
+    "tests/e2e/planner-natural-language.spec.ts": "9126d68432cf8da7628fe7388726569a4c6812d953d49225f0dcfb9873084abe",
+    "tests/e2e/planner-month-end.spec.ts": "3efcb1b74e2c85dce969bc272f06b628a6d861c983c6da2c6764b26949912c41",
+    "tests/ai/schedule-live.spec.ts": "211b012d8161a05799f5792c9aa3180269cd5f5894d60350fdf4fa302c316f4c"
+  },
+  "backend": {
+    "report": ".playwright-data/natural-language/backend/full-final.trx",
+    "sha256": "02c8ab51003f778ad004dabc8d5ae61c781932059ef4f0f8a69549a923f7cc43",
+    "total": 1051,
+    "passed": 1051,
+    "failed": 0,
+    "executed": 1051
+  },
+  "initialBackend": {
+    "report": ".playwright-data/natural-language/backend/focused-initial.trx",
+    "sha256": "51e215991997455d31f331d772de37e67de13806a915955e69b5ccc23caaa127",
+    "total": 406,
+    "passed": 401,
+    "failed": 5,
+    "executed": 406
+  },
+  "firstFullBackend": {
+    "report": ".playwright-data/natural-language/backend/full-initial.trx",
+    "sha256": "794e7ca480bbe498539fcd795846bdca0ebdd0f511088909fd9fcbba56fdff47",
+    "total": 1044,
+    "passed": 1043,
+    "failed": 1,
+    "executed": 1044
+  },
+  "initialCorrection": "Narrowed overbroad distance-two unknown-word checking after ordinary each/well produced five focused failures; distinguished plural recurrence after one first-full failure. Added written totals above26 after review and reran the full final suite.",
+  "controlledBrowsers": {
+    "passed": 16,
+    "failed": 0,
+    "smokeSubset": 6,
+    "projects": {
+      "desktop-chromium": 6,
+      "mobile-chromium": 6,
+      "iphone-webkit": 2,
+      "ipad-webkit": 2
+    },
+    "runs": [
+      {
+        "report": ".playwright-data/natural-language/browser-final.json",
+        "sha256": "0db6591b017ebe1496f76900d6cf1ab32fbe002445e76ad3e11ef35cae2c0134",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "flaky": 0
+      },
+      {
+        "report": ".playwright-data/natural-language/apple-final.json",
+        "sha256": "71f766b0c9458d66b1f41f527e5747ce98749fde383538e34bee3375b481f529",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "flaky": 0
+      }
+    ]
+  },
+  "actualTogether": {
+    "passed": 2,
+    "model": "openai/gpt-oss-120b",
+    "report": {
+      "report": ".playwright-data/ai-evidence/natural-schedule-2026-10-24/results.json",
+      "sha256": "1a4fb45fca332ff235d870abe4e6f627a2f0b8265ffc51bae726e1c9d2447167",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0
+    },
+    "cases": [
+      "annotated three-visit range",
+      "misspelled weekdays and month"
+    ]
+  },
+  "newActualPayPalOrdersOrCaptures": 0,
+  "limitations": [
+    "Common clear spelling corrections do not guarantee understanding every sentence.",
+    "Device profiles are emulations, not physical-device certification.",
+    "The broader browser catalog was not rerun.",
+    "Reading/comparing is not an end-to-end payment rerun."
+  ]
+}

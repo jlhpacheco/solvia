@@ -1,5 +1,25 @@
 # Testing Solvia
 
+## Natural ranges and schedule spelling — October 24, 2026
+
+The [repair record](review/NATURAL-SCHEDULE-2026-10-24.md) and
+[sanitized source/report evidence](review/Solvia-natural-schedule-verification.json)
+cover the reported date/weekday sentence, common day/month/week spelling
+errors, full named dates, exact visit totals and honest incomplete-result
+wording. The final full backend run passed **1,051/1,051** checks.
+**16/16 focused TypeScript Playwright checks** cover desktop/phone Chromium
+and iPhone/iPad WebKit emulations; **six smoke cases are included** in those
+16. **Two separate actual Together GPT-OSS 120B checks** passed for the
+reported three-date sentence and the misspelled sixteen-date sentence.
+TypeScript and diff checks passed. Earlier failures remain documented;
+the broader browser catalog and real payment flows were not rerun.
+
+Run the controlled natural-language and retained month-end journeys with
+`npx playwright test tests/e2e/planner-natural-language.spec.ts tests/e2e/planner-month-end.spec.ts`.
+They use the real offline reader, MVC forms and exact rendered visit dates.
+The separate opt-in live-AI suite includes `real Together natural schedule`
+cases; those require the privately configured provider and incur API usage.
+
 ## Selected-college policy notes — October 24, 2026
 
 The [school-switch repair record](review/CAMPUS-POLICY-2026-10-24.md) and

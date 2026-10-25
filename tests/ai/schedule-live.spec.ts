@@ -3,6 +3,37 @@ import { test, expect } from '@playwright/test';
 test.skip(process.env.SOLVIA_AI_PROVIDER !== 'together', 'This schedule adapter uses the configured Together service.');
 
 for (const example of [
+  { label: 'annotated three-visit range', sentence: '10/26/2026 , monday to 10/30/2026, Friday. for 3 visits, as well as Wednesday', end: '2026-10-30' },
+  { label: 'misspelled weekdays and month', sentence: 'Monay, Wendesday and Firday from 10/26/2026 until the end of Novemeber 2026', end: '2026-11-30' }
+]) {
+  test(`real Together natural schedule: ${example.label}`, async ({ page }, info) => {
+    await page.goto('/Planner');
+    await page.getByLabel('Describe your visits', { exact: false }).fill(example.sentence);
+    const started = Date.now();
+    await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+    const reader = page.getByTestId('schedule-reader');
+    const source = await reader.getAttribute('data-source');
+    const start = await page.getByLabel('Start of your planning period', { exact: true }).inputValue();
+    const end = await page.getByLabel('End date', { exact: true }).inputValue();
+    const days = await page.locator('input[name="Weekdays"]:checked').evaluateAll(inputs =>
+      inputs.map(input => (input as HTMLInputElement).value));
+    await info.attach('actual-natural-schedule-reader', {
+      body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, start, end, days,
+        elapsedMs: Date.now() - started, label: example.label })), contentType: 'application/json'
+    });
+    expect(source, 'Fallback is not a successful hosted-model extraction.').toBe('together');
+    expect(start).toBe('2026-10-26');
+    expect(end).toBe(example.end);
+    expect(days).toEqual(['Monday', 'Wednesday', 'Friday']);
+    await expect(reader).not.toContainText('needs your review');
+    await expect(page.getByLabel('Describe your visits', { exact: false })).toHaveValue(example.sentence);
+    await expect(page.getByTestId('plan-result')).toHaveCount(0);
+    await expect(page.locator('#Weeks')).toHaveCount(0);
+    await info.attach('natural-schedule-screen', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  });
+}
+
+for (const example of [
   { sentence: 'Tuesdays and Thursdays for three weeks', days: ['Tuesday', 'Thursday'], weeks: '3' },
   { sentence: 'Monday, Wednesday and Friday for two weeks', days: ['Monday', 'Wednesday', 'Friday'], weeks: '2' },
   { sentence: 'Weekends for four weeks', days: ['Saturday', 'Sunday'], weeks: '4' }
