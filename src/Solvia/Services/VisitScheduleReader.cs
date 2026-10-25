@@ -98,7 +98,10 @@ public sealed class TogetherVisitScheduleReader : IVisitScheduleReader
         cancellationToken.ThrowIfCancellationRequested();
         if (text?.Length > VisitScheduleDraft.MaxInputLength)
             return new([], null, "fallback", "Keep your schedule to 500 characters, or choose the visit dates and weekdays directly.");
-        var grounded = ScheduleGrounding.Read(text ?? "");
+        // One calendar snapshot grounds both the rules and trusted provider
+        // context, even when a model request crosses Pacific midnight.
+        var today = CampusCalendar.Today(_clock);
+        var grounded = ScheduleGrounding.Read(text ?? "", today);
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(_options.ApiKey) ||
             _options.Model != TogetherOptions.SupportedModel ||
             (_selection is not null && !string.Equals(_selection.Provider, "together", StringComparison.OrdinalIgnoreCase)))
@@ -113,7 +116,9 @@ public sealed class TogetherVisitScheduleReader : IVisitScheduleReader
             var payload = new
             {
                 model = _options.Model, stream = false, reasoning_effort = "low", temperature = 1, max_tokens = 2048,
-                messages = new[] { new { role = "developer", content = Prompt }, new { role = "user", content = ScheduleSpelling.Normalize(text) } },
+                messages = new[] { new { role = "developer", content = Prompt +
+                    (RelativeVisitSchedule.HasReference(text) ? RelativeVisitSchedule.Context(today) : "") },
+                    new { role = "user", content = ScheduleSpelling.Normalize(text) } },
                 response_format = new { type = "json_schema", json_schema = new { name = "solvia_visit_schedule", schema = Schema } }
             };
             using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint);
@@ -236,13 +241,20 @@ internal static class ScheduleGrounding
     private const string ReviewNotice = "Check this draft. Confirm the start and end dates and visit weekdays before comparing; nothing is purchased here.";
     private const string DateReviewNotice = "Check the visit dates and schedule. Use full US, ISO, or named-month dates with a year. Join range dates with to, through, or until, within 182 days. A named month end is supported. A weekday beside a date must match it, and a stated visit count must match the selected dates. Conflicting or invalid details need your review; no date or duration was guessed.";
 
-    public static VisitScheduleDraft Read(string text)
+    public static VisitScheduleDraft Read(string text, DateOnly? today = null)
     {
         text = ScheduleSpelling.Normalize(text);
         if (ScheduleSpelling.HasUnrecognizedScheduleWord(text))
             return new([], null, "fallback", "A day, week, or month word is unclear. Correct it or choose the dates and weekdays directly; no schedule was guessed.");
         if (Regex.IsMatch(text, @"\b(maybe|might|perhaps|unsure|uncertain|no|not|never|except|without|sometimes|alternate|alternating|or|cannot|(?:don|doesn|didn|can|couldn|won|wouldn|shouldn|isn|aren|wasn|weren)['’]t)\b", RegexOptions.IgnoreCase))
             return new([], null, "fallback", ReviewNotice);
+        if (RelativeVisitSchedule.HasReference(text))
+        {
+            var relative = RelativeVisitSchedule.Read(text, today, DayPatterns);
+            if (relative.Weeks is not null && !ValidVisitCounts(text, relative.Weekdays.ToHashSet(), relative.Weeks,
+                    relative.StartDate, relative.EndDate)) return new([], null, "fallback", DateReviewNotice);
+            return relative;
+        }
         if (!TryNormalizeNamedDates(text, out text))
             return new([], null, "fallback", DateReviewNotice);
         var days = new HashSet<DayOfWeek>();

@@ -12,14 +12,14 @@ namespace Solvia.Controllers;
 /// <summary>Reviewable schedule drafting and read-only price comparison. No payment tools.</summary>
 public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
     VisitPlannerService planner, IVisitScheduleReader reader, UserCategoryResolver categories,
-    AiRequestLimiter limiter, PrepaidPlanProtection? prepaidPlans = null) : DemoControllerBase
+    AiRequestLimiter limiter, PrepaidPlanProtection? prepaidPlans = null, TimeProvider? clock = null) : DemoControllerBase
 {
     private const string DraftKey = "Solvia.PlannerDraft";
 
     [HttpGet]
     public async Task<IActionResult> Index(string? campus, CancellationToken cancellationToken, bool showComparison = false)
     {
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var today = CampusCalendar.Today(clock ?? TimeProvider.System);
         var person = await CurrentStudentAsync(db, cancellationToken);
         var model = ReadDraft(person.Id) ?? new PlannerViewModel
         {

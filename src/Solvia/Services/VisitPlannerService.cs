@@ -84,7 +84,7 @@ public sealed class VisitPlannerService
             errors.Add("Choose each weekday at most once from the seven listed days.");
         if (!Enum.IsDefined(input.Term)) errors.Add("Choose a listed term.");
         if (!Enum.IsDefined(category)) errors.Add("The current demo person's category is not available.");
-        var today = DateOnly.FromDateTime(_clock.GetLocalNow().DateTime);
+        var today = CampusCalendar.Today(_clock);
         if (input.StartDate < today) errors.Add("Choose today or a future planning start date.");
 
         var result = new PlanResult

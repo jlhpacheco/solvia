@@ -2,6 +2,41 @@ import { test, expect } from '@playwright/test';
 
 test.skip(process.env.SOLVIA_AI_PROVIDER !== 'together', 'This schedule adapter uses the configured Together service.');
 
+test('real Together relative-date list includes today tomorrow and Wednesday', async ({ page }, info) => {
+  const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles',
+    year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const before = today();
+  const sentence = 'I want a parking permit today and tomorrow as well on wednesday. please. this is going to be a big week for me';
+  await page.goto('/Planner');
+  await page.getByLabel('Describe your visits', { exact: false }).fill(sentence);
+  await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+  const reader = page.getByTestId('schedule-reader');
+  const source = await reader.getAttribute('data-source');
+  const note = await reader.innerText();
+  const anchor = note.match(/Using Pacific date (\d{4}-\d{2}-\d{2})/i)?.[1];
+  expect(source, 'A built-in fallback is not evidence of a successful hosted-model read.').toBe('together');
+  expect([before, today()]).toContain(anchor);
+  const date = new Date(`${anchor}T00:00:00Z`);
+  const plus = (days: number) => new Date(date.getTime() + days * 86_400_000).toISOString().slice(0, 10);
+  const dates = [...new Set([plus(0), plus(1), plus((3 - date.getUTCDay() + 7) % 7)])].sort();
+  const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const expectedDays = [...new Set(dates.map(value => new Date(`${value}T00:00:00Z`).getUTCDay()))]
+    .sort().map(value => names[value]);
+  const checked = await page.locator('input[name="Weekdays"]:checked').evaluateAll(inputs =>
+    inputs.map(input => (input as HTMLInputElement).value));
+  expect(checked.slice().sort()).toEqual(expectedDays.slice().sort());
+  await expect(page.getByLabel('Start of your planning period', { exact: true })).toHaveValue(dates[0]);
+  await expect(page.getByLabel('End date', { exact: true })).toHaveValue(dates.at(-1)!);
+  for (const value of dates) expect(note).toContain(value);
+  await expect(reader).not.toContainText('needs your review');
+  await expect(page.getByLabel('Describe your visits', { exact: false })).toHaveValue(sentence);
+  await expect(page.getByTestId('plan-result')).toHaveCount(0);
+  await info.attach('actual-relative-date-read', { body: Buffer.from(JSON.stringify({
+    checkedAtUtc: new Date().toISOString(), source, anchor, dates, checked
+  })), contentType: 'application/json' });
+  await info.attach('relative-date-screen', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+});
+
 for (const example of [
   { label: 'annotated three-visit range', sentence: '10/26/2026 , monday to 10/30/2026, Friday. for 3 visits, as well as Wednesday', end: '2026-10-30' },
   { label: 'misspelled weekdays and month', sentence: 'Monay, Wendesday and Firday from 10/26/2026 until the end of Novemeber 2026', end: '2026-11-30' }

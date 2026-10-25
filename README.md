@@ -14,6 +14,7 @@ See the [October 24 date-only planner and revised walkthrough](docs/review/DATE-
 The reader also accepts an anchored month end: “10/26/2026 until the end of November 2026, every Monday, Wednesday and Friday” fills October 26–November 30 and counts 16 visits. Both dates remain editable; see the [month-end regression record](docs/review/MONTH-END-2026-10-24.md).
 College-specific policy help now follows the selected school in the planner and classic form, including browser Back and no-JavaScript refresh; see the [school-switch repair record](docs/review/CAMPUS-POLICY-2026-10-24.md).
 Natural schedule ranges accept optional `from`, date/weekday annotations and full named-month dates. Common day/month/week misspellings are corrected in a private parsing copy while the original text remains visible. Visit totals must agree with the exact dates; unclear readings explicitly request review. See the [natural-schedule repair record](docs/review/NATURAL-SCHEDULE-2026-10-24.md).
+One-off lists also accept “today and tomorrow as well on Wednesday,” using the California campus date. The reader displays its date anchor and each resolved visit; duplicates collapse and one distinct date selects One visit. See the [relative-date repair record](docs/review/RELATIVE-DATES-2026-10-25.md).
 
 Latest review: [changes and verification](docs/REVIEW-2026-10-19.md),
 [hackathon readiness and judging](docs/HACKATHON-READINESS.md),

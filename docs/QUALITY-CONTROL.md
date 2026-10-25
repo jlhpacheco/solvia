@@ -1,5 +1,29 @@
 # Solvia quality control process
 
+## Relative dates and shared calendar — October 25, 2026
+
+The new screenshot exposed unsupported today/tomorrow wording. Independent
+agent work supplied relative-date and timezone regressions, browser journeys,
+MVC invariants and a parser safety review. The repair captures one Pacific
+calendar date for both deterministic grounding and trusted model context.
+Review also prevented extracting “tomorrow” from unsupported offset wording
+and treating a relative range as just its endpoints. The form displays the
+anchor and each resolved date for confirmation.
+
+The final full backend run passed **1,102/1,102**. Ten distinct browser cases
+are verified across desktop/phone Chromium and iPhone/iPad WebKit emulations,
+using an initial run plus targeted rerun; six smoke cases are a subset. An
+initial desktop journey exceeded its 60-second cumulative budget, then passed
+with unchanged code/deadlines. Apple traces also showed the correct final
+dates/totals and completed assertions but exceeded the total 60-second
+journey budget. The new relative-date journeys use 90 seconds overall,
+retaining 10-second assertion deadlines; the Apple cases were rerun without
+production changes. One actual Together model check passed after
+an initial fallback; both results remain recorded, without claiming a proven
+cause for that provider fallback. See the [repair record](review/RELATIVE-DATES-2026-10-25.md)
+and [sanitized evidence](review/Solvia-relative-dates-verification.json).
+No new real payment or physical-device certification is claimed.
+
 ## Natural-language regression and spelling review — October 24, 2026
 
 The exact user sentence became a regression rather than a rewritten demo.

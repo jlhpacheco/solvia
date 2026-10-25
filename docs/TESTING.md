@@ -1,5 +1,33 @@
 # Testing Solvia
 
+## Pacific relative-date lists — October 25, 2026
+
+The [repair record](review/RELATIVE-DATES-2026-10-25.md) and
+[source/report evidence](review/Solvia-relative-dates-verification.json)
+cover “today and tomorrow as well on Wednesday.” The final full backend
+suite passed **1,102/1,102**, including Pacific/UTC and daylight-saving
+boundaries, exact date sets, one-visit mode, conflicting counts and protected
+prepaid continuation without creating purchases. **Ten distinct focused
+browser cases are verified** through an initial run, a targeted rerun and
+iPhone/iPad WebKit emulations. Six smoke cases are included in those ten.
+This is an aggregate, not one clean ten-case final run. The one initial
+desktop cumulative timeout passed on rerun with unchanged code/deadlines.
+Both initial Apple journeys also reached their overall 60-second budget;
+their traces contain the correct dates/totals and successful assertions.
+The new relative-date journey budget is now 90 seconds, with unchanged
+10-second assertion deadlines, and both Apple cases were rerun. No
+production change was made for these browser timing corrections.
+
+One actual Together GPT-OSS 120B check passed after an initial provider
+fallback. Both attempts are retained; the first fallback's exact cause was
+not established. Reading with the fallback still produced the grounded
+relative-date draft. TypeScript and diff checks passed. The broader browser
+catalog and payment flows were not rerun, and no actual PayPal order/capture
+was created by this work.
+
+Controlled cases: `npx playwright test tests/e2e/planner-relative-dates.spec.ts`.
+The separate opt-in live-AI suite contains `real Together relative-date list`.
+
 ## Natural ranges and schedule spelling — October 24, 2026
 
 The [repair record](review/NATURAL-SCHEDULE-2026-10-24.md) and

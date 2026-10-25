@@ -1,0 +1,106 @@
+{
+  "recordedAtUtc": "2026-10-25T20:33:58.464554+00:00",
+  "scope": "Pacific today/tomorrow and one-off weekday lists",
+  "sourceSha256": {
+    "src/Solvia/Services/CampusCalendar.cs": "e3771c913c5be3e3edf09a8b1eb082cddcc8362c16f318c9762b88474f7217cf",
+    "src/Solvia/Services/RelativeVisitSchedule.cs": "547e3d72f3b1181d07ca4688bb80d1e0a194fd6e9b2bdc7323e8feeaf5e97308",
+    "src/Solvia/Services/VisitScheduleReader.cs": "3e69f2861b5f54f43c6012bfd3462081ca3c355b734e127ca0a52a6f7647f05b",
+    "src/Solvia/Services/VisitPlannerService.cs": "8e311077b37e7621317564a134f1b32e91901d5b9487360c08e8b48ee8296446",
+    "src/Solvia/Controllers/PlannerController.cs": "2bf30be4286e00bbe254641788fc1feca6d13cd8cce04a62fd2ea64c0cdc6a9d",
+    "tests/Solvia.Tests/RelativeVisitScheduleTests.cs": "e61798d4ee9efacdef133cb55d9a373ae3e9946bd3f1e3b00321ecee612a13b1",
+    "tests/Solvia.Tests/PlannerRelativeDateIntegrationTests.cs": "cca73172a14b1e7805836ab31baa2495d853df10788f6c3eb6de963cf72e8b95",
+    "tests/e2e/planner-relative-dates.spec.ts": "198e1b04c5bcb30dcc7a7c1113210a65df698187ef51238acc8504a29eba2a75",
+    "tests/e2e/planner-natural-language.spec.ts": "9126d68432cf8da7628fe7388726569a4c6812d953d49225f0dcfb9873084abe",
+    "tests/ai/schedule-live.spec.ts": "3741322298642df75bd3a9809fb5530294adc6b0c846fb3c7533170c979a0b0a"
+  },
+  "initialFocusedBackend": {
+    "report": ".playwright-data/relative-dates/backend/focused-initial.trx",
+    "sha256": "f20252b012a1124761017c5129e53fdd024073aa540ba4f825ef46e049e2712a",
+    "total": 213,
+    "passed": 213,
+    "failed": 0,
+    "executed": 213
+  },
+  "finalBackend": {
+    "report": ".playwright-data/relative-dates/backend/full-final.trx",
+    "sha256": "c2dbbf6844b63ee4982cc29933c298a88d32caa632b443391a362be7cec14d86",
+    "total": 1102,
+    "passed": 1102,
+    "failed": 0,
+    "executed": 1102
+  },
+  "controlledBrowsers": {
+    "distinctCasesVerified": 10,
+    "unresolved": 0,
+    "smokeSubset": 6,
+    "projects": {
+      "desktop-chromium": 4,
+      "mobile-chromium": 4,
+      "iphone-webkit": 1,
+      "ipad-webkit": 1
+    },
+    "runs": [
+      {
+        "report": ".playwright-data/relative-dates/browser-final.json",
+        "sha256": "f5d157ef4eb8b3865d23e2ecda5ef31155b40a144b47694ba782e2e59aa28b1d",
+        "passed": 7,
+        "failed": 1,
+        "skipped": 0,
+        "flaky": 0
+      },
+      {
+        "report": ".playwright-data/relative-dates/browser-targeted.json",
+        "sha256": "74dbed5c66786fd6637b486ee7d394f5fb89e1a881b835dfe7be5284e29199f8",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "flaky": 0
+      },
+      {
+        "report": ".playwright-data/relative-dates/apple-final.json",
+        "sha256": "489046d12e6f3a169ecb0f98888bf13a543d5f708abf46139796586d059477c7",
+        "passed": 0,
+        "failed": 2,
+        "skipped": 0,
+        "flaky": 0
+      },
+      {
+        "report": ".playwright-data/relative-dates/apple-targeted.json",
+        "sha256": "d0525ababf1b3aa9cd98b0ad3825403da1bc4d03d47842b87000b4abd657bb49",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "flaky": 0
+      }
+    ],
+    "aggregation": "Initial focused run plus targeted rerun and Apple emulations; not a single clean ten-case run."
+  },
+  "actualTogether": {
+    "accepted": 1,
+    "initialFallback": 1,
+    "model": "openai/gpt-oss-120b",
+    "initialReport": {
+      "report": ".playwright-data/ai-evidence/relative-dates-2026-10-25/results-initial.json",
+      "sha256": "5ed9c356e4679e27063841ae353d9e64e191ded60ec31c53dd612fbb180b276b",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "flaky": 0
+    },
+    "acceptedReport": {
+      "report": ".playwright-data/ai-evidence/relative-dates-2026-10-25/results.json",
+      "sha256": "9c272877f6874e90849d13049eb41c20dac7788bd2c27d911f7661e926d979f3",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0
+    },
+    "note": "First attempt used the rules fallback; the accepted retry used the unchanged build. The exact cause of the first provider fallback was not established."
+  },
+  "newActualPayPalOrdersOrCaptures": 0,
+  "limitations": [
+    "Bounded explicit relative lists; not every natural-language schedule is supported.",
+    "WebKit profiles are emulations, not physical-device certification.",
+    "The broader browser catalog and PayPal payment flows were not rerun."
+  ]
+}
