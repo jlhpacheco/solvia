@@ -46,6 +46,34 @@ test('real schedule reader leaves uncertainty for explicit review', async ({ pag
   await info.attach('actual-uncertain-schedule-reader', { body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source, confirmedNoDefaults: true })), contentType: 'application/json' });
 });
 
+test('real Together month-end sentence keeps October 26 through November 30 and MWF', async ({ page }, info) => {
+  const started = Date.now();
+  await page.goto('/Planner');
+  await page.getByLabel('Describe your visits', { exact: false }).fill(
+    'i am coming over monday 10/26/2026 until the end of november 2026, every monday , Wednesday and Friday. ok');
+  await page.getByRole('button', { name: 'Read my schedule', exact: true }).click();
+  const source = await page.getByTestId('schedule-reader').getAttribute('data-source');
+  const startDate = await page.getByLabel('Start of your planning period', { exact: true }).inputValue();
+  const endDate = await page.getByLabel('End date', { exact: true }).inputValue();
+  const checked = await page.locator('input[name="Weekdays"]:checked').evaluateAll(inputs =>
+    inputs.map(input => (input as HTMLInputElement).value));
+  await info.attach('actual-month-end-reader', {
+    body: Buffer.from(JSON.stringify({ checkedAtUtc: new Date().toISOString(), source,
+      startDate, endDate, checked, elapsedMs: Date.now() - started })), contentType: 'application/json'
+  });
+  expect(source, 'A rules fallback must not be called a successful hosted-model answer.').toBe('together');
+  expect(startDate).toBe('2026-10-26');
+  expect(endDate).toBe('2026-11-30');
+  expect(checked).toEqual(['Monday', 'Wednesday', 'Friday']);
+  await expect(page.getByLabel('Repeating visits', { exact: true })).toBeChecked();
+  await expect(page.locator('#Weeks')).toHaveCount(0);
+  await expect(page.getByTestId('plan-result')).toHaveCount(0);
+  const status = await (await page.request.get('/api/ai/status')).json();
+  expect(status.model).toBe('openai/gpt-oss-120b');
+  expect(status.readers.find((reader: { reader: string }) => reader.reader === 'Visits').state).toBe('success');
+  await info.attach('month-end-screen', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+});
+
 test('real Together one-time dated visit uses only a visit date and verifies the operational indicator', async ({ page }, info) => {
   await page.goto('/Planner');
   await page.getByLabel('Your college', { exact: true }).selectOption('CSU East Bay');

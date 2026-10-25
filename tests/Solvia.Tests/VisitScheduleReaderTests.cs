@@ -231,6 +231,7 @@ public sealed class VisitScheduleReaderTests
     [InlineData("Every day from 1/1/2026 to 7/1/2026", "2026-01-01", "2026-07-01", 26)]
     [InlineData("Wednesday from 2028-02-28 to 2028-03-01", "2028-02-28", "2028-03-01", 1)]
     [InlineData("One day per week, Monday, from 11/01/2026 to 12/31/2026", "2026-11-01", "2026-12-31", 9)]
+    [InlineData("Mondays from 11/01/2026 to the end of December for 9 weeks", "2026-11-01", "2026-12-31", 9)]
     public async Task OrderedFullDateRanges_UseInclusiveCalendarSpanWithoutMatchingEndpointWeekdays(
         string sentence, string expectedStart, string expectedEnd, int weeks)
     {
@@ -257,7 +258,6 @@ public sealed class VisitScheduleReaderTests
     [InlineData("Mondays from /11/01/2026 to 12/31/2026")]
     [InlineData("Mondays from 11/01/2026 to 12/31/2026/")]
     [InlineData("Mondays from 11/01/2026 to 2026-12-31-")]
-    [InlineData("Mondays from 11/01/2026 to the end of December for 9 weeks")]
     [InlineData("Mondays from 1/1/2026 to 7/2/2026")]
     [InlineData("Mondays from 11/01/2026 to 12/31/2026 for 8 weeks")]
     [InlineData("Mondays from 11/01/2026 to 12/31/2026 for nine weeks and ten weeks")]

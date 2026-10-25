@@ -64,6 +64,13 @@ count; this is an internal contract, not another question for the person.
 An independent strict parser also grounds one full US (`M/d/yyyy`) or ISO
 (`yyyy-MM-dd`) start date or a strictly ordered `from ... to/through ...` range
 in the person's sentence; the model cannot invent or extend those bounds.
+An explicit numeric start followed by “until/through/to the end of November
+2026” supplies that month's actual last calendar day. A named month without
+a year uses the explicit start's year; “end of the month” uses its month.
+Neither wording uses today's date or silently assumes a year rollover.
+An ambiguous, reversed or longer-than-182-day range requires review. The
+[month-end regression record](review/MONTH-END-2026-10-24.md) covers the
+reported October 26–November 30 schedule and its 16 M/W/F visits.
 “Tuesdays and Thursdays for three weeks” becomes editable dates and weekday
 choices. The server converts that duration to an exact end date from the
 selected start date. Existing weeks-only protected drafts and older callers

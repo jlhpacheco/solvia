@@ -1,0 +1,68 @@
+{
+  "recordedAtUtc": "2026-10-25T01:42:26.910982+00:00",
+  "scope": "Anchored month-end schedule reading",
+  "sourceSha256": {
+    "src/Solvia/Services/VisitScheduleReader.cs": "60b22984d5cc29712621f065e52f9e7c089a36bb19d190fa6e667211d459d0cc",
+    "tests/Solvia.Tests/VisitScheduleReaderTests.cs": "7a9686a69ce17b5202232b8d308a7d82f6a55a96ba8873c2182a0141cfd4eea3",
+    "tests/Solvia.Tests/ScheduleMonthEndTests.cs": "11f0b20beb0d90552ad3c6021c1467b7b772511141fc74a30336fb00caa9a654",
+    "tests/Solvia.Tests/PlannerMonthEndIntegrationTests.cs": "b1689ad2fa8d8c3071066af486334746347ba1e0b1bce195316dfe20ae54a077",
+    "tests/e2e/planner-month-end.spec.ts": "3efcb1b74e2c85dce969bc272f06b628a6d861c983c6da2c6764b26949912c41",
+    "tests/e2e/planner-date-range.spec.ts": "6da57672b93671b8872dfc13a0f6b05ecba9fb5b317e7537b7e015620a01e647",
+    "tests/ai/schedule-live.spec.ts": "5fa9d42d4d91a903ec15270d6fc6638dd75d062c724b4d9b4c74051216eb1803"
+  },
+  "backend": {
+    "passed": 905,
+    "failed": 0,
+    "skipped": 0,
+    "report": ".playwright-data/month-end/backend/month-end-final.trx",
+    "reportSha256": "c3be49bc4f80bfd22f0000a76818d8c6900bf06447678ae11fdac9de80ac4148"
+  },
+  "desktopAndPhoneControlled": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "smokeSubset": 4,
+    "runnerDurationMs": 221566.00100000002,
+    "report": ".playwright-data/month-end/browser-final.json",
+    "reportSha256": "6e09da607db7ff7270ec34f0e66dbe04b1f692b16577fe2fe36d969af603e579"
+  },
+  "iphoneAndIpadWebKitEmulation": {
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "smokeSubset": 2,
+    "runnerDurationMs": 179392.445,
+    "report": ".playwright-data/month-end/apple-results.json",
+    "reportSha256": "9bd4323579d6297e030ca878488dbe4ce6b94f2ba099c51e8b191f6e6491caa7"
+  },
+  "actualTogether": {
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "smokeSubset": 0,
+    "runnerDurationMs": 36288.543000000005,
+    "report": ".playwright-data/ai-evidence/month-end-2026-10-24/results.json",
+    "reportSha256": "4e723c91c6bd3b4d86c6d719d1bb3b11a1fa3e5856962db27d9b9ec2440d7d5e",
+    "model": "openai/gpt-oss-120b",
+    "observed": {
+      "checkedAtUtc": "2026-10-25T01:39:23.239Z",
+      "source": "together",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-30",
+      "checked": [
+        "Monday",
+        "Wednesday",
+        "Friday"
+      ],
+      "elapsedMs": 12167
+    }
+  },
+  "expectedInclusiveVisitCount": 16,
+  "noNewPayPalOrdersOrCaptures": true,
+  "limitations": [
+    "The broad browser catalog was not rerun.",
+    "Device profiles are emulations, not physical-device certification.",
+    "One accepted live response does not establish continuous provider availability."
+  ],
+  "initialAttempt": "The initial standard browser configuration timed out during app startup; no browser case passed in that attempt. Final controlled runs used the already-built final app with the same isolated Testing settings."
+}

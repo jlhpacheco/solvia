@@ -1,5 +1,20 @@
 # Testing Solvia
 
+## Month-end schedule reading — October 24, 2026
+
+The [month-end repair record](review/MONTH-END-2026-10-24.md) and
+[sanitized evidence](review/Solvia-month-end-verification.json) cover the
+reported “10/26/2026 until the end of November 2026” sentence. It fills
+October 26–November 30, M/W/F, and 16 visits. **905/905 backend checks**,
+**22/22 focused desktop/phone TypeScript Playwright checks**, and **4/4
+iPhone/iPad WebKit emulations** passed in their final complete runs. The
+**six smoke cases are a subset of those 26 controlled browser cases**.
+One separate actual Together GPT-OSS 120B check passed with source
+`together` and the correct dates/weekday controls. TypeScript and diff checks
+passed. The first browser attempt timed out at server startup, with no
+passing cases; final browser runs used the prebuilt final app. The broad
+browser catalog was not rerun, and no new PayPal order/capture is claimed.
+
 ## Prepaid dated passes — October 24, 2026
 
 The [prepaid implementation and verification record](review/PREPAID-DATES-2026-10-24.md) describes one shared PayPal payment, separate dated permits, exact selected-date review, safe unpaid revision, price/identity guards, future validity and individual/combined PDFs.

@@ -1,5 +1,21 @@
 # Solvia quality control process
 
+## Month-end schedule regression — October 24, 2026
+
+A user screenshot became an exact reproducible sentence: October 26 through
+the end of November, Monday/Wednesday/Friday. Separate agent reviews covered
+the public reader contract, MVC/browser persistence and parser edge cases.
+Review found two ways punctuation could discard a stated year; both were
+fixed and received regressions before the final run. Dates remain grounded
+by calendar rules; model output cannot change prices or initiate payment.
+
+Final evidence is **905/905 backend**, **22/22 focused desktop/phone browser**,
+**4/4 iPhone/iPad WebKit emulation**, and **one separate accepted live Together
+case**. Six smoke cases are included in the 26 controlled browser cases.
+The initial browser startup timeout is retained, and the broader browser
+catalog was not rerun. See the [repair record](review/MONTH-END-2026-10-24.md)
+for the exact scope and [source/report hashes](review/Solvia-month-end-verification.json).
+
 ## Prepaid dated passes — October 24, 2026
 
 The [prepaid implementation and verification record](review/PREPAID-DATES-2026-10-24.md) describes one shared PayPal payment, separate dated permits, exact selected-date review, safe unpaid revision, price/identity guards, future validity and individual/combined PDFs.
