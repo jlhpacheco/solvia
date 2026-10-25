@@ -6,6 +6,11 @@
     var clientId = PayPalSettings.Value.ClientId;
     var currency = string.IsNullOrWhiteSpace(PayPalSettings.Value.Currency) ? "USD" : PayPalSettings.Value.Currency;
     var amount = (Model.PriceCents / 100m).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    var paymentKind = Model.IsPrepaid ? "prepaid" : "permit";
+    var createOrderUrl = Model.IsPrepaid ? "/api/prepaid/orders" : "/api/paypal/orders";
+    var captureUrl = Model.IsPrepaid ? "/api/prepaid/capture" : "/api/paypal/capture";
+    var startUrl = (Model.IsPrepaid ? "/Prepaid/Start/" : "/Checkout/Start/") + Model.ApplicationId;
+    var doneUrl = (Model.IsPrepaid ? "/Prepaid/Receipt/" : "/Checkout/Done/") + Model.ApplicationId;
     var sandboxHelp = string.Equals(PayPalSettings.Value.Environment?.Trim(), "sandbox", StringComparison.OrdinalIgnoreCase)
         && Uri.TryCreate(PayPalSettings.Value.BaseUrl, UriKind.Absolute, out var apiUrl)
         && apiUrl is { Scheme: "https", Host: "api-m.sandbox.paypal.com", Port: 443 };
@@ -14,9 +19,9 @@
             + "&currency=" + Uri.EscapeDataString(currency) + "&intent=capture&enable-funding=card";
 }
 
-<section class="sv-card mt-3" id="checkout-payment" data-application-id="@Model.ApplicationId" data-reviewed-snapshot="@Model.ReviewedSnapshot" data-paypal-sdk-url="@sdkUrl" aria-labelledby="payment-options-heading">
+<section class="sv-card mt-3" id="checkout-payment" data-application-id="@Model.ApplicationId" data-payment-kind="@paymentKind" data-create-order-url="@createOrderUrl" data-capture-url="@captureUrl" data-start-url="@startUrl" data-done-url="@doneUrl" data-reviewed-snapshot="@Model.ReviewedSnapshot" data-paypal-sdk-url="@sdkUrl" aria-labelledby="payment-options-heading">
     <h2 class="h4" id="payment-options-heading">Choose how to pay</h2>
-    <p>Check your permit and total above. Payment is confirmed only after PayPal completes the capture.</p>
+    <p>Check @(Model.IsPrepaid ? "your selected dates, vehicle and total" : "your permit and total") above. Payment is confirmed only after PayPal completes the capture.</p>
     @if (sandboxHelp)
     {
         <aside class="alert alert-info mb-3" aria-labelledby="fastlane-sandbox-heading" data-testid="fastlane-sandbox-help">
@@ -31,7 +36,7 @@
     {
         <div class="alert alert-warning" role="alert">
             PayPal checkout is unavailable right now. Please try again later.
-            Payment is not confirmed here. Check your permit status before retrying.
+            Payment is not confirmed here. Check your @(Model.IsPrepaid ? "purchase" : "permit") status before retrying.
         </div>
     }
     else
@@ -41,7 +46,7 @@
         <div id="paypal-button-container"></div>
         <noscript>
             <p>Continue on PayPal to pay $@amount @currency.</p>
-            <form method="post" action="/Checkout/Start/@Model.ApplicationId">
+            <form method="post" action="@startUrl">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="reviewedSnapshot" value="@Model.ReviewedSnapshot" />
                 <button type="submit" class="btn btn-outline-secondary">Continue to PayPal</button>
@@ -51,7 +56,7 @@
 
     <div id="paypal-redirect-fallback" hidden>
         <p>Continue on PayPal to pay $@amount @currency.</p>
-        <form method="post" action="/Checkout/Start/@Model.ApplicationId" id="plain-pay-form">
+        <form method="post" action="@startUrl" id="plain-pay-form">
             @Html.AntiForgeryToken()
             <input type="hidden" name="reviewedSnapshot" value="@Model.ReviewedSnapshot" />
             <button type="submit" class="btn btn-outline-secondary">Continue to PayPal</button>
@@ -67,7 +72,7 @@
 
     <details class="mt-3" id="payment-references">
         <summary>Payment status and references</summary>
-        <p class="mt-2" id="payment-state">Payment not confirmed — this permit is not active.</p>
+        <p class="mt-2" id="payment-state">@(Model.IsPrepaid ? "Payment not confirmed — these passes have not been issued." : "Payment not confirmed — this permit is not active.")</p>
         <dl class="mb-0">
             <dt>PayPal order ID</dt>
             <dd id="paypal-order-id" class="text-break">@(Model.PayPalOrderId ?? "Not created yet — choose PayPal above.")</dd>

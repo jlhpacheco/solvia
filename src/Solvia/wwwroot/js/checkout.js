@@ -10,7 +10,25 @@
     const capture = document.getElementById('paypal-capture-id');
     const state = document.getElementById('payment-state');
     const applicationId = checkout.dataset.applicationId;
-    const doneUrl = '/Checkout/Done/' + encodeURIComponent(applicationId);
+    const prepaid = checkout.dataset.paymentKind === 'prepaid';
+    const encodedId = encodeURIComponent(applicationId);
+    // Server-rendered endpoints are a small allowlist, never an arbitrary
+    // destination for the anti-forgery token or a post-payment redirect.
+    function endpoint(candidate, expected) {
+        try {
+            const url = new URL(candidate || expected, window.location.href);
+            if (url.origin === window.location.origin && url.pathname === expected && !url.search && !url.hash)
+                return url.pathname;
+        } catch { /* Invalid markup uses the fixed route for this payment kind. */ }
+        return expected;
+    }
+    const createOrderUrl = endpoint(checkout.dataset.createOrderUrl, prepaid ? '/api/prepaid/orders' : '/api/paypal/orders');
+    const captureUrl = endpoint(checkout.dataset.captureUrl, prepaid ? '/api/prepaid/capture' : '/api/paypal/capture');
+    const doneUrl = endpoint(checkout.dataset.doneUrl, (prepaid ? '/Prepaid/Receipt/' : '/Checkout/Done/') + encodedId);
+    const startUrl = endpoint(checkout.dataset.startUrl, (prepaid ? '/Prepaid/Start/' : '/Checkout/Start/') + encodedId);
+    const plainPayForm = document.getElementById('plain-pay-form');
+    if (plainPayForm) plainPayForm.action = startUrl;
+    const statusName = prepaid ? 'purchase' : 'permit';
     let lastError = '';
     let optionsSettled = false;
     let renderStarted = false;
@@ -51,11 +69,11 @@
                 body: JSON.stringify(body)
             });
         } catch {
-            throw new Error('Connection interrupted. Payment is not confirmed here. Check your permit status before retrying.');
+            throw new Error('Connection interrupted. Payment is not confirmed here. Check your ' + statusName + ' status before retrying.');
         }
         let data;
         try { data = await response.json(); }
-        catch { throw new Error('Payment service returned an unreadable response. Check your permit status before retrying.'); }
+        catch { throw new Error('Payment service returned an unreadable response. Check your ' + statusName + ' status before retrying.'); }
         if (!response.ok) {
             const details = [data.code, data.debugId ? 'Support reference: ' + data.debugId : ''].filter(Boolean).join(' · ');
             throw new Error((data.error || 'Payment service could not confirm this request.') + (details ? ' (' + details + ')' : ''));
@@ -78,8 +96,8 @@
                 lastError = '';
                 show('Preparing your PayPal order…', false);
                 try {
-                    const data = await post('/api/paypal/orders', {
-                        permitApplicationId: applicationId,
+                    const data = await post(createOrderUrl, {
+                        [prepaid ? 'purchaseId' : 'permitApplicationId']: applicationId,
                         reviewedSnapshot: checkout.dataset.reviewedSnapshot
                     });
                     if (data.status === 'not-required' || data.status === 'already-paid') {
@@ -100,12 +118,14 @@
                 lastError = '';
                 show('Confirming payment with PayPal…', false);
                 try {
-                    const result = await post('/api/paypal/capture', { orderId: data.orderID });
+                    const result = await post(captureUrl, { orderId: data.orderID });
                     order.textContent = result.orderId || data.orderID;
                     if (result.captureId) capture.textContent = result.captureId;
                     if (result.completed !== true || result.status !== 'COMPLETED' || !result.captureId) {
                         state.textContent = 'Payment not confirmed — ' + (result.status || 'unknown status') + '.';
-                        show('PayPal payment is ' + (result.status || 'unconfirmed') + '. This permit is not active. Check your permit status before retrying.', true);
+                        show('PayPal payment is ' + (result.status || 'unconfirmed') + (prepaid
+                            ? '. These passes have not been issued. Check your purchase status before retrying.'
+                            : '. This permit is not active. Check your permit status before retrying.'), true);
                         return;
                     }
                     window.location.assign(doneUrl);
@@ -117,7 +137,7 @@
                 show('PayPal approval was cancelled. Payment is not confirmed. Choose PayPal again to resume the same order.', false);
             },
             onError: function () {
-                show(lastError || 'PayPal could not finish checkout. Payment is not confirmed. Check your permit status before trying again.', true);
+                show(lastError || 'PayPal could not finish checkout. Payment is not confirmed. Check your ' + statusName + ' status before trying again.', true);
             }
         });
         if (typeof buttons.isEligible === 'function' && !buttons.isEligible()) {

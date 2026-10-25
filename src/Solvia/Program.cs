@@ -159,6 +159,9 @@ builder.Services.AddScoped<ApplicationService>();
 // fixed-window counts must be shared across requests.
 builder.Services.AddHttpClient<IPayPalService, PayPalService>();
 builder.Services.AddScoped<CheckoutService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<PrepaidPlanProtection>();
+builder.Services.AddScoped<PrepaidPurchaseService>();
 builder.Services.AddScoped<PermitPdfService>();
 builder.Services.AddHttpClient<PaymentWebhookService>();
 builder.Services.AddScoped<PayPalWebhookHandler>();
@@ -194,6 +197,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SolviaDbContext>();
     db.Database.EnsureCreated();
+    PrepaidSchema.EnsureCreated(db);
 
     // Refuse to boot on a broken catalog (REDO-PLAN item 10): the
     // seeded permit types and the fee CSV are validated against each

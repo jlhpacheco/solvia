@@ -29,6 +29,8 @@ public sealed class SolviaDbContext : DbContext
     public DbSet<PermitType> PermitTypes => Set<PermitType>();
     public DbSet<PermitApplication> PermitApplications => Set<PermitApplication>();
     public DbSet<WebhookEventLog> WebhookEventLogs => Set<WebhookEventLog>();
+    public DbSet<PrepaidPurchase> PrepaidPurchases => Set<PrepaidPurchase>();
+    public DbSet<PrepaidPurchaseItem> PrepaidPurchaseItems => Set<PrepaidPurchaseItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -170,6 +172,37 @@ public sealed class SolviaDbContext : DbContext
             // Idempotency key: one row per (provider, event id).
             e.HasIndex(w => new { w.Provider, w.EventId }).IsUnique();
         });
+
+        // The link's foreign key lives entirely in the new table: upgrading an
+        // existing demo never alters or copies money references into permits.
+        modelBuilder.Entity<PrepaidPurchase>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Property(p => p.StudentId).IsRequired().HasMaxLength(64);
+            e.Property(p => p.Campus).IsRequired().HasMaxLength(200);
+            e.Property(p => p.Category).HasConversion<string>().IsRequired().HasMaxLength(20);
+            e.Property(p => p.Term).HasConversion<string>().IsRequired().HasMaxLength(20);
+            e.Property(p => p.PaymentStatus).HasConversion<string>().IsRequired().HasMaxLength(20);
+            e.Property(p => p.PayPalOrderId).HasMaxLength(64);
+            e.Property(p => p.PayPalCaptureId).HasMaxLength(64);
+            e.Property(p => p.DraftKey).IsRequired().HasMaxLength(64);
+            e.Property(p => p.ConcurrencyToken).IsConcurrencyToken();
+            e.HasIndex(p => p.DraftKey).IsUnique();
+            e.HasIndex(p => p.PayPalOrderId).IsUnique();
+            e.HasIndex(p => p.PayPalCaptureId).IsUnique();
+            e.HasIndex(p => p.StudentId);
+            e.HasOne<Student>().WithMany().HasForeignKey(p => p.StudentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(p => p.Vehicle).WithMany().HasForeignKey(p => p.VehicleId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<PrepaidPurchaseItem>(e =>
+        {
+            e.HasKey(i => new { i.PurchaseId, i.ApplicationId });
+            e.HasIndex(i => i.ApplicationId).IsUnique();
+            e.HasOne(i => i.Purchase).WithMany(p => p.Items).HasForeignKey(i => i.PurchaseId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(i => i.Application).WithOne(a => a.PrepaidItem).HasForeignKey<PrepaidPurchaseItem>(i => i.ApplicationId).OnDelete(DeleteBehavior.Restrict);
+            e.Navigation(i => i.Purchase).AutoInclude();
+        });
+        modelBuilder.Entity<PermitApplication>().Navigation(a => a.PrepaidItem).AutoInclude();
     }
 
     // ------------------------------------------------------------------

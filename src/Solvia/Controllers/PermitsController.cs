@@ -580,6 +580,8 @@ public sealed class PermitsController : DemoControllerBase
             existing = await _db.PermitApplications.SingleOrDefaultAsync(
                 a => a.Id == draftId && a.StudentId == student.Id, cancellationToken);
             if (existing is null) return NotFound();
+            if (existing.PrepaidItem is { } grouped)
+                return Redirect($"/Prepaid/Review/{grouped.PurchaseId}");
             if (!string.Equals(existing.Campus, fee.Campus, StringComparison.OrdinalIgnoreCase))
             {
                 ModelState.AddModelError("", "Choose a different college from the questions screen to start a separate application. Your existing permit is unchanged.");
@@ -660,6 +662,9 @@ public sealed class PermitsController : DemoControllerBase
             return NotFound();
         }
 
+        if (application.PrepaidItem is { } grouped)
+            return Redirect($"/Prepaid/Review/{grouped.PurchaseId}");
+
         if (application.ReceiptNumber is not null)
         {
             return Redirect($"/Permits/Receipt/{application.Id}");
@@ -683,6 +688,9 @@ public sealed class PermitsController : DemoControllerBase
         {
             return NotFound();
         }
+
+        if (application.PrepaidItem is { } grouped)
+            return Redirect($"/Prepaid/Review/{grouped.PurchaseId}");
 
         if (application.ReceiptNumber is not null)
         {
@@ -734,6 +742,9 @@ public sealed class PermitsController : DemoControllerBase
         {
             return NotFound();
         }
+
+        if (application.PrepaidItem is { } grouped)
+            return Redirect($"/Prepaid/Review/{grouped.PurchaseId}");
 
         if (application.ReceiptNumber is not null)
         {

@@ -25,7 +25,8 @@ public sealed class VisitPlannerTests
         Assert.Equal(46, result.BreakEvenDays);
         Assert.Contains("snapshot", result.FeeAsOf);
         Assert.Contains("fictional catalog source", result.FeeSource);
-        Assert.Contains("only the first planned day", result.Disclosure);
+        Assert.Contains("review your selected dates and vehicle before paying", result.Disclosure);
+        Assert.Contains("Each prepaid day pass covers only its own date", result.Disclosure);
     }
 
     [Fact]

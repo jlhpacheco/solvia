@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Solvia.Data;
 using Solvia.Models.Enums;
@@ -31,10 +32,10 @@ public sealed partial class CheckoutTests
             await db.SaveChangesAsync();
             id = application.Id;
         }
-        var receipt = await client.GetStringAsync($"/Permits/Receipt/{id}");
+        var receipt = WebUtility.HtmlDecode(await client.GetStringAsync($"/Permits/Receipt/{id}"));
         Assert.Contains("VALIDITY-HISTORY", receipt);
         Assert.Contains("Download permit (PDF)", receipt);
-        var list = await client.GetStringAsync("/Permits/My");
+        var list = WebUtility.HtmlDecode(await client.GetStringAsync("/Permits/My"));
         if (active)
         {
             Assert.Contains("Permit live", receipt);
@@ -44,7 +45,10 @@ public sealed partial class CheckoutTests
         {
             Assert.DoesNotContain("Permit live", receipt);
             Assert.DoesNotContain(">Live</span>", list);
-            Assert.Contains("Issued · inactive", list);
+            var expectedStatus = state == "future"
+                ? payment == PaymentStatus.Paid ? "Upcoming · Paid" : "Upcoming · Issued"
+                : state == "expired" ? "Expired · Paid" : "Issued · inactive";
+            Assert.Contains(expectedStatus, list);
             Assert.Contains(payment == PaymentStatus.Paid ? "Payment confirmed" : "Permit issued", receipt);
         }
         if (payment == PaymentStatus.Paid)

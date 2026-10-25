@@ -64,19 +64,32 @@ else
                 <tr>
                     <td>@row.SubmittedDisplay</td>
                     <td>@row.Campus</td>
-                    <td>@row.TypeName</td>
+                    <td>@row.TypeName
+                        @if (row.PurchaseId is { } purchaseId)
+                        {
+                            <small class="d-block"><a href="/Prepaid/Review/@purchaseId">Prepaid purchase @(purchaseId.ToString("N")[..8])</a></small>
+                            @if (row.ShowPurchaseActions)
+                            {
+                                <small class="d-block text-muted">Overall purchase: @row.PurchaseTotalDisplay for @row.PurchaseDayCount dates</small>
+                            }
+                        }
+                    </td>
                     <td>@row.VehicleDisplay</td>
                     <td>@row.DatesDisplay</td>
                     <td>@row.CategoryLabel</td>
-                    <td>@row.PaymentDisplay @if (row.IsLive) { <small class="d-block text-muted">@row.ValidityReason</small> }</td>
+                    <td>@row.PaymentDisplay <small class="d-block">@row.StatusDisplay</small> @if (row.IsLive) { <small class="d-block text-muted">@row.ValidityReason</small> }</td>
                     <td class="text-nowrap">
                         @if (row.ShowPayNow)
                         {
-                            <a class="btn btn-primary btn-sm" href="/Checkout/@row.Id">Pay Now</a>
+                            <a class="btn btn-primary btn-sm" href="@row.PaymentUrl">Pay Now</a>
                         }
                         @if (row.ShowPdf)
                         {
                             <a class="btn btn-outline-primary btn-sm" href="/Permits/PermitPdf/@row.Id">Permit (PDF)</a>
+                        }
+                        @if (row.PurchaseId is { } packetId && row.ShowPurchaseActions && row.ShowPdf)
+                        {
+                            <a class="btn btn-outline-primary btn-sm" href="/Prepaid/Pdf/@packetId">All dated permits (PDF)</a>
                         }
                         <a class="btn btn-link btn-sm" href="/Permits/Receipt/@row.Id">Receipt</a>
                     </td>
@@ -95,13 +108,13 @@ else
                 <h2 class="fs-4 mb-0">@row.TypeName</h2>
                 @if (row.IsActive)
                 {
-                    <span class="badge bg-success fs-6">Live</span>
+                    <span class="badge bg-success fs-6">@row.StatusDisplay</span>
                 }
                 else if (row.IsLive)
                 {
-                    <span class="badge bg-secondary fs-6">Issued · inactive</span>
+                    <span class="badge bg-secondary fs-6">@row.StatusDisplay</span>
                 }
-                else if (row.ShowPayNow)
+                else if (row.StatusDisplay == "Payment due")
                 {
                     <span class="badge bg-warning text-dark fs-6">Payment due</span>
                 }
@@ -110,6 +123,14 @@ else
                     <span class="badge bg-secondary fs-6">@row.PaymentDisplay</span>
                 }
             </div>
+            @if (row.PurchaseId is { } purchaseId)
+            {
+                <p class="mt-2 mb-0 text-break">Prepaid purchase <a href="/Prepaid/Review/@purchaseId"><code>@purchaseId</code></a></p>
+                @if (row.ShowPurchaseActions)
+                {
+                    <p class="mb-0">Overall purchase: <strong>@row.PurchaseTotalDisplay</strong> for @row.PurchaseDayCount dates. Each card shows one dated permit's fee.</p>
+                }
+            }
             @if (row.IsLive) { <p class="mt-2 mb-0 text-muted">@row.ValidityReason</p> }
             <dl class="fs-5 mb-0 mt-2">
                 <dt>Submitted</dt>
@@ -133,11 +154,15 @@ else
             <div class="d-grid gap-2 mt-3">
                 @if (row.ShowPayNow)
                 {
-                    <a class="btn btn-primary btn-lg py-3" href="/Checkout/@row.Id">Pay Now</a>
+                    <a class="btn btn-primary btn-lg py-3" href="@row.PaymentUrl">Pay Now</a>
                 }
                 @if (row.ShowPdf)
                 {
                     <a class="btn btn-outline-primary btn-lg py-3" href="/Permits/PermitPdf/@row.Id">Permit (PDF)</a>
+                }
+                @if (row.PurchaseId is { } packetId && row.ShowPurchaseActions && row.ShowPdf)
+                {
+                    <a class="btn btn-outline-primary btn-lg py-3" href="/Prepaid/Pdf/@packetId">All dated permits (PDF)</a>
                 }
                 <a class="btn btn-outline-secondary btn-lg py-3" href="/Permits/Receipt/@row.Id">Receipt</a>
             </div>

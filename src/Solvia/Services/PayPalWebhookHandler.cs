@@ -71,19 +71,22 @@ public sealed class PayPalWebhookHandler
     private readonly IIssuanceService _issuance;
     private readonly PaymentWebhookService _paymentWebhook;
     private readonly ILogger<PayPalWebhookHandler> _logger;
+    private readonly PrepaidPurchaseService? _prepaid;
 
     public PayPalWebhookHandler(
         SolviaDbContext db,
         IPayPalService payPal,
         IIssuanceService issuance,
         PaymentWebhookService paymentWebhook,
-        ILogger<PayPalWebhookHandler> logger)
+        ILogger<PayPalWebhookHandler> logger,
+        PrepaidPurchaseService? prepaid = null)
     {
         _db = db;
         _payPal = payPal;
         _issuance = issuance;
         _paymentWebhook = paymentWebhook;
         _logger = logger;
+        _prepaid = prepaid;
     }
 
     /// <summary>
@@ -201,10 +204,15 @@ public sealed class PayPalWebhookHandler
                 EventType = eventType,
                 ReceivedAtUtc = DateTime.UtcNow,
             };
-            _db.WebhookEventLogs.Add(log);
-
             try
             {
+                // A shared purchase is checked and staged from a fresh
+                // aggregate under the same SQLite write lock as its event log.
+                // Signature verification has already completed outside the lock.
+                await using var transaction = _prepaid is null ? null
+                    : await _db.Database.BeginTransactionAsync(cancellationToken);
+                if (_prepaid is not null) _db.ChangeTracker.Clear();
+                _db.WebhookEventLogs.Add(log);
                 var result = await ProcessAsync(
                     root, eventType, cancellationToken);
                 if (result.Outcome == OutcomeUnmatched)
@@ -215,20 +223,33 @@ public sealed class PayPalWebhookHandler
                 log.Outcome = result.Outcome;
                 log.ProcessedAtUtc = DateTime.UtcNow;
                 await _db.SaveChangesAsync(cancellationToken);
+                if (transaction is not null) await transaction.CommitAsync(cancellationToken);
                 _logger.LogInformation(
                     "PayPal webhook {EventId} ({EventType}) handled: {Outcome}.",
                     eventId, eventType, result.Outcome);
 
                 // Item 35: the outbound receipt event announces
                 // SAVED truth only — it fires here, after the save.
-                if (result.NotifyApplication is not null)
+                var notifications = new List<PermitApplication>();
+                if (result.NotifyApplication is { } single) notifications.Add(single);
+                if (result.NotifyApplications is { } many) notifications.AddRange(many);
+                foreach (var application in notifications.DistinctBy(application => application.Id))
                 {
                     await _paymentWebhook.NotifyPermitIssuedAsync(
-                        result.NotifyApplication, publicBaseUrl, cancellationToken);
+                        application, publicBaseUrl, cancellationToken);
                 }
 
                 return new PayPalWebhookOutcome(
                     StatusCodes.Status200OK, result.Outcome);
+            }
+            catch (CheckoutPricingException)
+            {
+                // A changed/terminal aggregate cannot be partially issued or
+                // logged as settled. The transaction has rolled back; retry
+                // remains possible after the saved-record conflict is reviewed.
+                _db.ChangeTracker.Clear();
+                _logger.LogWarning("PayPal webhook {EventId} could not settle the saved purchase aggregate; retry required.", eventId);
+                return new PayPalWebhookOutcome(StatusCodes.Status503ServiceUnavailable, OutcomeFailed);
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -257,7 +278,8 @@ public sealed class PayPalWebhookHandler
     }
 
     /// <summary>What processing decided: the outcome word, plus the application whose live transition the outbound webhook must announce after the save (null = announce nothing).</summary>
-    private sealed record ProcessResult(string Outcome, PermitApplication? NotifyApplication);
+    private sealed record ProcessResult(string Outcome, PermitApplication? NotifyApplication,
+        IReadOnlyList<PermitApplication>? NotifyApplications = null);
 
     /// <summary>
     /// Acts on a verified, first-seen delivery. Mutates tracked
@@ -286,6 +308,9 @@ public sealed class PayPalWebhookHandler
         {
             return new ProcessResult(OutcomeIgnored, null);
         }
+
+        var prepaidResult = await ProcessPrepaidAsync(resource, captureId, cancellationToken);
+        if (prepaidResult is not null) return prepaidResult;
 
         // Find the application BY CAPTURE ID (item 33); fall back
         // to the order id PayPal embeds in the event, which covers
@@ -359,6 +384,45 @@ public sealed class PayPalWebhookHandler
         await _issuance.IssueIfAbsentAsync(application, cancellationToken);
         application.ConcurrencyToken = Guid.NewGuid();
         return new ProcessResult(OutcomeActed, application);
+    }
+
+    private async Task<ProcessResult?> ProcessPrepaidAsync(JsonElement resource, string captureId,
+        CancellationToken cancellationToken)
+    {
+        var orderId = GetRelatedOrderId(resource);
+        var byCapture = await _db.PrepaidPurchases.SingleOrDefaultAsync(
+            purchase => purchase.PayPalCaptureId == captureId, cancellationToken);
+        var byOrder = string.IsNullOrWhiteSpace(orderId) ? null : await _db.PrepaidPurchases.SingleOrDefaultAsync(
+            purchase => purchase.PayPalOrderId == orderId, cancellationToken);
+        if (byCapture is null && byOrder is null) return null;
+        if (_prepaid is null) return new ProcessResult(OutcomeUnmatched, null);
+        if (byCapture is not null && byOrder is not null && byCapture.Id != byOrder.Id)
+            return new ProcessResult(OutcomeFailed, null);
+        var matched = byCapture ?? byOrder!;
+        // A known capture cannot authorize a different order, even when the
+        // purchase is already Paid. An order match cannot replace a saved capture.
+        if (string.IsNullOrWhiteSpace(matched.PayPalOrderId) ||
+            (!string.IsNullOrWhiteSpace(orderId) && !string.Equals(orderId, matched.PayPalOrderId, StringComparison.Ordinal)) ||
+            (!string.IsNullOrWhiteSpace(matched.PayPalCaptureId) && !string.Equals(captureId, matched.PayPalCaptureId, StringComparison.Ordinal)))
+            return new ProcessResult(OutcomeFailed, null);
+        if (matched.PaymentStatus == PaymentStatus.NotRequired)
+            return new ProcessResult(OutcomeIgnored, null);
+        var amount = GetAmountCents(resource);
+        if (captureId.Length > 64 || matched.TotalCents <= 0 || amount != matched.TotalCents ||
+            GetString(resource, "status") != "COMPLETED" ||
+            !resource.TryGetProperty("amount", out var eventAmount) ||
+            !string.Equals(GetString(eventAmount, "currency_code"), "USD", StringComparison.OrdinalIgnoreCase))
+            return new ProcessResult(OutcomeFailed, null);
+        var purchase = await _prepaid.LoadAsync(matched.Id, cancellationToken);
+        if (purchase is null) return new ProcessResult(OutcomeUnmatched, null);
+        var unissued = purchase.Items.Where(item => string.IsNullOrWhiteSpace(item.Application.ReceiptNumber))
+            .Select(item => item.ApplicationId).ToHashSet();
+        var result = await _prepaid.StageVerifiedCaptureAsync(purchase,
+            new PayPalCaptureResult("COMPLETED", captureId, amount, "USD"), cancellationToken);
+        if (!result.Completed) return new ProcessResult(OutcomeFailed, null);
+        return new ProcessResult(OutcomeActed, null, purchase.Items
+            .Where(item => unissued.Contains(item.ApplicationId) && !string.IsNullOrWhiteSpace(item.Application.ReceiptNumber))
+            .Select(item => item.Application).ToArray());
     }
 
     private static string? Header(IHeaderDictionary headers, string name) =>

@@ -72,7 +72,8 @@ public sealed class PriceRepairService
     {
         var query = _db.PermitApplications
             .Include(a => a.PermitType)
-            .Where(a => a.PaymentStatus == PaymentStatus.Pending);
+            .Where(a => a.PaymentStatus == PaymentStatus.Pending &&
+                !_db.PrepaidPurchaseItems.Any(item => item.ApplicationId == a.Id));
         if (!string.IsNullOrWhiteSpace(campus))
         {
             var wanted = campus.Trim();

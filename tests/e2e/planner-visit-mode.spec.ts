@@ -22,7 +22,7 @@ async function guardReaderAndPayments(page: Page, allowScheduleRead = false) {
   let scheduleReads = 0;
   // These journeys end before vehicle extraction or checkout. An unexpected
   // action is blocked rather than allowed to contact a model or payment SDK.
-  await page.route(/\/Planner\/Read(?:[/?]|$)|\/Permits\/Understand(?:[/?]|$)|\/api\/(?:chat|paypal)(?:[/?]|$)|\/Checkout(?:[/?]|$)|https?:\/\/(?:[^/]*\.)?(?:together\.ai|paypal\.com|paypalobjects\.com)(?:[/:]|$)|https?:\/\/(?:localhost|127\.0\.0\.1):11434(?:[/?]|$)/i, async route => {
+  await page.route(/\/Planner\/Read(?:[/?]|$)|\/Permits\/Understand(?:[/?]|$)|\/api\/(?:chat|paypal|prepaid)(?:[/?]|$)|\/Checkout(?:[/?]|$)|\/Prepaid\/(?:Create|Start)(?:[/?]|$)|https?:\/\/(?:[^/]*\.)?(?:together\.ai|paypal\.com|paypalobjects\.com)(?:[/:]|$)|https?:\/\/(?:localhost|127\.0\.0\.1):11434(?:[/?]|$)/i, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (allowScheduleRead && url.pathname.toLowerCase() === '/planner/read' && request.method() === 'POST') {
@@ -64,6 +64,8 @@ async function expectSingleFields(page: Page, iso: string, liveSummary = true) {
 async function expectOneVisitComparison(page: Page) {
   await expect(page.getByTestId('plan-result')).toContainText('1 visit. Two ways to plan.');
   await expect(page.getByTestId('daily-total')).toHaveText('$1.00');
+  await expect(page.getByRole('button', { name: 'Start with one day pass', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Buy these dates', exact: true })).toHaveCount(0);
   await expect(page.getByRole('alert')).toHaveCount(0);
 }
 
@@ -190,6 +192,8 @@ test('without JavaScript visit-type switching bypasses hidden validation and rep
     await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
     await expect(page.getByTestId('plan-result')).toContainText('2 visits. Two ways to plan.');
     await expect(page.getByTestId('daily-total')).toHaveText('$2.00');
+    await expect(page.getByRole('button', { name: 'Buy these dates', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start with one day pass', exact: true })).toHaveCount(0);
     expect(requests.scheduleReads()).toBe(0);
     expect(requests.rejected).toEqual([]);
   } finally { await context.close(); }

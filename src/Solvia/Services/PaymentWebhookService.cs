@@ -105,7 +105,7 @@ public sealed class PaymentWebhookService
             permitNumber = application.ReceiptNumber,
             campus = application.Campus,
             amountCents = application.PriceCents,
-            paypalCaptureId = application.PayPalCaptureId,
+            paypalCaptureId = application.PaymentCaptureReference,
             paidAtUtc = application.PaidAtUtc,
             receiptIssuedAtUtc = application.ReceiptIssuedAtUtc,
             verifyUrl,

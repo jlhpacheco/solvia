@@ -24,7 +24,9 @@ public static class VehicleEditGuard
         // Preserve the existing stricter plate/state error for any reference.
         if (identityChanged && await references.AnyAsync(cancellationToken))
             throw new DraftVehicleStateLockedException();
-        if (await references.AnyAsync(application =>
+        if (await db.PrepaidPurchases.AnyAsync(p => p.VehicleId == vehicle.Id &&
+                p.PayPalOrderId != null && p.PayPalOrderId != "", cancellationToken) ||
+            await references.AnyAsync(application =>
                 (application.PayPalOrderId != null && application.PayPalOrderId != "") ||
                 application.PaymentStatus == PaymentStatus.Paid || application.ReceiptNumber != null,
                 cancellationToken))

@@ -270,6 +270,10 @@ public sealed class ApplicationService
                 "That draft is gone — start again.");
         }
 
+        if (await _db.PrepaidPurchaseItems.AnyAsync(item => item.ApplicationId == applicationId, cancellationToken))
+            return new CreateApplicationResult(CreateApplicationStatus.PaymentStarted, application,
+                "These dates belong to one prepaid purchase. Review that purchase instead.");
+
         if (application.ReceiptNumber is not null ||
             application.PaymentStatus == PaymentStatus.Paid)
         {

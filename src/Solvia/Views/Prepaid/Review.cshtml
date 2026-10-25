@@ -1,0 +1,48 @@
+@model Solvia.Models.ViewModels.PrepaidReviewViewModel
+@using Solvia.Models.ViewModels
+@using System.Globalization
+@{ ViewData["Title"] = "Review your prepaid passes"; var p = Model.Purchase; string Money(int c) => "$" + (c / 100m).ToString("0.00", CultureInfo.InvariantCulture); }
+@section Styles { <link rel="stylesheet" href="~/css/prepaid.css" asp-append-version="true" /> }
+<div class="sv-prepaid">
+    <p class="sv-eyebrow">1 · DATES &amp; VEHICLE &nbsp; 2 · REVIEW &amp; PAY &nbsp; 3 · YOUR PASSES</p>
+    <h1>Review your prepaid passes</h1>
+    <p>One payment for @p.Items.Count dated day passes. No automatic charges on future visit dates.</p>
+    @if (Model.Error is not null) { <div class="alert alert-warning" role="alert">@Model.Error</div> }
+    <section class="sv-card" aria-labelledby="purchase-summary">
+        <h2 id="purchase-summary" class="h4">@p.Campus</h2>
+        <p>@p.Category · @p.Vehicle?.Plate (@p.Vehicle?.State) · @p.Vehicle?.Make @p.Vehicle?.Model</p>
+        <div class="sv-prepaid-price"><span><span data-testid="prepaid-per-day">@Money(p.UnitPriceCents)</span> × @p.Items.Count dates</span><strong data-testid="prepaid-total">@Money(p.TotalCents) USD</strong></div>
+        <ul class="sv-prepaid-dates" data-testid="prepaid-review-dates">
+            @foreach (var item in p.Items.OrderBy(i => i.Application.StartDate))
+            { <li><time datetime="@item.Application.StartDate.ToString("yyyy-MM-dd")">@item.Application.StartDate.ToString("ddd, MMM d, yyyy", CultureInfo.InvariantCulture)</time></li> }
+        </ul>
+        <p class="mt-3 mb-0">After verified payment, download your PDFs immediately. Each pass becomes valid on its printed date; future passes remain upcoming until then.</p>
+    </section>
+    @if (Model.Comparison.TermAvailable && Model.Comparison.TermCents is { } term)
+    {
+        <aside class="alert alert-info mt-3">
+            <strong>@(term < p.TotalCents ? "A covering term permit costs less." : term == p.TotalCents ? "A covering term permit costs the same." : "These selected day passes cost less than a term permit.")</strong>
+            Term permit: @Money(term). Selected dates: @Money(p.TotalCents). Published catalog snapshot and demo date rules.
+            <a href="/Planner?showComparison=true">Review the term option in the planner</a>.
+        </aside>
+    }
+    @if (!string.IsNullOrWhiteSpace(p.PayPalOrderId))
+    {
+        <p class="alert alert-info">This purchase has a saved PayPal order. Its dates and quoted total are locked. Retrying resumes this order.</p>
+    }
+    @if (Model.PriceChanged)
+    {
+        <div class="alert alert-warning">The catalog price changed or is unavailable. Review the current published price before paying.</div>
+        <form method="post" action="/Prepaid/Refresh/@p.Id">@Html.AntiForgeryToken()<button class="btn btn-primary" type="submit">Refresh published price</button></form>
+    }
+    else if (p.PaymentStatus is Solvia.Models.Enums.PaymentStatus.Pending or Solvia.Models.Enums.PaymentStatus.Failed)
+    {
+        <partial name="_PayPalPaymentPanel" model="new PayPalPaymentPanelViewModel(p.Id, p.TotalCents, Model.Snapshot, p.PayPalOrderId, p.PayPalCaptureId, IsPrepaid: true)" />
+    }
+    else { <p class="alert alert-warning">This purchase cannot accept another payment. Check its saved status: @p.PaymentStatus.</p> }
+    <p class="mt-3"><a href="/Planner?showComparison=true">Back to my saved plan</a> · <a href="/Permits/My">My permits</a></p>
+    @if (string.IsNullOrWhiteSpace(p.PayPalOrderId))
+    {
+        <form method="post" action="/Prepaid/Revise/@p.Id">@Html.AntiForgeryToken()<button type="submit" class="btn btn-outline-secondary">Revise dates or vehicle</button><p class="form-text">Releases this unpaid draft so you can review a revised selection. No payment has started.</p></form>
+    }
+</div>

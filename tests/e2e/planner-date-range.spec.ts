@@ -36,7 +36,7 @@ async function guardReadingAndPayments(page: Page, allowScheduleRead = false) {
   // The main Playwright config pins the real server reader to offline Ollama
   // configuration (port 1, blank hosted credentials). Do not replace the reader
   // response: /Planner/Read must exercise its actual deterministic grounding.
-  await page.route(/\/Planner\/Read(?:[/?]|$)|\/Permits\/(?:Understand|Review|Confirm)(?:[/?]|$)|\/api\/(?:chat|paypal)(?:[/?]|$)|\/Checkout(?:[/?]|$)|https?:\/\/(?:[^/]*\.)?(?:together\.ai|paypal\.com|paypalobjects\.com)(?:[/:]|$)|https?:\/\/(?:localhost|127\.0\.0\.1):11434(?:[/?]|$)/i, async route => {
+  await page.route(/\/Planner\/Read(?:[/?]|$)|\/Permits\/(?:Understand|Review|Confirm)(?:[/?]|$)|\/api\/(?:chat|paypal|prepaid)(?:[/?]|$)|\/Checkout(?:[/?]|$)|\/Prepaid\/(?:Create|Start)(?:[/?]|$)|https?:\/\/(?:[^/]*\.)?(?:together\.ai|paypal\.com|paypalobjects\.com)(?:[/:]|$)|https?:\/\/(?:localhost|127\.0\.0\.1):11434(?:[/?]|$)/i, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (allowScheduleRead && url.pathname.toLowerCase() === '/planner/read' && request.method() === 'POST') {
@@ -131,7 +131,7 @@ test('the exact stated date range reads MWF and both bounds, then rejects visits
   expect(requests.rejected).toEqual([]);
 });
 
-test('@smoke an exact range counts only 26 selected visits and retains its bounds through Change the plan', async ({ page }) => {
+test('@smoke an exact range carries 26 selected visits into prepaid choices and retains its bounds through revision', async ({ page }) => {
   // Two complete comparisons, handoff and revision are one long journey.
   // Preserve the normal assertion deadlines on slower WebKit hosts.
   test.setTimeout(90_000);
@@ -145,11 +145,16 @@ test('@smoke an exact range counts only 26 selected visits and retains its bound
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await expect(page.locator('#comparison-title')).toBeFocused();
   await expectTwentySixVisits(page, range.visits);
-  await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Three quick questions', exact: true })).toBeVisible();
-  await expect(page.locator('input[name="startDate"]')).toHaveValue(iso(range.visits[0]));
-  await expect(page.getByLabel('Day pass — one day', { exact: true })).toBeChecked();
-  await page.getByRole('link', { name: 'Change the plan', exact: true }).click();
+  await page.getByRole('button', { name: 'Buy these dates', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Choose your prepaid dates', exact: true })).toBeVisible();
+  const offeredDates = page.getByTestId('prepaid-dates');
+  await expect(offeredDates.getByRole('checkbox')).toHaveCount(26);
+  expect(await offeredDates.locator('input[name="selectedDates"]').evaluateAll(
+    inputs => inputs.map(input => (input as HTMLInputElement).value))).toEqual(range.visits.map(iso));
+  await expect(offeredDates.locator('input[name="selectedDates"]:checked')).toHaveCount(26);
+  expect(await offeredDates.locator('time').evaluateAll(
+    dates => dates.map(date => date.getAttribute('datetime')))).toEqual(range.visits.map(iso));
+  await page.getByRole('link', { name: 'Revise my schedule', exact: true }).click();
   await expectRange(page, range.start, range.end);
   await expectMwf(page);
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
@@ -233,6 +238,8 @@ test('one visit hides and disables an invalid repeating end date before comparis
   await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(page.getByTestId('plan-result')).toContainText('1 visit. Two ways to plan.');
   await expect(page.getByTestId('daily-total')).toHaveText('$1.00');
+  await expect(page.getByRole('button', { name: 'Start with one day pass', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Buy these dates', exact: true })).toHaveCount(0);
   await expect(page.locator('#EndDate')).toBeDisabled();
   await expect(page.locator('#EndDate')).toHaveValue('');
   expect(requests.rejected).toEqual([]);

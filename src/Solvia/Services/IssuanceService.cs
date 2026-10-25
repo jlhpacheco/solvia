@@ -5,11 +5,10 @@ namespace Solvia.Services;
 /// <summary>
 /// The ONE mint path (REDO-PLAN §2d, item 34). A permit is issued
 /// exactly when its application becomes live, and only through
-/// <see cref="IssueIfAbsentAsync"/> — called from exactly three
-/// places: a $0 application at creation (ApplicationService), a
-/// COMPLETED PayPal capture (R6's CheckoutService), and a verified
-/// PayPal webhook (R7). No other path mints: not the return page,
-/// not the receipt page, not the PDF.
+/// <see cref="IssueIfAbsentAsync"/> — used for free/exempt creation,
+/// verified individual or shared-purchase captures, and verified PayPal
+/// webhooks. Shared purchases issue each dated child through this same
+/// implementation. The return, receipt and PDF pages do not mint permits.
 /// </summary>
 public interface IIssuanceService
 {

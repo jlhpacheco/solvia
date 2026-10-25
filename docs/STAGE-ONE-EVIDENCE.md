@@ -15,7 +15,7 @@ The [official rules, section 6](https://paypalaihackathon.devpost.com/rules) des
 
 **Describe visits → confirm an editable schedule → compare catalog day/term costs → describe/review a vehicle → confirm a server-priced single permit → PayPal SDK checkout → verified completed capture → receipt/PDF and public verification.**
 
-OpenAI's US-developed **`openai/gpt-oss-120b`**, hosted by Together AI, drafts only constrained fields for review. The planner uses confirmed weekdays/weeks, actual demo date windows, integer cents and server-resolved category; it cannot purchase several day passes. Daily continuation starts only the first planned visit. The model has no price or payment tools. A read-only Operations view helps inspect saved payment references and separate Paid from Active; it is not a new provider lookup or production staff authentication.
+OpenAI's US-developed **`openai/gpt-oss-120b`**, hosted by Together AI, drafts only constrained fields for review. The planner uses confirmed weekdays/weeks, actual demo date windows, integer cents and server-resolved category; it makes no payment itself. Multiple-date continuation opens an explicit date/vehicle review before one PayPal order and verified capture issue separate dated permits. The model has no price or payment tools. A read-only Operations view helps inspect saved payment references and separate Paid from Active; it is not a new provider lookup or production staff authentication.
 
 | Technical point | Current evidence / practical boundary |
 |---|---|
@@ -33,7 +33,7 @@ See the [US-model/planner note](US-MODEL-AND-PLANNER.md), [testing instructions]
 ## Judge reproduction path
 
 1. Follow [README setup](../README.md#run-it-locally), provisioning server-only Sandbox/Together credentials privately. Open the printed app address, normally `http://localhost:5156`. Use fictional adult inputs; the person switcher is a demo, not production login.
-2. Select Maria, **Plan parking**, Fresno City College, and a future start inside the selected demo academic/permit window. Try `Tuesdays and Thursdays for three weeks`. Review the Together source and editable choices. Six $1 visits compare with a $30 term; this is a catalog estimate, not prepaid visits or verified campus eligibility. Choose **Start with one day pass** only when testing one day.
+2. Select Maria, **Plan parking**, Fresno City College, and a future start inside the selected demo academic/permit window. Try `Tuesdays and Thursdays for three weeks`. Review the Together source and editable choices. Six $1 visits compare with a $30 term; this is a catalog estimate, not verified campus eligibility. Choose **Buy these dates** to review a prepaid selection, or **Start with one day pass** for a single visit.
 3. Alternatively start **Ask Solvia**, choose the college/permit/term, then enter `My fictional blue Honda Civic has license plate number 7ABC123, CA.` Review/correct every field. Verify the exact researched CSV total before payment; missing fees stay unavailable.
 4. Use a separate Personal Sandbox buyer for interactive wallet testing. The independently verified automated path uses PayPal's official Sandbox test-card confirmation followed by Solvia's capture endpoint; do not claim that this establishes wallet login approval.
 5. Inspect the receipt/PDF references and current public validity. Under **Payment review**, compare saved count/gross with filtered rows and read the source banner; Refresh records does not recheck PayPal. A paid historical PDF is not proof of a currently active permit.

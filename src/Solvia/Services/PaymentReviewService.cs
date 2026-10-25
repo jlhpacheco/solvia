@@ -10,8 +10,9 @@ namespace Solvia.Services;
 /// Read-only review of local Sandbox demo records. No payment/provider/model
 /// dependency and no change tracking. Access is gated by OperationsController.
 /// </summary>
-public sealed class PaymentReviewService(SolviaDbContext db)
+public sealed class PaymentReviewService(SolviaDbContext db, TimeProvider? clock = null)
 {
+    private static readonly TimeZoneInfo PacificZone = TimeZoneInfo.FindSystemTimeZoneById("America/Los_Angeles");
     public async Task<PaymentReviewViewModel> ReadAsync(
         string? campus = null, PaymentStatus? status = null, UserCategory? category = null,
         bool attentionOnly = false, DateOnly? validityDate = null,
@@ -22,8 +23,9 @@ public sealed class PaymentReviewService(SolviaDbContext db)
         var applications = await db.PermitApplications.AsNoTracking()
             .OrderByDescending(application => application.SubmittedAtUtc)
             .ToListAsync(cancellationToken);
-        var now = DateTime.UtcNow;
-        var today = validityDate ?? DateOnly.FromDateTime(DateTime.Now);
+        var instant = (clock ?? TimeProvider.System).GetUtcNow();
+        var now = instant.UtcDateTime;
+        var today = validityDate ?? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, PacificZone).DateTime);
         var campuses = applications.Select(application => application.Campus)
             .Distinct(StringComparer.Ordinal).OrderBy(value => value, StringComparer.Ordinal).ToArray();
 
@@ -55,9 +57,11 @@ public sealed class PaymentReviewService(SolviaDbContext db)
         else if (application.PriceCents > 0 && application.PaymentStatus == PaymentStatus.Pending &&
             application.Status != ApplicationStatus.Denied)
             issues.Add("Awaiting payment");
-        if (application.PaymentStatus == PaymentStatus.Paid && string.IsNullOrWhiteSpace(application.PayPalCaptureId))
+        if (application.PaymentStatus == PaymentStatus.Paid && string.IsNullOrWhiteSpace(application.PaymentCaptureReference))
             issues.Add("Paid · capture missing");
-        if (application.PaymentStatus == PaymentStatus.Paid && !validity.IsActive)
+        var upcoming = application.PaymentStatus == PaymentStatus.Paid &&
+            application.Status != ApplicationStatus.Denied && today < application.StartDate;
+        if (application.PaymentStatus == PaymentStatus.Paid && !validity.IsActive && !upcoming)
             issues.Add("Paid · permit inactive");
         if (application.PaymentStatus == PaymentStatus.Failed)
             issues.Add("Payment failed");
@@ -68,8 +72,9 @@ public sealed class PaymentReviewService(SolviaDbContext db)
             string.IsNullOrWhiteSpace(application.ReceiptNumber) ? "Application " + application.Id.ToString("N")[..8] : application.ReceiptNumber,
             DemoAlias(application.StudentId), application.Campus, application.Category.ToString(),
             application.PaymentStatus.ToString(), application.PriceCents,
-            application.PayPalOrderId, application.PayPalCaptureId, application.PaidAtUtc,
-            application.StartDate, application.EndDate, validity.IsActive, validity.Reason, issues)
+            application.PaymentOrderReference, application.PaymentCaptureReference, application.PaidAtUtc,
+            application.StartDate, application.EndDate, validity.IsActive,
+            upcoming ? "Upcoming · Paid. " + validity.Reason : validity.Reason, issues)
         {
             HasConfirmedAmount = hasConfirmedAmount
         };

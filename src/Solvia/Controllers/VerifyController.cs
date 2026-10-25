@@ -67,7 +67,7 @@ public sealed class VerifyController : Controller
             return View("Invalid", VerifyResultBuilder.NotFound());
         }
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "America/Los_Angeles"));
         var model = VerifyResultBuilder.FromApplication(application, today);
         return View(model.IsValid ? "Verify" : "Invalid", model);
     }

@@ -15,6 +15,7 @@
         <h1 class="display-4 fw-bold mt-4">@(Model.IsFree ? "Permit issued" : "Payment confirmed")</h1>
         <p class="alert alert-info">@Model.ValidityReason</p>
     }
+    <p class="fw-semibold" data-testid="permit-validity-status">@Model.StatusDisplay</p>
     <a class="btn btn-primary btn-lg w-100 py-3 fs-3 mt-3" href="/Permits/PermitPdf/@Model.Id" aria-describedby="permit-download-help">Download permit (PDF)</a>
     <p id="permit-download-help" class="fs-6 text-muted mt-2 mb-3">
         Save the PDF, or print it on US Letter paper at Actual size (100%).
@@ -24,8 +25,8 @@
 else if (Model.CanPay)
 {
     <h1 class="display-4 fw-bold mt-4">Not paid yet</h1>
-    <p class="fs-4">This permit is not live. It goes live only when a PayPal payment completes.</p>
-    <a class="btn btn-primary sv-cta w-100 mb-3" href="/Checkout/@Model.Id">Finish paying</a>
+    <p class="fs-4">This permit is not issued yet. Payment must complete before issuance; parking validity also depends on the printed dates.</p>
+    <a class="btn btn-primary sv-cta w-100 mb-3" href="@Model.PaymentUrl">Finish paying</a>
 }
 else
 {
@@ -53,9 +54,25 @@ else
         <dt>Good for</dt>
         <dd>@Date(Model.StartDate) to @Date(Model.EndDate)</dd>
 
-        <dt>Total</dt>
+        <dt>@(Model.PurchaseId is null ? "Total" : "Daily permit fee for this date")</dt>
         <dd>@Model.TotalDisplay</dd>
+        @if (Model.PurchaseId is { } purchaseId)
+        {
+            <dt>Prepaid purchase ID</dt>
+            <dd class="text-break"><a href="/Prepaid/Review/@purchaseId"><code>@purchaseId</code></a></dd>
+            <dt>Overall purchase total</dt>
+            <dd>@Model.PurchaseTotalDisplay for @Model.PurchaseDayCount dates</dd>
+        }
     </dl>
+
+    @if (Model.PurchaseId is { } packetId)
+    {
+        <p class="mt-3">This receipt covers one dated permit in a prepaid purchase. The overall total applies to the whole purchase and is not charged again for each permit.</p>
+        @if (Model.IsLive)
+        {
+            <a class="btn btn-outline-primary w-100" href="/Prepaid/Pdf/@packetId">Download all dated permits (PDF)</a>
+        }
+    }
 
     @if (Model.PayPalOrderId is not null || Model.PayPalCaptureId is not null)
     {
@@ -77,7 +94,7 @@ else
     }
     @if (Model.IsFree)
     {
-        <p class="fs-4 mt-3 mb-0">Free at your college — no payment was needed.</p>
+        <p class="fs-4 mt-3 mb-0">Issued without payment under the demo's free or exemption rules; actual campus eligibility may differ.</p>
     }
 
     @if (Model.VerifyUrl is not null)

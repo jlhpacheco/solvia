@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using Solvia.Models.Enums;
 
 namespace Solvia.Models;
@@ -83,6 +84,20 @@ public sealed class PermitApplication
 
     /// <summary>PayPal capture returned when the money lands.</summary>
     public string? PayPalCaptureId { get; set; }
+
+    /// <summary>Optional membership in one prepaid multi-date purchase.</summary>
+    public PrepaidPurchaseItem? PrepaidItem { get; set; }
+
+    /// <summary>Read-only shared reference; never copied into a daily child's persisted payment fields.</summary>
+    [NotMapped]
+    public string? PaymentOrderReference => PrepaidItem?.Purchase?.PayPalOrderId ?? PayPalOrderId;
+
+    [NotMapped]
+    public string? PaymentCaptureReference => PrepaidItem?.Purchase?.PayPalCaptureId ?? PayPalCaptureId;
+
+    /// <summary>The whole purchase total; PriceCents remains this permit's own fee.</summary>
+    [NotMapped]
+    public int? PurchaseTotalCents => PrepaidItem?.Purchase?.TotalCents;
 
     /// <summary>Set once, only when the payment is truly Paid.</summary>
     public DateTime? PaidAtUtc { get; set; }

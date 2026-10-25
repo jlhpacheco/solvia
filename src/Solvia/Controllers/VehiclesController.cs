@@ -56,12 +56,12 @@ public sealed class VehiclesController : DemoControllerBase
 
     // ------------------------------------------------------------ Create
 
-    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(CancellationToken cancellationToken, string? returnUrl = null)
     {
         // Resolving the person here also proves the demo cookie maps
         // to a seeded person before the form is offered.
         _ = await CurrentStudentAsync(_db, cancellationToken);
-        return View(new VehicleEditViewModel());
+        return View(new VehicleEditViewModel { ReturnUrl = Url?.IsLocalUrl(returnUrl) == true ? returnUrl : null });
     }
 
     [HttpPost]
@@ -97,6 +97,7 @@ public sealed class VehiclesController : DemoControllerBase
         await _db.SaveChangesAsync(cancellationToken);
 
         TempData["StatusMessage"] = $"Vehicle {vehicle.Plate} added to your garage.";
+        if (Url?.IsLocalUrl(form.ReturnUrl) == true) return LocalRedirect(form.ReturnUrl!);
         return RedirectToAction(nameof(Index));
     }
 

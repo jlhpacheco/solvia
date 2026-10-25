@@ -1,0 +1,29 @@
+@model Solvia.Models.PrepaidPurchase
+@using Solvia.Models.Enums
+@using System.Globalization
+@{ ViewData["Title"] = "Your prepaid passes"; var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "America/Los_Angeles")); }
+@section Styles { <link rel="stylesheet" href="~/css/prepaid.css" asp-append-version="true" /> }
+<div class="sv-prepaid">
+    <p class="sv-eyebrow">3 · YOUR PASSES</p>
+    <h1>Your prepaid passes</h1>
+    <div class="alert alert-success">@(Model.PaymentStatus == PaymentStatus.Paid ? "Payment confirmed." : "No payment required under this published fee or exemption.") @Model.Items.Count separate dated permits are ready to download.</div>
+    <section class="sv-card">
+        <h2 class="h4">@Model.Campus</h2>
+        <p>@Model.Category · @Model.Vehicle?.Plate (@Model.Vehicle?.State)</p>
+        <p><strong>Total: $@((Model.TotalCents / 100m).ToString("0.00", CultureInfo.InvariantCulture)) USD</strong> · $@((Model.UnitPriceCents / 100m).ToString("0.00", CultureInfo.InvariantCulture)) per day</p>
+        <a class="btn btn-primary sv-cta" href="/Prepaid/Pdf/@Model.Id">Download all permit PDFs</a>
+        <p class="mt-2">The combined PDF contains one page per date. Print only the pass for the day you park.</p>
+        <dl class="sv-prepaid-references"><dt>Purchase ID</dt><dd>@Model.Id</dd><dt>PayPal order ID</dt><dd>@(Model.PayPalOrderId ?? "Not required")</dd><dt>PayPal capture ID</dt><dd>@(Model.PayPalCaptureId ?? "Not required")</dd></dl>
+    </section>
+    <ul class="sv-prepaid-passes">
+        @foreach (var item in Model.Items.OrderBy(i => i.Application.StartDate))
+        {
+            var a = item.Application;
+            var validity = Solvia.Services.PermitValidity.Check(a, today);
+            var upcoming = a.Status != ApplicationStatus.Denied && (a.PaymentStatus is PaymentStatus.Paid or PaymentStatus.NotRequired) && a.StartDate > today;
+            var status = validity.IsActive ? "Valid today" : upcoming ? "Upcoming" : a.EndDate < today ? "Expired" : "Not valid";
+            <li class="sv-card"><h2 class="h5"><time datetime="@a.StartDate.ToString("yyyy-MM-dd")">@a.StartDate.ToString("ddd, MMM d, yyyy", CultureInfo.InvariantCulture)</time></h2><p><strong>@status</strong> · @(a.PaymentStatus == PaymentStatus.Paid ? "Paid" : "Payment not required") · @a.ReceiptNumber</p><a href="/Permits/PermitPdf/@a.Id" class="btn btn-outline-primary">Download this day's PDF</a> <a href="/Permits/Receipt/@a.Id">View permit</a></li>
+        }
+    </ul>
+    <p><a href="/Permits/My">My permits</a> · <a href="/Planner">Plan more visits</a></p>
+</div>

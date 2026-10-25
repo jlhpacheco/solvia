@@ -1,3 +1,5 @@
+> Current prepaid checkout update: multiple visits can now be explicitly selected and paid in one order, with separate dated permits. See [prepaid checkout](review/PREPAID-DATES-2026-10-24.md). Earlier first-day-only observations below describe the previous flow.
+
 # US-developed AI, permit planning and staff review
 
 Updated October 24, 2026. This is the current implementation note; older

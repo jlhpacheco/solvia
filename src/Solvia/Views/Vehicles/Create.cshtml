@@ -11,8 +11,9 @@
 
 <div class="sv-card">
     <form asp-action="Create" method="post">
+        <input asp-for="ReturnUrl" type="hidden" />
         <partial name="_VehicleFields" model="Model" />
         <button type="submit" class="btn btn-primary sv-cta w-100 mt-3">Save vehicle</button>
-        <a asp-action="Index" class="btn btn-outline-secondary btn-lg w-100 mt-2 py-3">Cancel</a>
+        <a href="@(Url.IsLocalUrl(Model.ReturnUrl) ? Model.ReturnUrl : Url.Action("Index"))" class="btn btn-outline-secondary btn-lg w-100 mt-2 py-3">Cancel</a>
     </form>
 </div>

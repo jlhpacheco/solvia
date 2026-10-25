@@ -12,7 +12,7 @@ namespace Solvia.Controllers;
 /// <summary>Reviewable schedule drafting and read-only price comparison. No payment tools.</summary>
 public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
     VisitPlannerService planner, IVisitScheduleReader reader, UserCategoryResolver categories,
-    AiRequestLimiter limiter) : DemoControllerBase
+    AiRequestLimiter limiter, PrepaidPlanProtection? prepaidPlans = null) : DemoControllerBase
 {
     private const string DraftKey = "Solvia.PlannerDraft";
 
@@ -143,6 +143,9 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
             var permitted = model.Result.IsValid && model.Result.FirstVisit is not null &&
                 ((choice == "Daily" && model.Result.DayCents is not null) ||
                  (choice == "Term" && model.Result.TermAvailable && model.Result.TermCents is not null));
+            if (permitted && choice == "Daily" && model.Result.DayCount > 1 && prepaidPlans is not null)
+                return RedirectToAction("Choose", "Prepaid", new { plan = prepaidPlans.Protect(
+                    model.PersonId, model.Result.Campus, model.Term, model.Result.VisitDates) });
             if (permitted)
                 return RedirectToAction("Questions", "Permits", new
                 {

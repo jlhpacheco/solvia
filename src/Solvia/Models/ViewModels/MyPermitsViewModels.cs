@@ -41,6 +41,12 @@ public sealed class MyPermitRow
     public bool IsLive { get; set; }
     public bool IsActive { get; set; }
     public string ValidityReason { get; set; } = "";
+    public string StatusDisplay { get; set; } = "";
+    public Guid? PurchaseId { get; set; }
+    public string? PurchaseTotalDisplay { get; set; }
+    public int? PurchaseDayCount { get; set; }
+    public bool ShowPurchaseActions { get; set; }
+    public string PaymentUrl => PurchaseId is { } purchase ? $"/Prepaid/Review/{purchase}" : $"/Checkout/{Id}";
 
     /// <summary>Item 39: "Pay Now" shows only when money is still owed.</summary>
     public bool ShowPayNow { get; set; }
@@ -91,6 +97,11 @@ public sealed class ReceiptViewModel
     public bool IsLive { get; set; }
     public bool IsActive { get; set; }
     public string ValidityReason { get; set; } = "";
+    public string StatusDisplay { get; set; } = "";
+    public Guid? PurchaseId { get; set; }
+    public string? PurchaseTotalDisplay { get; set; }
+    public int? PurchaseDayCount { get; set; }
+    public string PaymentUrl => PurchaseId is { } purchase ? $"/Prepaid/Review/{purchase}" : $"/Checkout/{Id}";
 
     /// <summary>True for a free permit (no payment was needed).</summary>
     public bool IsFree { get; set; }

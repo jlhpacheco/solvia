@@ -64,20 +64,26 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
     }
 
     [Fact]
-    public async Task Comparison_ExplainsSixVisitsAndSingleDayContinuationWithoutCreatingApplication()
+    public async Task Comparison_ExplainsSixPrepaidDatesWithoutCreatingApplicationOrPurchase()
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SolviaDbContext>();
         var count = await db.PermitApplications.CountAsync();
+        var purchases = await db.PrepaidPurchases.CountAsync();
         var response = await Post("/Planner/Compare", PlanFields());
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = await response.Content.ReadAsStringAsync();
         Assert.Contains("6 visits. Two ways to plan.", html);
         Assert.Contains("$6.00", html);
         Assert.Contains("$30.00", html);
-        Assert.Contains("only the first planned day", html);
+        Assert.Contains("Pay once for the dates you choose", html);
+        Assert.Contains("Each date gets its own one-day permit", html);
+        Assert.Contains("future passes become valid on their printed dates", html);
+        Assert.Contains("Buy these dates", html);
+        Assert.DoesNotContain("Start with one day pass", html);
         Assert.Contains("not a live campus feed", html);
         Assert.Equal(count, await db.PermitApplications.CountAsync());
+        Assert.Equal(purchases, await db.PrepaidPurchases.CountAsync());
     }
 
     [Theory]
@@ -89,6 +95,7 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SolviaDbContext>();
         var before = await db.PermitApplications.CountAsync();
+        var purchasesBefore = await db.PrepaidPurchases.CountAsync();
         var fields = PlanFields();
         fields.RemoveAll(pair => pair.Key == "Weeks");
         fields.Add(new("Weeks", ""));
@@ -102,10 +109,11 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
         Assert.Contains($"value=\"{weekday}\" checked=\"checked\"", html);
         Assert.Contains("data-source=\"fallback\"", html);
 
-        fields.RemoveAll(pair => pair.Key is "Weeks" or "Weekdays" or "StartDate");
+        fields.RemoveAll(pair => pair.Key is "Weeks" or "Weekdays" or "StartDate" or "SingleVisit");
         fields.Add(new("Weeks", weeks));
         fields.Add(new("Weekdays", weekday));
         fields.Add(new("StartDate", "2026-10-26"));
+        fields.Add(new("SingleVisit", visits == 1 ? "true" : "false"));
         var comparison = await Post("/Planner/Compare", fields);
         html = await comparison.Content.ReadAsStringAsync();
         Assert.Contains($"{visits} {(visits == 1 ? "visit" : "visits")}. Two ways to plan.", html);
@@ -116,18 +124,35 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
         fields.Add(new("choice", "Daily"));
         var continuation = await Post("/Planner/Continue", fields);
         Assert.Equal(HttpStatusCode.Redirect, continuation.StatusCode);
-        Assert.Contains("startDate=2026-10-26", continuation.Headers.Location!.OriginalString);
-        var questionsResponse = await _client.GetAsync(continuation.Headers.Location);
-        for (var attempt = 0; questionsResponse.StatusCode == HttpStatusCode.Redirect && attempt < 5; attempt++)
-            questionsResponse = await _client.GetAsync(questionsResponse.Headers.Location!);
-        questionsResponse.EnsureSuccessStatusCode();
-        var questions = await questionsResponse.Content.ReadAsStringAsync();
-        Assert.Contains("name=\"startDate\" value=\"2026-10-26\"", questions);
+        var target = continuation.Headers.Location!.OriginalString;
+        if (visits == 1)
+        {
+            Assert.StartsWith("/Permits/Questions", target);
+            Assert.Contains("startDate=2026-10-26", target);
+            var questionsResponse = await _client.GetAsync(continuation.Headers.Location);
+            for (var attempt = 0; questionsResponse.StatusCode == HttpStatusCode.Redirect && attempt < 5; attempt++)
+                questionsResponse = await _client.GetAsync(questionsResponse.Headers.Location!);
+            questionsResponse.EnsureSuccessStatusCode();
+            Assert.Contains("name=\"startDate\" value=\"2026-10-26\"", await questionsResponse.Content.ReadAsStringAsync());
+        }
+        else
+        {
+            Assert.StartsWith("/Prepaid/Choose?plan=", target);
+            var choices = await _client.GetAsync(continuation.Headers.Location);
+            Assert.Equal(HttpStatusCode.OK, choices.StatusCode);
+            var choicesHtml = await choices.Content.ReadAsStringAsync();
+            Assert.Contains("Choose your prepaid dates", choicesHtml);
+            var offered = Regex.Matches(choicesHtml, "name=\"selectedDates\"[^>]*value=\"([^\"]+)\"")
+                .Select(match => match.Groups[1].Value).ToArray();
+            Assert.Equal(new[] { "2026-10-26", "2026-11-02", "2026-11-09" }, offered);
+            Assert.Contains("Revise my schedule", choicesHtml);
+        }
         var restored = await _client.GetStringAsync("/Planner");
         Assert.Contains("value=\"2026-10-26\"", restored);
         Assert.DoesNotContain("name=\"Weeks\"", restored);
         if (visits > 1) Assert.Matches("id=\"EndDate\"[^>]*value=\"2026-11-15\"", restored);
         Assert.Equal(before, await db.PermitApplications.CountAsync());
+        Assert.Equal(purchasesBefore, await db.PrepaidPurchases.CountAsync());
     }
 
     [Theory]
@@ -143,7 +168,10 @@ public sealed class PlannerFlowIntegrationTests : IClassFixture<AppIntegrationTe
     [Fact]
     public async Task ChoiceCarriesConfirmedDateThroughVehicleReadFixItAndSavedSingleDay()
     {
-        var fields = PlanFields(); fields.Add(new("choice", "Daily"));
+        var fields = PlanFields();
+        fields.RemoveAll(pair => pair.Key is "Weeks" or "Weekdays");
+        fields.Add(new("SingleVisit", "true"));
+        fields.Add(new("choice", "Daily"));
         var continueResponse = await CompareAndContinue(fields);
         Assert.Equal(HttpStatusCode.Redirect, continueResponse.StatusCode);
         var target = continueResponse.Headers.Location!.OriginalString;

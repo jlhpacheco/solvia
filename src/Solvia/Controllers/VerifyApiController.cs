@@ -67,7 +67,7 @@ public sealed class VerifyApiController : ControllerBase
             return Ok(VerifyResultBuilder.NotFound());
         }
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "America/Los_Angeles"));
         return Ok(VerifyResultBuilder.FromApplication(application, today));
     }
 }

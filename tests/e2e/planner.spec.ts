@@ -40,7 +40,11 @@ test('@smoke planner compares confirmed costs with no automatic purchase', async
   await expect(page.locator('#comparison-title')).toBeFocused();
   await expect(page.getByTestId('daily-total')).toHaveText('$6.00');
   await expect(page.getByTestId('term-total')).toHaveText('$30.00');
-  await expect(results).toContainText('only the first planned day');
+  await expect(results).toContainText('Pay once for the dates you choose');
+  await expect(results).toContainText('Each date gets its own one-day permit');
+  await expect(results).toContainText('future passes become valid on their printed dates');
+  await expect(page.getByRole('button', { name: 'Buy these dates', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start with one day pass', exact: true })).toHaveCount(0);
   await page.getByText('Visit dates and price source', { exact: true }).click();
   await expect(results).toContainText('not a live campus feed');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
@@ -134,8 +138,12 @@ test('uncertain schedule leaves choices open for confirmation', async ({ page })
 });
 
 test('one-day continuation keeps its planned date through vehicle review and Fix it', async ({ page }) => {
-  await configure(page);
+  const { iso } = await configure(page);
+  await page.getByRole('radio', { name: 'One visit', exact: true }).check();
+  await page.getByLabel('Visit date', { exact: true }).fill(iso);
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
+  await expect(page.getByTestId('plan-result')).toContainText('1 visit. Two ways to plan.');
+  await expect(page.getByRole('button', { name: 'Buy these dates', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
   const date = await page.locator('input[name="startDate"]').inputValue();
   await expect(page.getByLabel('Day pass — one day', { exact: true })).toBeChecked();
@@ -160,7 +168,7 @@ test('unpublished term stays unavailable while published day estimate is shown',
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await expect(page.getByTestId('term-total')).toHaveText('Not published');
   await expect(page.getByRole('button', { name: 'Choose a term permit', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Start with one day pass', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Buy these dates', exact: true })).toBeVisible();
   await expect(page.getByTestId('plan-result')).toContainText('no cheapest-option claim');
 });
 
@@ -192,8 +200,8 @@ test('future issued permit retains its PDF without claiming current validity', a
   await page.getByRole('button', { name: 'Elena', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Welcome, Elena.', exact: true })).toBeVisible();
   await page.goto('/Planner');
-  await page.getByLabel('Start of your planning period').fill(`${new Date().getFullYear() + 1}-08-24`);
-  await page.getByLabel('End date', { exact: true }).fill(`${new Date().getFullYear() + 1}-09-13`);
+  await page.getByRole('radio', { name: 'One visit', exact: true }).check();
+  await page.getByLabel('Visit date', { exact: true }).fill(`${new Date().getFullYear() + 1}-08-24`);
   await page.getByLabel('Fall', { exact: true }).check();
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
   await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
@@ -206,7 +214,7 @@ test('future issued permit retains its PDF without claiming current validity', a
   await expect(page.getByRole('link', { name: 'Download permit (PDF)', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Back to my permits', exact: true }).click();
   const card = page.locator('.d-xxl-none .sv-card').filter({ hasText: plate });
-  await expect(card).toContainText('Issued · inactive');
+  await expect(card).toContainText('Upcoming · Issued');
   await expect(card.getByText('Live', { exact: true })).toHaveCount(0);
   await expect(card.getByRole('link', { name: 'Permit (PDF)', exact: true })).toBeVisible();
 });
@@ -229,14 +237,15 @@ test('@smoke blank optional description permits reading and manual comparison', 
   await expect(page.getByTestId('daily-total')).toHaveText('$8.00');
 });
 
-test('returning from permit questions restores the full confirmed planner draft', async ({ page }) => {
+test('revising prepaid dates restores the full confirmed planner draft', async ({ page }) => {
   const { iso } = await configure(page);
   await page.getByLabel('Describe your visits', { exact: false }).fill('Tuesdays and Thursdays for four weeks');
   await page.getByLabel('End date', { exact: true }).fill(endAfterWeeks(iso, 4));
   await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
-  await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Three quick questions', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Change the plan', exact: true }).click();
+  await page.getByRole('button', { name: 'Buy these dates', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Choose your prepaid dates', exact: true })).toBeVisible();
+  await expect(page.getByTestId('prepaid-dates').getByRole('checkbox')).toHaveCount(8);
+  await page.getByRole('link', { name: 'Revise my schedule', exact: true }).click();
   await expect(page.getByLabel('Your college', { exact: true })).toHaveValue('Fresno City College');
   await expect(page.getByLabel('Describe your visits', { exact: false })).toHaveValue('Tuesdays and Thursdays for four weeks');
   await expect(page.getByLabel('Start of your planning period')).toHaveValue(iso);
@@ -273,13 +282,14 @@ test('without JavaScript blank reading is optional and changed comparisons requi
     await expect(page.getByTestId('schedule-reader')).toContainText('No description is needed');
     await page.getByRole('button', { name: 'Compare my options', exact: true }).click();
     await page.getByLabel('End date', { exact: true }).fill(endAfterWeeks(iso, 5));
-    await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
+    await page.getByRole('button', { name: 'Buy these dates', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Your plan changed');
     await expect(page.getByTestId('plan-result')).toContainText('10 visits. Two ways to plan.');
     await expect(page.getByLabel('End date', { exact: true })).toHaveValue(endAfterWeeks(iso, 5));
-    await page.getByRole('button', { name: 'Start with one day pass', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Three quick questions', exact: true })).toBeVisible();
-    await page.getByRole('link', { name: 'Change the plan', exact: true }).click();
+    await page.getByRole('button', { name: 'Buy these dates', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Choose your prepaid dates', exact: true })).toBeVisible();
+    await expect(page.getByTestId('prepaid-dates').getByRole('checkbox')).toHaveCount(10);
+    await page.getByRole('link', { name: 'Revise my schedule', exact: true }).click();
     await expect(page.getByLabel('End date', { exact: true })).toHaveValue(endAfterWeeks(iso, 5));
   } finally { await context.close(); }
 });

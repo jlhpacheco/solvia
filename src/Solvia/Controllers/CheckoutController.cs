@@ -63,6 +63,9 @@ public sealed class CheckoutController : DemoControllerBase
             return NotFound();
         }
 
+        if (application.PrepaidItem is { } grouped)
+            return Redirect($"/Prepaid/Review/{grouped.PurchaseId}");
+
         // Item 19: Paid and $0 permits never see a checkout page —
         // their home is My Permits.
         if (application.Status == ApplicationStatus.Denied || application.Category == UserCategory.Employee ||
@@ -264,6 +267,8 @@ public sealed class CheckoutController : DemoControllerBase
             return NotFound();
         }
 
+        if (application.PrepaidItem is { } grouped)
+            return Redirect($"/Prepaid/Receipt/{grouped.PurchaseId}");
         ViewData["Title"] = "Permit status";
         ViewData["AmountDisplay"] = FormatAmount(application.PriceCents);
         return View(application);

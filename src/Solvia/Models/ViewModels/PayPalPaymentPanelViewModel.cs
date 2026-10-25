@@ -6,4 +6,5 @@ public sealed record PayPalPaymentPanelViewModel(
     int PriceCents,
     string ReviewedSnapshot,
     string? PayPalOrderId = null,
-    string? PayPalCaptureId = null);
+    string? PayPalCaptureId = null,
+    bool IsPrepaid = false);

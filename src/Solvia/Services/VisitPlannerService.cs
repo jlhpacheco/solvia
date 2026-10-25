@@ -40,7 +40,7 @@ public sealed record PlanResult
     public string FeeAsOf { get; init; } = "October 2026 catalog snapshot";
     public TermDates? Window { get; init; }
     public string Disclosure => "Planning estimate only: published catalog snapshot and demo permit dates, not live prices or verified campus eligibility. " +
-        "This does not buy several day passes. Continuing with a day pass covers only the first planned day.";
+        "Compare first, then review your selected dates and vehicle before paying. Each prepaid day pass covers only its own date.";
 }
 
 /// <summary>

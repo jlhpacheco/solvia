@@ -102,10 +102,10 @@
                     <p class="sv-plan-price" data-testid="daily-total">@Money(result.DailyTotal)</p>
                     <p>@result.DayCount @(result.DayCount == 1 ? "visit" : "visits") × @Money(result.DayCents) per day</p>
                     @if (Model.SingleVisit) { <p class="text-muted">One pass for your chosen date.</p> }
-                    else { <p class="text-muted">Planning total for separate one-day permits. Continue buys only the first planned day; future days need their own permits.</p> }
+                    else { <p class="text-muted">Pay once for the dates you choose. Each date gets its own one-day permit; future passes become valid on their printed dates.</p> }
                     @if (result.DayCents is not null)
                     {
-                        <button type="submit" form="planner-form" formaction="@Url.Action("Continue")" class="btn btn-outline-primary" name="choice" value="Daily">Start with one day pass</button>
+                        <button type="submit" form="planner-form" formaction="@Url.Action("Continue")" class="btn btn-outline-primary" name="choice" value="Daily">@(result.DayCount > 1 ? "Buy these dates" : "Start with one day pass")</button>
                         <p class="form-text mt-2">First day: @result.FirstVisit?.ToString("MMM d") · @Money(result.DayCents)</p>
                     }
                 </article>
@@ -130,7 +130,7 @@
         </details>
     </section>
 }
-<p class="text-muted mt-4">This is a Sandbox planning demo. Campus eligibility, holidays and availability need confirmation with the college. This comparison creates no order and reserves no parking. You review your vehicle and exact single-permit total before payment.</p>
+<p class="text-muted mt-4">This is a Sandbox planning demo. Campus eligibility, holidays and availability need confirmation with the college. This comparison creates no order and reserves no parking. You review your vehicle and exact total before payment.</p>
 @section Scripts {
     <script src="~/js/planner.js" asp-append-version="true" defer></script>
 }

@@ -77,7 +77,7 @@ public sealed class CollegeController : Controller
             .Where(a => a.Campus == fee.Campus)
             .ToListAsync(cancellationToken);
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "America/Los_Angeles"));
         var rows = students.Select(student =>
         {
             var mine = applications

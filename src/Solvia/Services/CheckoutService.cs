@@ -140,6 +140,8 @@ public sealed class CheckoutService
         // may have loaded them before another tab revised this application.
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         var application = await LoadAsync(applicationId, cancellationToken);
+        if (await _db.PrepaidPurchaseItems.AnyAsync(item => item.ApplicationId == applicationId, cancellationToken))
+            throw new CheckoutPricingException("This day pass belongs to one prepaid purchase. Pay from that purchase's review page.");
         await _db.Entry(application).ReloadAsync(cancellationToken);
         if (_db.Entry(application).State == EntityState.Detached)
             throw new KeyNotFoundException("That permit application was not found.");
@@ -291,7 +293,8 @@ public sealed class CheckoutService
         CancellationToken cancellationToken = default)
     {
         var application = await LoadAsync(applicationId, cancellationToken);
-
+        if (await _db.PrepaidPurchaseItems.AnyAsync(item => item.ApplicationId == applicationId, cancellationToken))
+            throw new CheckoutPricingException("This day pass belongs to one prepaid purchase. Pay from that purchase's review page.");
         if (application.Status == ApplicationStatus.Denied || application.PaymentStatus is
             PaymentStatus.Refunded or PaymentStatus.PartiallyRefunded or PaymentStatus.Expired)
             throw new InvalidOperationException("This application cannot accept a payment.");

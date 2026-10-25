@@ -1,5 +1,14 @@
 # Testing Solvia
 
+## Prepaid dated passes — October 24, 2026
+
+The [prepaid implementation and verification record](review/PREPAID-DATES-2026-10-24.md) describes one shared PayPal payment, separate dated permits, exact selected-date review, safe unpaid revision, price/identity guards, future validity and individual/combined PDFs.
+
+The final full backend run passed **854/854** checks. Two actual Sandbox purchases across student/public profiles and two colleges completed for **$12 in test funds**. Create/capture retries reused the same references; independent provider lookups found one capture per purchase. Four individual PDFs and two two-page packets passed content/reference validation. Anonymous public checks accepted both today's passes and rejected both tomorrow's passes until their dates. No wallet-popup approval, real-money payment, human-study result or physical-device certification is claimed.
+
+The initial backend attempt aborted at test-host connection; it produced no test results. The first executed full run passed 838/848 and exposed five direct-controller null-helper errors plus five obsolete rendered-copy/HTML-encoding expectations. After corrections, 848/848 passed; two further revision/CSRF checks and stronger child-payment assertions were added, then a complete 850/850 run passed. A final batch review added protection against receipt numbers already staged on sibling permits and four deterministic collision regressions; the final complete 854/854 run passed. Initial provider and browser harness corrections are preserved in the feature record. The 210-case desktop/mobile catalog is covered by the initial 205-pass run plus the final six-case targeted rerun (all six passed, including all five original failures). The **64 main smoke cases are a subset**. The final complete iPhone/iPad WebKit run passed **12/12** cases. This is an aggregate browser checkpoint, not a claim of one clean 222-case final run; retained failures and timeout/selector corrections are detailed in the feature record. Earlier checkpoints below remain historical evidence.
+
+
 ## Responsive home screen — October 24, 2026
 
 **30/30 TypeScript Playwright cases passed in one complete final run** using
@@ -62,7 +71,7 @@ the code itself is documented by PayPal. Raw results are
 this text change.
 
 <!-- DATE-ONLY-CHECKPOINT:BEGIN -->
-## Current date-only checkpoint - October 24, 2026
+## Historical date-only checkpoint - October 24, 2026
 
 Repeating confirmation now uses start/end dates and weekdays, with no visible or hidden Weeks control. Exact date counts, one-visit mode, revision, protected drafts, browser history and no-JavaScript paths remain covered. The current [repair record and walkthrough](review/DATE-ONLY-2026-10-24.md) and [allowlisted proof](review/Solvia-date-only-verification.json) identify the source and report hashes.
 

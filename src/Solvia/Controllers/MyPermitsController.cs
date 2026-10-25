@@ -35,16 +35,18 @@ public sealed class MyPermitsController : DemoControllerBase
 
     private readonly SolviaDbContext _db;
     private readonly PermitPdfService _pdf;
+    private readonly TimeProvider _clock;
 
     // PermitPdfService is stateless; the optional parameter keeps
     // this controller constructible before R0 wires the DI
     // registration (filed as a change request with this track) —
     // DI supplies the registered instance when one exists.
     public MyPermitsController(
-        SolviaDbContext db, PermitPdfService? pdfService = null)
+        SolviaDbContext db, PermitPdfService? pdfService = null, TimeProvider? clock = null)
     {
         _db = db;
         _pdf = pdfService ?? new PermitPdfService();
+        _clock = clock ?? TimeProvider.System;
     }
 
     // ==================================================================
@@ -58,31 +60,42 @@ public sealed class MyPermitsController : DemoControllerBase
         var applications = await _db.PermitApplications
             .Include(a => a.Vehicle)
             .Include(a => a.PermitType)
+            .Include(a => a.PrepaidItem).ThenInclude(item => item!.Purchase).ThenInclude(purchase => purchase!.Items)
             .Where(a => a.StudentId == student.Id)
             .OrderByDescending(a => a.SubmittedAtUtc)
             .ToListAsync(cancellationToken);
 
+        var today = TodayPacific();
+        var rows = applications.Select(application => ToRow(application, today)).ToList();
+        var shownPurchases = new HashSet<Guid>();
+        foreach (var row in rows.Where(row => row.PurchaseId.HasValue))
+        {
+            row.ShowPurchaseActions = shownPurchases.Add(row.PurchaseId!.Value);
+            row.ShowPayNow &= row.ShowPurchaseActions;
+        }
         var model = new MyPermitsViewModel
         {
             StudentName = student.DisplayName,
             TotalCount = applications.Count,
             PaidCount = applications.Count(
                 a => a.PaymentStatus == PaymentStatus.Paid),
-            PendingPaymentCount = applications.Count(CanPay),
-            Rows = applications.Select(ToRow).ToList(),
+            PendingPaymentCount = applications.Where(CanPay)
+                .Select(a => a.PrepaidItem is { } item ? "purchase:" + item.PurchaseId : "permit:" + a.Id)
+                .Distinct(StringComparer.Ordinal).Count(),
+            Rows = rows,
         };
 
         return View("/Views/Permits/My.cshtml", model);
     }
 
-    private static MyPermitRow ToRow(PermitApplication a)
+    private static MyPermitRow ToRow(PermitApplication a, DateOnly today)
     {
         var isLive = a.PaymentStatus is PaymentStatus.Paid or PaymentStatus.NotRequired;
-        var validity = PermitValidity.Check(a, DateOnly.FromDateTime(DateTime.Today));
+        var validity = PermitValidity.Check(a, today);
         var payment = PaymentWord(a.PaymentStatus);
         if (a.PriceCents > 0)
         {
-            payment += $" ({Money(a.PriceCents)})";
+            payment += a.PrepaidItem is null ? $" ({Money(a.PriceCents)})" : $" ({Money(a.PriceCents)} for this date)";
         }
 
         return new MyPermitRow
@@ -100,6 +113,10 @@ public sealed class MyPermitsController : DemoControllerBase
             IsLive = isLive,
             IsActive = validity.IsActive,
             ValidityReason = validity.Reason,
+            StatusDisplay = StatusDisplay(a, today, validity.IsActive),
+            PurchaseId = a.PrepaidItem?.PurchaseId,
+            PurchaseTotalDisplay = a.PurchaseTotalCents is { } total ? Money(total) : null,
+            PurchaseDayCount = a.PrepaidItem?.Purchase?.Items.Count,
             ShowPayNow = CanPay(a),
             ReceiptNumber = a.ReceiptNumber,
         };
@@ -128,7 +145,8 @@ public sealed class MyPermitsController : DemoControllerBase
         var isLive = application.PaymentStatus is
             PaymentStatus.Paid or PaymentStatus.NotRequired;
         var isFree = application.PaymentStatus == PaymentStatus.NotRequired;
-        var validity = PermitValidity.Check(application, DateOnly.FromDateTime(DateTime.Today));
+        var today = TodayPacific();
+        var validity = PermitValidity.Check(application, today);
 
         var model = new ReceiptViewModel
         {
@@ -136,6 +154,10 @@ public sealed class MyPermitsController : DemoControllerBase
             IsLive = isLive,
             IsActive = validity.IsActive,
             ValidityReason = validity.Reason,
+            StatusDisplay = StatusDisplay(application, today, validity.IsActive),
+            PurchaseId = application.PrepaidItem?.PurchaseId,
+            PurchaseTotalDisplay = application.PurchaseTotalCents is { } total ? Money(total) : null,
+            PurchaseDayCount = application.PrepaidItem?.Purchase?.Items.Count,
             CanPay = CanPay(application),
             IsFree = isFree,
             ReceiptNumber = application.ReceiptNumber,
@@ -151,8 +173,8 @@ public sealed class MyPermitsController : DemoControllerBase
                     ? "EXEMPT (Employee)"
                     : "$0 — FREE"
                 : Money(application.PriceCents),
-            PayPalOrderId = application.PayPalOrderId,
-            PayPalCaptureId = application.PayPalCaptureId,
+            PayPalOrderId = application.PaymentOrderReference,
+            PayPalCaptureId = application.PaymentCaptureReference,
             VerifyUrl = application.VerifyToken is null
                 ? null
                 : $"{Request.Scheme}://{Request.Host}/verify?t=" +
@@ -178,6 +200,7 @@ public sealed class MyPermitsController : DemoControllerBase
             .Include(a => a.Vehicle)
             .Include(a => a.PermitType)
             .Include(a => a.Student)
+            .Include(a => a.PrepaidItem).ThenInclude(item => item!.Purchase).ThenInclude(purchase => purchase!.Items)
             .SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
         if (application is null)
         {
@@ -198,7 +221,7 @@ public sealed class MyPermitsController : DemoControllerBase
                 StatusCode = StatusCodes.Status400BadRequest,
                 ContentType = "text/plain; charset=utf-8",
                 Content =
-                    "This permit is not live yet, so there is no permit " +
+                    "This permit is not issued yet, so there is no permit " +
                     "PDF to download. The PDF is available only after " +
                     "payment is completed (or a free permit is issued). " +
                     "Finish paying first, then download your permit.",
@@ -223,6 +246,7 @@ public sealed class MyPermitsController : DemoControllerBase
         return await _db.PermitApplications
             .Include(a => a.Vehicle)
             .Include(a => a.PermitType)
+            .Include(a => a.PrepaidItem).ThenInclude(item => item!.Purchase).ThenInclude(purchase => purchase!.Items)
             .SingleOrDefaultAsync(
                 a => a.Id == id && a.StudentId == student.Id, cancellationToken);
     }
@@ -237,7 +261,24 @@ public sealed class MyPermitsController : DemoControllerBase
 
     private static bool CanPay(PermitApplication app) => app.Status != ApplicationStatus.Denied &&
         app.Category != UserCategory.Employee && app.PriceCents > 0 &&
-        app.PaymentStatus is PaymentStatus.Pending or PaymentStatus.Failed;
+        app.PaymentStatus is PaymentStatus.Pending or PaymentStatus.Failed &&
+        (app.PrepaidItem?.Purchase is not { } purchase ||
+            purchase.PaymentStatus is PaymentStatus.Pending or PaymentStatus.Failed);
+
+    private DateOnly TodayPacific() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_clock.GetUtcNow(), PacificZone).DateTime);
+
+    private static string StatusDisplay(PermitApplication app, DateOnly today, bool active)
+    {
+        if (active) return "Valid today";
+        var issued = app.PaymentStatus is PaymentStatus.Paid or PaymentStatus.NotRequired;
+        if (issued && app.Status != ApplicationStatus.Denied)
+        {
+            var payment = app.PaymentStatus == PaymentStatus.Paid ? "Paid" : "Issued";
+            if (today < app.StartDate) return "Upcoming · " + payment;
+            if (today > app.EndDate) return "Expired · " + payment;
+        }
+        return issued ? "Issued · inactive" : CanPay(app) ? "Payment due" : PaymentWord(app.PaymentStatus);
+    }
 
     private static string Pacific(DateTime utc) =>
         TimeZoneInfo.ConvertTimeFromUtc(

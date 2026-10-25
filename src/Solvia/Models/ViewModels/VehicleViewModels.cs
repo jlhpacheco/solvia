@@ -21,6 +21,7 @@ namespace Solvia.Models.ViewModels;
 /// </summary>
 public sealed class VehicleEditViewModel
 {
+    [StringLength(12000)] public string? ReturnUrl { get; set; }
     /// <summary>The vehicle being edited; empty on the Create form.</summary>
     public Guid Id { get; set; }
 

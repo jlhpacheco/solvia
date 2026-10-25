@@ -1,0 +1,14 @@
+.sv-prepaid { max-inline-size: 62rem; margin-inline: auto; }
+.sv-prepaid .sv-eyebrow { font-size: .75rem; line-height: 1.7; }
+.sv-prepaid-dates { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .65rem; list-style: none; padding: 0; margin-block: 1rem; }
+.sv-prepaid-dates label, .sv-prepaid-dates li { display: flex; align-items: center; gap: .65rem; min-block-size: 3rem; border: 1px solid #9baec8; border-radius: .7rem; padding: .7rem; }
+.sv-prepaid-dates label { cursor: pointer; }
+.sv-prepaid-dates input { inline-size: 1.2rem; block-size: 1.2rem; accent-color: #087e82; flex-shrink: 0; }
+.sv-prepaid-dates label:has(:checked) { background: #e8f6f3; border-color: #087e82; }
+.sv-prepaid-dates label:focus-within { outline: 3px solid #2760cc; outline-offset: 2px; }
+.sv-prepaid-price { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-block: 1rem; padding-block: 1rem; border-block: 1px solid #dce3ef; }
+.sv-prepaid-price strong { font-size: 1.6rem; }
+.sv-prepaid-references dd { overflow-wrap: anywhere; }
+.sv-prepaid-passes { padding: 0; list-style: none; display: grid; gap: 1rem; margin-block: 1rem; }
+.sv-prepaid .btn, .sv-prepaid select { min-block-size: 3rem; font-size: 1rem; }
+@media (max-width: 36rem) { .sv-prepaid .btn { display: block; inline-size: 100%; margin-block: .5rem; } .sv-prepaid .sv-card { padding: 1rem; } }
