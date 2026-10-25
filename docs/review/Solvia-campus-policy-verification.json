@@ -1,0 +1,86 @@
+{
+  "recordedAtUtc": "2026-10-25T05:43:29.145589+00:00",
+  "scope": "Selected-college policy notes and preserved form state",
+  "sourceSha256": {
+    "src/Solvia/Controllers/PermitsController.cs": "3403123f5a124b1b221630505674b74e72a6d9b4d92c162e165d531e053ea1f3",
+    "src/Solvia/Controllers/PlannerController.cs": "400c662a2ff26fd974d7012bcf0deb841daac3b1cd12a5043ae8686d835e2c80",
+    "src/Solvia/Views/Permits/Apply.cshtml": "75029a7d6d07482fbe0a02b29dbb021893baa247f07d9d5658a9c5fc20217845",
+    "src/Solvia/Views/Planner/Index.cshtml": "604bbbaa11cc3eded641d4b1f0bb1669d6f5d44c48bd53a0d0c3f4bcb8f375e7",
+    "src/Solvia/Views/Shared/_MJCPolicyNote.cshtml": "9195b1f6b0e15afb1c758685af4f1c747dc32a5ab0adbace0671558cf4b5a6ff",
+    "src/Solvia/Views/Shared/_SelectedCampusPolicy.cshtml": "84aeb54e227a26b6202532de7ed99be5aa5f1f55b844961547324e5dec29fc86",
+    "src/Solvia/wwwroot/js/campus-policy.js": "cd7f84a35fcfeaf65fdfb29b853c21cec82968fd095ce6f2941068867b5034f7",
+    "src/Solvia/wwwroot/js/planner.js": "d69ed946e30d8fd547645b2406d916e3347940224a13a9cd564c29f3a8063408",
+    "tests/Solvia.Tests/CampusPolicyIntegrationTests.cs": "01fd4f71e3255f7229821e5ef1be85aa174d0770ce0928f622ce3d580d183fd7",
+    "tests/e2e/campus-policy.spec.ts": "cc10a65c17a8170095e6824a352cc59bd74abd2a87181211ecce6a933686de23",
+    "tests/e2e/planner.spec.ts": "488e61b101aaeb20310140158e16116df6febf1ec4ba2218b9925bcdeaa27cc5"
+  },
+  "backend": {
+    "passed": 920,
+    "failed": 0,
+    "skipped": 0,
+    "report": ".playwright-data/campus-policy/backend/campus-policy-final.trx",
+    "sha256": "6ea7d1bf3ef20babade250f03e98e9bf946cea203665d10d3c9457b5424706f4"
+  },
+  "controlledBrowsers": {
+    "distinctCasesCovered": 30,
+    "unresolvedCases": 0,
+    "smokeSubset": 8,
+    "projects": {
+      "desktop-chromium": 10,
+      "mobile-chromium": 10,
+      "iphone-webkit-emulated": 5,
+      "ipad-webkit-emulated": 5
+    },
+    "runs": [
+      {
+        "report": ".playwright-data/campus-policy/browser-initial.json",
+        "sha256": "f59f4aee16d87db8215859ac53b11da78be5f58fd3f931885d4f4adc2edf0479",
+        "passed": 18,
+        "failed": 2,
+        "skipped": 0,
+        "flaky": 0,
+        "runnerDurationMs": 572403.004
+      },
+      {
+        "report": ".playwright-data/campus-policy/apple-initial.json",
+        "sha256": "f09334d3bab689bf05db9467533c247a30d16c24ec5b9f34fd104942c149b3c3",
+        "passed": 7,
+        "failed": 3,
+        "skipped": 0,
+        "flaky": 0,
+        "runnerDurationMs": 924853.704
+      },
+      {
+        "report": ".playwright-data/campus-policy/browser-targeted.json",
+        "sha256": "2538852eb9bbc12db21743a6cb0d20429b8063cb0d8ed135ac3cb32858f6b89c",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "flaky": 0,
+        "runnerDurationMs": 120004.967
+      },
+      {
+        "report": ".playwright-data/campus-policy/apple-targeted.json",
+        "sha256": "db51c9e4473bced0a8cadff838ae856695a2db015b1e77e3a2507a5bc06c72cb",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "flaky": 0,
+        "runnerDurationMs": 160446.344
+      }
+    ],
+    "aggregation": "Initial focused runs plus targeted reruns; this is not one clean 30-case final run."
+  },
+  "initialCorrections": [
+    "Seeded an owned fictional vehicle before new backend fixture snapshots; production seeds unchanged.",
+    "Changed the browser scenario to leave an actually different unsent campus before Back, instead of hiding matching prices.",
+    "Raised only the exhaustive all-ten-colleges journey budgets to 180 seconds after a cumulative iPhone timeout; assertion deadlines remain 10 seconds."
+  ],
+  "newRealProviderCalls": 0,
+  "newRealPayPalOrdersOrCaptures": 0,
+  "limitations": [
+    "The broader browser catalog was not rerun.",
+    "WebKit device projects are emulations, not physical-device certification.",
+    "Accessible descriptions are browser assertions, not a human screen-reader study."
+  ]
+}

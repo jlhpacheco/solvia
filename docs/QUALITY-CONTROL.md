@@ -1,5 +1,24 @@
 # Solvia quality control process
 
+## Selected-school policy regression — October 24, 2026
+
+A screenshot exposed an unconditional MJC note in the planner and classic
+form. Separate agent work reviewed the shared policy scope and history
+ordering, added MVC invariants, and exercised all ten college choices in
+TypeScript browsers. Both forms now update school help without inference or
+purchase submission; protected no-JavaScript refresh actions retain answers.
+The note also distinguishes MJC's source from Columbia's own rules.
+
+The final full backend run passed **920/920**, with **30 distinct focused
+browser identities covered through initial and targeted runs**. Eight smoke
+checks are a subset. The final five affected browser reruns passed; earlier
+fixture/scenario mistakes and the iPhone cumulative-budget failure remain in
+the [repair record](review/CAMPUS-POLICY-2026-10-24.md) and
+[source/report evidence](review/Solvia-campus-policy-verification.json).
+No production code changed for those browser-harness corrections. Device
+emulation and accessible-description assertions are not physical-device or
+human screen-reader certification. No new actual model/payment call is claimed.
+
 ## Month-end schedule regression — October 24, 2026
 
 A user screenshot became an exact reproducible sentence: October 26 through

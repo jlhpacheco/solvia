@@ -158,6 +158,25 @@ public sealed class PlannerController(SolviaDbContext db, IFeeCatalog catalog,
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateCampus(PlannerViewModel model, string? draftOwner,
+        CancellationToken cancellationToken)
+    {
+        await Populate(model, cancellationToken);
+        if (!IsCurrentOwner(model, draftOwner)) return StalePerson();
+        if (catalog.Find(model.Campus ?? "") is not { } selected)
+            ModelState.AddModelError(nameof(model.Campus), "Please pick a college from the list.");
+        else
+        {
+            model.Campus = selected.Campus;
+            ModelState.Remove(nameof(model.Campus));
+        }
+        NormalizeSchedule(model);
+        if (!ModelState.IsValid) return View("Index", model);
+        SaveDraft(model);
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SetVisitType(PlannerViewModel model, string? draftOwner,
         CancellationToken cancellationToken)
     {

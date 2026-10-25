@@ -1,0 +1,9 @@
+@model string
+@{
+    const string policyCampus = "Modesto Junior College / Columbia College / YCCD";
+}
+<div id="selected-campus-policy" data-campus-policy data-campus-select="Campus" data-policy-campus="@policyCampus" role="status">
+    <div data-campus-policy-message hidden="@(Model != policyCampus)">
+        <partial name="_MJCPolicyNote" />
+    </div>
+</div>

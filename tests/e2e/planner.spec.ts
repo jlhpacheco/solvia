@@ -261,7 +261,7 @@ test('browser Back preserves unsent planner edits and invalidates the old compar
   await page.getByLabel('Describe your visits', { exact: false }).fill('My revised fictional visits');
   await page.getByLabel('Monday', { exact: true }).check();
   await expect(page.getByTestId('plan-result')).toBeHidden();
-  await expect(page.getByRole('status')).toContainText('Your schedule changed');
+  await expect(page.locator('#plan-edited')).toContainText('Your schedule changed');
   await page.getByRole('link', { name: 'My permits', exact: true }).first().click();
   await page.goBack();
   await expect(page.getByLabel('End date', { exact: true })).toHaveValue(endAfterWeeks(iso, 5));

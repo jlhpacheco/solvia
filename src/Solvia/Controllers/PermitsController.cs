@@ -90,6 +90,24 @@ public sealed class PermitsController : DemoControllerBase
         return View(model);
     }
 
+    // Refresh school information without submitting an application or reading AI.
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateCampus(ApplyViewModel form, CancellationToken cancellationToken)
+    {
+        var student = await CurrentStudentAsync(_db, cancellationToken);
+        var model = await BuildApplyModelAsync(student, cancellationToken);
+        model.Campus = _catalog.Find(form.Campus ?? "")?.Campus ?? form.Campus;
+        model.VehicleId = form.VehicleId;
+        model.PermitTypeId = form.PermitTypeId;
+        model.Term = form.Term;
+        model.StartDate = form.StartDate;
+        if (_catalog.Find(form.Campus ?? "") is null)
+            model.Errors.Add("Please pick a college from the list.");
+        model.Errors.AddRange(ModelState.Values.SelectMany(value => value.Errors).Select(error =>
+            string.IsNullOrWhiteSpace(error.ErrorMessage) ? "Check the form for an invalid entry." : error.ErrorMessage));
+        return View("Apply", model);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Apply(

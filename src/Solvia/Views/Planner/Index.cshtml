@@ -27,10 +27,12 @@
     <input type="hidden" name="draftOwner" value="@Model.PersonId" />
     <div class="mb-4">
         <label for="Campus" class="form-label fw-bold">Your college</label>
-        <select asp-for="Campus" class="form-select" required>
+        <select asp-for="Campus" class="form-select" required aria-describedby="selected-campus-policy">
             @foreach (var campus in Model.Campuses) { <option value="@campus">@campus</option> }
         </select>
-        <partial name="_MJCPolicyNote" />
+        <partial name="_SelectedCampusPolicy" model="Model.Campus" />
+        <button type="submit" formaction="@Url.Action("UpdateCampus")" formnovalidate class="btn btn-outline-primary mt-2" data-update-campus>Update college information</button>
+        <p class="form-text" data-campus-update-help>After choosing a college, update its information here. Your schedule stays on this form.</p>
     </div>
     <div class="sv-planner-reader">
         <label for="ScheduleText" class="form-label fw-bold">Describe your visits <span class="fw-normal">(optional)</span></label>
@@ -133,4 +135,5 @@
 <p class="text-muted mt-4">This is a Sandbox planning demo. Campus eligibility, holidays and availability need confirmation with the college. This comparison creates no order and reserves no parking. You review your vehicle and exact total before payment.</p>
 @section Scripts {
     <script src="~/js/planner.js" asp-append-version="true" defer></script>
+    <script src="~/js/campus-policy.js" asp-append-version="true" defer></script>
 }

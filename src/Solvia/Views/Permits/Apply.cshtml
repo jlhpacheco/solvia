@@ -49,14 +49,16 @@ else
 
             <div class="mb-3">
                 <label class="form-label fs-4" for="Campus">College</label>
-                <select class="form-select form-select-lg" id="Campus" name="Campus">
+                <select class="form-select form-select-lg" id="Campus" name="Campus" aria-describedby="selected-campus-policy">
                     <option value="">— pick your college —</option>
                     @foreach (var campus in Model.Campuses)
                     {
                         <option value="@campus" selected="@(Model.Campus == campus)">@campus</option>
                     }
                 </select>
-                <partial name="_MJCPolicyNote" />
+                <partial name="_SelectedCampusPolicy" model="@(Model.Campus ?? string.Empty)" />
+                <button type="submit" formaction="@Url.Action("UpdateCampus")" formnovalidate class="btn btn-outline-primary mt-2" data-update-campus>Update college information</button>
+                <p class="form-text" data-campus-update-help>After choosing a college, update its information here. Your other answers stay on this form.</p>
             </div>
 
             <div class="mb-3">
@@ -93,8 +95,7 @@ else
 
             <div class="mb-3">
                 <label class="form-label fs-4" for="StartDate">Start date</label>
-                <input class="form-control form-control-lg" type="date" id="StartDate" name="StartDate"
-                       value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+                <input asp-for="StartDate" class="form-control form-control-lg" type="date" />
             </div>
 
             <button type="submit" class="btn btn-primary sv-cta w-100 mt-2">Submit Application</button>
@@ -124,6 +125,7 @@ else
 }
 
 @section Scripts {
+    <script src="~/js/campus-policy.js" asp-append-version="true" defer></script>
     <script>
         // The Term pick matters only for term permits; hide it for day passes.
         (function () {

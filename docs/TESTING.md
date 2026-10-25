@@ -1,5 +1,20 @@
 # Testing Solvia
 
+## Selected-college policy notes — October 24, 2026
+
+The [school-switch repair record](review/CAMPUS-POLICY-2026-10-24.md) and
+[sanitized evidence](review/Solvia-campus-policy-verification.json) cover the
+MJC note incorrectly shown under unrelated colleges. **920/920 backend
+checks passed in the final full run**, including 15 new integration cases.
+**30 distinct focused TypeScript browser cases are covered** through initial
+runs and final targeted reruns: 10 desktop, 10 phone, five iPhone WebKit and
+five iPad WebKit emulations. **Eight smoke cases are a subset** of those 30.
+The final five affected reruns passed; this is an aggregate checkpoint, not
+one clean 30-case final run. Initial fixture, scenario and cumulative-budget
+failures remain documented. Production code did not change for the browser
+harness corrections. TypeScript and diff checks passed. The broader browser
+catalog was not rerun; no new actual AI request or PayPal capture occurred.
+
 ## Month-end schedule reading — October 24, 2026
 
 The [month-end repair record](review/MONTH-END-2026-10-24.md) and
